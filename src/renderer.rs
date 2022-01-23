@@ -1,11 +1,15 @@
 use winit::window::Window;
 
+use crate::camera;
+use crate::model::{self, DrawModel};
+
 pub struct Renderer {
-    surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
+    pub surface: wgpu::Surface,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub config: wgpu::SurfaceConfiguration,
+    pub size: winit::dpi::PhysicalSize<u32>,
+    pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl Renderer {
@@ -50,6 +54,7 @@ impl Renderer {
             queue,
             config,
             size,
+            pipeline: None,
         }
     }
 
@@ -63,7 +68,11 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(
+        &mut self,
+        model: &model::Model,
+        render_camera: &camera::RenderCamera,
+    ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -75,7 +84,7 @@ impl Renderer {
             });
 
         {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -92,10 +101,81 @@ impl Renderer {
                 }],
                 depth_stencil_attachment: None,
             });
+
+            if let Some(pipeline) = &self.pipeline {
+                render_pass.set_pipeline(pipeline);
+                render_pass.draw_model_instanced(
+                    model,
+                    0..1,
+                    &render_camera.bind_group,
+                );
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())
+    }
+
+    pub fn create_render_pipeline(
+        &mut self,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+        vertex_layouts: &[wgpu::VertexBufferLayout],
+    ) {
+        let layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline descriptor"),
+                bind_group_layouts,
+                push_constant_ranges: &[],
+            });
+
+        let shader = wgpu::ShaderModuleDescriptor {
+            label: Some("Normal Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
+        };
+
+        let shader = self.device.create_shader_module(&shader);
+
+        let pipeline = self
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: vertex_layouts,
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: self.config.format,
+                        blend: Some(wgpu::BlendState {
+                            alpha: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+        self.pipeline = Some(pipeline);
     }
 }
