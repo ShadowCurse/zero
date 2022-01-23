@@ -19,7 +19,7 @@ fn main() {
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
 
-    let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
+    let model = model::Model::load(&renderer, "./res/new_rifle.obj").unwrap();
 
     let mut camera = camera::Camera::new(
         (0.0, 5.0, 10.0),
@@ -31,10 +31,10 @@ fn main() {
         0.1,
         100.0,
     );
-
     let mut camera_controller = camera::CameraController::new(5.0, 0.4);
-
     let mut render_camera = camera::RenderCamera::new(&renderer, &camera);
+
+    let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
 
     renderer.create_render_pipeline(
         &[&model.bind_group_layout, &render_camera.bind_group_layout],
@@ -77,11 +77,15 @@ fn main() {
                 } => *control_flow = ControlFlow::Exit,
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
-                    renderer.resize(Some(*physical_size))
+                    renderer.resize(Some(*physical_size));
+                    depth_texture =
+                        texture::Texture::create_depth_texture(&renderer, "depth_texture");
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
+                    depth_texture =
+                        texture::Texture::create_depth_texture(&renderer, "depth_texture");
                 }
                 _ => {}
             },
@@ -93,7 +97,7 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
-                match renderer.render(&model, &render_camera) {
+                match renderer.render(&model, &render_camera, &depth_texture) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,

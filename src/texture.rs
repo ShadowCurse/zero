@@ -2,6 +2,8 @@ use anyhow::{Ok, Result};
 use image::GenericImageView;
 use std::path::Path;
 
+use crate::renderer;
+
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -15,6 +17,8 @@ pub enum TextureType {
 }
 
 impl Texture {
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
     pub fn load<P: AsRef<Path>>(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -103,13 +107,12 @@ impl Texture {
     }
 
     pub fn create_depth_texture(
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        renderer: &renderer::Renderer,
         label: &str,
     ) -> Self {
         let size = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
+            width: renderer.config.width,
+            height: renderer.config.height,
             depth_or_array_layers: 1,
         };
         let desc = wgpu::TextureDescriptor {
@@ -121,10 +124,10 @@ impl Texture {
             format: Self::DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         };
-        let texture = device.create_texture(&desc);
+        let texture = renderer.device.create_texture(&desc);
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,

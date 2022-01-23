@@ -103,38 +103,39 @@ impl Model {
         let containing_folder = path.as_ref().parent().context("Directory has no parent")?;
 
         let mut materials = Vec::new();
-        for mat in obj_materials {
-            let diffuse_path = containing_folder.join(mat.diffuse_texture);
-            println!("loading materials from: {:#?}", diffuse_path);
-            let diffuse_texture = texture::Texture::load(
-                &renderer.device,
-                &renderer.queue,
-                diffuse_path,
-                texture::TextureType::Diffuse,
-            )?;
+        // println!("{:#?}", obj_materials);
+            for mat in obj_materials {
+                let diffuse_path = containing_folder.join(mat.diffuse_texture);
+                // println!("loading materials from: {:#?}", diffuse_path);
+                let diffuse_texture = texture::Texture::load(
+                    &renderer.device,
+                    &renderer.queue,
+                    diffuse_path,
+                    texture::TextureType::Diffuse,
+                )?;
 
-            let bind_group = renderer
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &bind_group_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                        },
-                    ],
-                    label: None,
+                let bind_group = renderer
+                    .device
+                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                        layout: &bind_group_layout,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                            },
+                        ],
+                        label: None,
+                    });
+
+                materials.push(Material {
+                    name: mat.name,
+                    diffuse_texture,
+                    bind_group,
                 });
-
-            materials.push(Material {
-                name: mat.name,
-                diffuse_texture,
-                bind_group,
-            });
         }
 
         let mut meshes = Vec::new();
@@ -147,7 +148,7 @@ impl Model {
                         m.mesh.positions[i * 3 + 1],
                         m.mesh.positions[i * 3 + 2],
                     ],
-                    tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
+                    tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                     normal: [
                         m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],

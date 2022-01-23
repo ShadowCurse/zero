@@ -1,6 +1,7 @@
 use winit::window::Window;
 
 use crate::camera;
+use crate::texture;
 use crate::model::{self, DrawModel};
 
 pub struct Renderer {
@@ -72,6 +73,7 @@ impl Renderer {
         &mut self,
         model: &model::Model,
         render_camera: &camera::RenderCamera,
+        depth_texture: &texture::Texture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -99,16 +101,19 @@ impl Renderer {
                         store: true,
                     },
                 }],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                            view: &depth_texture.view,
+        depth_ops: Some(wgpu::Operations {
+            load: wgpu::LoadOp::Clear(1.0),
+            store: true,
+        }),
+        stencil_ops: None,
+                }),
             });
 
             if let Some(pipeline) = &self.pipeline {
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw_model_instanced(
-                    model,
-                    0..1,
-                    &render_camera.bind_group,
-                );
+                render_pass.draw_model_instanced(model, 0..1, &render_camera.bind_group);
             }
         }
 
@@ -168,7 +173,13 @@ impl Renderer {
                     unclipped_depth: false,
                     conservative: false,
                 },
-                depth_stencil: None,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: texture::Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
                 multisample: wgpu::MultisampleState {
                     count: 1,
                     mask: !0,
