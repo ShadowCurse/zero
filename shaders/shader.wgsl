@@ -63,11 +63,12 @@ fn vs_main(
     instance.scale_3,
   );
 
-    var world_position = translation * rotation * scale * vec4<f32>(vertex.position, 1.0);
+    var transform = translation * rotation * scale;
+    var world_position = transform * vec4<f32>(vertex.position, 1.0);
     var world_normal = rotation * vec4<f32>(vertex.normal, 1.0);
 
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * vec4<f32>(vertex.position, 1.0);
+    out.clip_position = transform * camera.view_proj * vec4<f32>(vertex.position, 1.0);
     out.tex_coords = vertex.tex_coords;
     out.world_position = world_position.xyz;
     out.world_normal = world_normal.xyz;
