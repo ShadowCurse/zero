@@ -1,6 +1,8 @@
 use anyhow::{Context, Ok, Result};
 use wgpu::util::DeviceExt;
+use wgpu::vertex_attr_array;
 
+use crate::camera;
 use crate::renderer;
 use crate::texture;
 
@@ -42,9 +44,105 @@ impl Vertex for ModelVertex {
     }
 }
 
+pub struct Transform {
+    pub translation: cgmath::Vector3<f32>,
+    pub rotation: cgmath::Quaternion<f32>,
+    pub scale: cgmath::Vector3<f32>,
+}
+
+impl Transform {
+    pub fn to_raw(&self) -> TransformRaw {
+        TransformRaw {
+            translation: cgmath::Matrix4::from_translation(self.translation).into(),
+            rotation: cgmath::Matrix4::from(self.rotation).into(),
+            scale: cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z).into(),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TransformRaw {
+    translation: [[f32; 4]; 4],
+    rotation: [[f32; 4]; 4],
+    scale: [[f32; 4]; 4],
+}
+
+impl TransformRaw {
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 7,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    shader_location: 8,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                    shader_location: 9,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
+                    shader_location: 10,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 24]>() as wgpu::BufferAddress,
+                    shader_location: 11,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 28]>() as wgpu::BufferAddress,
+                    shader_location: 12,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 32]>() as wgpu::BufferAddress,
+                    shader_location: 13,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 36]>() as wgpu::BufferAddress,
+                    shader_location: 14,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 40]>() as wgpu::BufferAddress,
+                    shader_location: 15,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 44]>() as wgpu::BufferAddress,
+                    shader_location: 16,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ],
+        }
+    }
+}
+
 pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
+    pub normal_texture: texture::Texture,
     pub bind_group: wgpu::BindGroup,
 }
 
@@ -94,8 +192,24 @@ impl Model {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
                     ],
-                    label: Some("Texture bind group layout"),
+                    label: Some("texture_bind_group_layout"),
                 });
 
         let obj_materials = obj_materials?;
@@ -104,38 +218,56 @@ impl Model {
 
         let mut materials = Vec::new();
         // println!("{:#?}", obj_materials);
-            for mat in obj_materials {
-                let diffuse_path = containing_folder.join(mat.diffuse_texture);
-                // println!("loading materials from: {:#?}", diffuse_path);
-                let diffuse_texture = texture::Texture::load(
-                    &renderer.device,
-                    &renderer.queue,
-                    diffuse_path,
-                    texture::TextureType::Diffuse,
-                )?;
+        for mat in obj_materials {
+            let diffuse_path = containing_folder.join(mat.diffuse_texture);
+            // println!("loading materials from: {:#?}", diffuse_path);
+            let diffuse_texture = texture::Texture::load(
+                &renderer.device,
+                &renderer.queue,
+                diffuse_path,
+                texture::TextureType::Diffuse,
+            )?;
 
-                let bind_group = renderer
-                    .device
-                    .create_bind_group(&wgpu::BindGroupDescriptor {
-                        layout: &bind_group_layout,
-                        entries: &[
-                            wgpu::BindGroupEntry {
-                                binding: 0,
-                                resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                            },
-                            wgpu::BindGroupEntry {
-                                binding: 1,
-                                resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                            },
-                        ],
-                        label: None,
-                    });
+            let normal_path = containing_folder.join(mat.normal_texture);
+            // println!("loading materials from: {:#?}", diffuse_path);
+            let normal_texture = texture::Texture::load(
+                &renderer.device,
+                &renderer.queue,
+                normal_path,
+                texture::TextureType::Normal,
+            )?;
 
-                materials.push(Material {
-                    name: mat.name,
-                    diffuse_texture,
-                    bind_group,
+            let bind_group = renderer
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(&normal_texture.view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: wgpu::BindingResource::Sampler(&normal_texture.sampler),
+                        },
+                    ],
+                    label: None,
                 });
+
+            materials.push(Material {
+                name: mat.name,
+                diffuse_texture,
+                normal_texture,
+                bind_group,
+            });
         }
 
         let mut meshes = Vec::new();
@@ -193,13 +325,13 @@ impl Model {
 }
 
 pub trait DrawModel<'a> {
-    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a wgpu::BindGroup);
+    fn draw_model(&mut self, model: &'a Model, camera: &'a camera::RenderCamera);
 
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         instances: std::ops::Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
+        camera: &'a camera::RenderCamera,
     );
 
     fn draw_mesh(
@@ -222,19 +354,19 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_model(&mut self, model: &'a Model, camera_bind_group: &'a wgpu::BindGroup) {
-        self.draw_model_instanced(model, 0..1, camera_bind_group);
+    fn draw_model(&mut self, model: &'a Model, camera: &'a camera::RenderCamera) {
+        self.draw_model_instanced(model, 0..1, camera);
     }
 
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         instances: std::ops::Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
+        camera: &'a camera::RenderCamera,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, instances.clone(), camera_bind_group);
+            self.draw_mesh_instanced(mesh, material, instances.clone(), &camera.bind_group);
         }
     }
 

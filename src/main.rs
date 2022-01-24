@@ -3,6 +3,8 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+use cgmath::prelude::*;
+use wgpu::util::DeviceExt;
 
 mod camera;
 mod model;
@@ -21,6 +23,18 @@ fn main() {
 
     let model = model::Model::load(&renderer, "./res/new_rifle.obj").unwrap();
 
+    let transform = vec![model::Transform {
+        translation: (0.0, 0.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    }
+    .to_raw()];
+    let instance_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("instance_buffer"),
+        contents: bytemuck::cast_slice(&transform),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+
     let mut camera = camera::Camera::new(
         (0.0, 5.0, 10.0),
         cgmath::Deg(-90.0),
@@ -38,7 +52,7 @@ fn main() {
 
     renderer.create_render_pipeline(
         &[&model.bind_group_layout, &render_camera.bind_group_layout],
-        &[model::ModelVertex::desc()],
+        &[model::ModelVertex::desc(), model::TransformRaw::desc()],
     );
 
     let mut last_render_time = std::time::Instant::now();
@@ -97,7 +111,7 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
-                match renderer.render(&model, &render_camera, &depth_texture) {
+                match renderer.render(&model, &instance_buffer, &render_camera, &depth_texture) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,

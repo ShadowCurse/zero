@@ -72,6 +72,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         model: &model::Model,
+        instance_buffer: &wgpu::Buffer,
         render_camera: &camera::RenderCamera,
         depth_texture: &texture::Texture,
     ) -> Result<(), wgpu::SurfaceError> {
@@ -112,8 +113,9 @@ impl Renderer {
             });
 
             if let Some(pipeline) = &self.pipeline {
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw_model_instanced(model, 0..1, &render_camera.bind_group);
+                render_pass.draw_model(model, render_camera);
             }
         }
 
@@ -130,13 +132,13 @@ impl Renderer {
         let layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline descriptor"),
+                label: Some("render_pipeline_descriptor"),
                 bind_group_layouts,
                 push_constant_ranges: &[],
             });
 
         let shader = wgpu::ShaderModuleDescriptor {
-            label: Some("Normal Shader"),
+            label: Some("default_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
         };
 
@@ -145,7 +147,7 @@ impl Renderer {
         let pipeline = self
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
+                label: Some("render_pipeline"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
