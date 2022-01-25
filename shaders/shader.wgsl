@@ -68,7 +68,7 @@ fn vs_main(
     var world_normal = rotation * vec4<f32>(vertex.normal, 1.0);
 
     var out: VertexOutput;
-    out.clip_position = transform * camera.view_proj * vec4<f32>(vertex.position, 1.0);
+    out.clip_position = camera.view_proj * transform * vec4<f32>(vertex.position, 1.0);
     out.tex_coords = vertex.tex_coords;
     out.world_position = world_position.xyz;
     out.world_normal = world_normal.xyz;
@@ -95,7 +95,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let ambient_strength = 0.01;
   let ambient_color = vec3<f32>(1.0, 1.0, 1.0) * ambient_strength;
 
-  let light_dir = normalize(camera.view_pos.xyz - vertex.world_position);
+  let light_dir = normalize(vec3<f32>(5.0, 0.0, 0.0) - vertex.world_position);
   let view_dir = normalize(camera.view_pos.xyz - vertex.world_position);
   let half_dir = normalize(view_dir + light_dir);
 

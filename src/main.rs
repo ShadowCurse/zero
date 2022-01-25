@@ -21,18 +21,17 @@ fn main() {
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
 
-    let model = model::Model::load(&renderer, "./res/new_rifle.obj").unwrap();
+    let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
 
-    let transform = vec![model::Transform {
+    let mut transform = model::Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
-    }
-    .to_raw()];
+    };
     let instance_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("instance_buffer"),
-        contents: bytemuck::cast_slice(&transform),
-        usage: wgpu::BufferUsages::VERTEX,
+        contents: bytemuck::cast_slice(&vec![transform.to_raw()]),
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
 
     let mut camera = camera::Camera::new(
@@ -110,6 +109,11 @@ fn main() {
 
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
+
+                transform.rotation = transform.rotation * cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(dt.as_secs_f32() * 5.0));
+                renderer
+                    .queue
+                    .write_buffer(&instance_buffer, 0, bytemuck::cast_slice(&[transform.to_raw()]));
 
                 match renderer.render(&model, &instance_buffer, &render_camera, &depth_texture) {
                     Ok(_) => {}
