@@ -28,9 +28,15 @@ fn main() {
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
+
+    let light_transform = model::Transform {
+        translation: (5.0, 5.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (0.5, 0.5, 0.5).into(),
+    };
     let instance_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("instance_buffer"),
-        contents: bytemuck::cast_slice(&vec![transform.to_raw()]),
+        contents: bytemuck::cast_slice(&vec![transform.to_raw(), light_transform.to_raw()]),
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
     });
 

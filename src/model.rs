@@ -1,6 +1,6 @@
 use anyhow::{Context, Ok, Result};
+use cgmath::InnerSpace;
 use wgpu::util::DeviceExt;
-use wgpu::vertex_attr_array;
 
 use crate::camera;
 use crate::renderer;
@@ -16,6 +16,8 @@ pub struct ModelVertex {
     position: [f32; 3],
     tex_coords: [f32; 2],
     normal: [f32; 3],
+    tangent: [f32; 3],
+    bitangent: [f32; 3],
 }
 
 impl Vertex for ModelVertex {
@@ -39,6 +41,16 @@ impl Vertex for ModelVertex {
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
                 },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
             ],
         }
     }
@@ -53,9 +65,10 @@ pub struct Transform {
 impl Transform {
     pub fn to_raw(&self) -> TransformRaw {
         TransformRaw {
-            translation: cgmath::Matrix4::from_translation(self.translation).into(),
-            rotation: cgmath::Matrix4::from(self.rotation).into(),
-            scale: cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z).into(),
+            transform: (cgmath::Matrix4::from_translation(self.translation)
+                * cgmath::Matrix4::from(self.rotation)
+                * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
+            .into(),
         }
     }
 }
@@ -63,9 +76,7 @@ impl Transform {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TransformRaw {
-    translation: [[f32; 4]; 4],
-    rotation: [[f32; 4]; 4],
-    scale: [[f32; 4]; 4],
+    transform: [[f32; 4]; 4],
 }
 
 impl TransformRaw {
@@ -92,46 +103,6 @@ impl TransformRaw {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 8,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 9,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
-                    shader_location: 10,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 24]>() as wgpu::BufferAddress,
-                    shader_location: 11,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 28]>() as wgpu::BufferAddress,
-                    shader_location: 12,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 32]>() as wgpu::BufferAddress,
-                    shader_location: 13,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 36]>() as wgpu::BufferAddress,
-                    shader_location: 14,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 40]>() as wgpu::BufferAddress,
-                    shader_location: 15,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 44]>() as wgpu::BufferAddress,
-                    shader_location: 16,
                     format: wgpu::VertexFormat::Float32x4,
                 },
             ],
@@ -286,7 +257,51 @@ impl Model {
                         m.mesh.normals[i * 3 + 1],
                         m.mesh.normals[i * 3 + 2],
                     ],
+                    tangent: [0.0; 3],
+                    bitangent: [0.0; 3],
                 });
+            }
+
+            for c in m.mesh.indices.chunks(3) {
+                let v0 = vertices[c[0] as usize];
+                let v1 = vertices[c[1] as usize];
+                let v2 = vertices[c[2] as usize];
+
+                let pos0: cgmath::Vector3<_> = v0.position.into();
+                let pos1: cgmath::Vector3<_> = v1.position.into();
+                let pos2: cgmath::Vector3<_> = v2.position.into();
+
+                let uv0: cgmath::Vector2<_> = v0.tex_coords.into();
+                let uv1: cgmath::Vector2<_> = v1.tex_coords.into();
+                let uv2: cgmath::Vector2<_> = v2.tex_coords.into();
+
+                let delta_pos1 = pos1 - pos0;
+                let delta_pos2 = pos2 - pos0;
+
+                let delta_uv1 = uv1 - uv0;
+                let delta_uv2 = uv2 - uv0;
+
+                let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+                let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
+                let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
+
+                vertices[c[0] as usize].tangent =
+                    (tangent + cgmath::Vector3::from(vertices[c[0] as usize].tangent)).into();
+                vertices[c[1] as usize].tangent =
+                    (tangent + cgmath::Vector3::from(vertices[c[1] as usize].tangent)).into();
+                vertices[c[2] as usize].tangent =
+                    (tangent + cgmath::Vector3::from(vertices[c[2] as usize].tangent)).into();
+                vertices[c[0] as usize].bitangent =
+                    (bitangent + cgmath::Vector3::from(vertices[c[0] as usize].bitangent)).into();
+                vertices[c[1] as usize].bitangent =
+                    (bitangent + cgmath::Vector3::from(vertices[c[1] as usize].bitangent)).into();
+                vertices[c[2] as usize].bitangent =
+                    (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
+            }
+
+            for v in vertices.iter_mut() {
+                v.tangent = cgmath::Vector3::from(v.tangent).normalize().into();
+                v.bitangent = cgmath::Vector3::from(v.bitangent).normalize().into();
             }
 
             let vertex_buffer =

@@ -115,7 +115,7 @@ impl Renderer {
             if let Some(pipeline) = &self.pipeline {
                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw_model(model, render_camera);
+                render_pass.draw_model_instanced(model, 0..2, render_camera);
             }
         }
 
