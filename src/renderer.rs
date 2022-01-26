@@ -73,7 +73,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         model: &model::Model,
-        instance_buffer: &wgpu::Buffer,
+        render_transform: &model::RenderTransform,
         render_camera: &camera::RenderCamera,
         render_light: &light::RenderLight,
         depth_texture: &texture::Texture,
@@ -85,12 +85,12 @@ impl Renderer {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
+                label: Some("render_encoder"),
             });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("render_pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -115,9 +115,8 @@ impl Renderer {
             });
 
             if let Some(pipeline) = &self.pipeline {
-                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw_model(model, render_camera, render_light);
+                render_pass.draw_model(model, render_transform, render_camera, render_light);
             }
         }
 

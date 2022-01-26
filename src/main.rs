@@ -30,13 +30,7 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
 
-    let instance_buffer = renderer
-        .device
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("instance_buffer"),
-            contents: bytemuck::cast_slice(&vec![transform.to_raw()]),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
+    let mut render_transform = model::RenderTransform::new(&renderer, &transform);
 
     let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
 
@@ -60,10 +54,11 @@ fn main() {
     renderer.create_render_pipeline(
         &[
             &model.bind_group_layout,
+            &render_transform.bind_group_layout,
             &render_camera.bind_group_layout,
             &render_light.bind_group_layout,
         ],
-        &[model::ModelVertex::desc(), model::TransformRaw::desc()],
+        &[model::ModelVertex::desc()],
     );
 
     let mut last_render_time = std::time::Instant::now();
@@ -127,15 +122,11 @@ fn main() {
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(dt.as_secs_f32() * 60.0),
                     );
-                renderer.queue.write_buffer(
-                    &instance_buffer,
-                    0,
-                    bytemuck::cast_slice(&[transform.to_raw()]),
-                );
+                render_transform.update(&renderer, &transform);
 
                 match renderer.render(
                     &model,
-                    &instance_buffer,
+                    &render_transform,
                     &render_camera,
                     &render_light,
                     &depth_texture,

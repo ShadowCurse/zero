@@ -64,25 +64,27 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn to_raw(&self) -> TransformRaw {
-        TransformRaw {
+    pub fn to_uniform(&self) -> TransformUniform {
+        TransformUniform {
             transform: (cgmath::Matrix4::from_translation(self.translation)
                 * cgmath::Matrix4::from(self.rotation)
                 * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
             rotate: cgmath::Matrix3::from(self.rotation).into(),
+            ..Default::default()
         }
     }
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct TransformRaw {
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TransformUniform {
     transform: [[f32; 4]; 4],
     rotate: [[f32; 3]; 3],
+    _pad: [f32; 3],
 }
 
-impl TransformRaw {
+impl TransformUniform {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -125,6 +127,64 @@ impl TransformRaw {
                 },
             ],
         }
+    }
+}
+
+pub struct RenderTransform {
+    pub buffer: wgpu::Buffer,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group: wgpu::BindGroup,
+}
+
+impl RenderTransform {
+    pub fn new(renderer: &renderer::Renderer, transform: &Transform) -> Self {
+        let uniform = transform.to_uniform();
+        let buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("transform_buffer"),
+                contents: bytemuck::cast_slice(&[uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let bind_group_layout =
+            renderer
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                    ],
+                    label: Some("texture_bind_group_layout"),
+                });
+        let bind_group = renderer.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("transform_bind_group"),
+        });
+
+        Self {
+            buffer,
+            bind_group_layout,
+            bind_group,
+        }
+    }
+
+    pub fn update(&mut self, renderer: &renderer::Renderer, transform: &Transform) {
+        renderer
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[transform.to_uniform()]));
     }
 }
 
@@ -361,6 +421,7 @@ pub trait DrawModel<'a> {
     fn draw_model(
         &mut self,
         model: &'a Model,
+        transform: &'a RenderTransform,
         camera: &'a camera::RenderCamera,
         light: &'a light::RenderLight,
     );
@@ -368,26 +429,29 @@ pub trait DrawModel<'a> {
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
-        instances: std::ops::Range<u32>,
+        transform: &'a RenderTransform,
         camera: &'a camera::RenderCamera,
         light: &'a light::RenderLight,
+        instances: std::ops::Range<u32>,
     );
 
     fn draw_mesh(
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        transform: &'a RenderTransform,
+        camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
     );
 
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
+        transform: &'a RenderTransform,
+        camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
     );
 }
 
@@ -398,28 +462,29 @@ where
     fn draw_model(
         &mut self,
         model: &'a Model,
+        transform: &'a RenderTransform,
         camera: &'a camera::RenderCamera,
-
         light: &'a light::RenderLight,
     ) {
-        self.draw_model_instanced(model, 0..1, camera, light);
+        self.draw_model_instanced(model, transform, camera, light, 0..1);
     }
 
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
-        instances: std::ops::Range<u32>,
+        transform: &'a RenderTransform,
         camera: &'a camera::RenderCamera,
         light: &'a light::RenderLight,
+        instances: std::ops::Range<u32>,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
             self.draw_mesh_instanced(
                 mesh,
-                material,
+                material, transform,
+                camera,
+                light,
                 instances.clone(),
-                &camera.bind_group,
-                &light.bind_group,
             );
         }
     }
@@ -428,25 +493,28 @@ where
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        transform: &'a RenderTransform,
+        camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
     ) {
-        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group, light_bind_group);
+        self.draw_mesh_instanced(mesh, material, transform, camera, light, 0..1);
     }
 
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
         material: &'a Material,
+        transform: &'a RenderTransform,
+        camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &material.bind_group, &[]);
-        self.set_bind_group(1, camera_bind_group, &[]);
-        self.set_bind_group(2, light_bind_group, &[]);
+        self.set_bind_group(1, &transform.bind_group, &[]);
+        self.set_bind_group(2, &camera.bind_group, &[]);
+        self.set_bind_group(3, &light.bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }

@@ -1,17 +1,24 @@
 // Vertex shader
 
+struct TransformUniform {
+  transform: mat4x4<f32>;
+  rotate: mat3x3<f32>;
+};
+[[group(1), binding(0)]]
+var<uniform> transform: TransformUniform;
+
 struct CameraUniform {
   view_pos: vec4<f32>;
   view_proj: mat4x4<f32>;
 };
-[[group(1), binding(0)]]
+[[group(2), binding(0)]]
 var<uniform> camera: CameraUniform;
 
 struct LightUniform {
   position: vec3<f32>;
   color: vec3<f32>;
 };
-[[group(2), binding(0)]]
+[[group(3), binding(0)]]
 var<uniform> light: LightUniform;
 
 struct VertexInput {
@@ -20,17 +27,6 @@ struct VertexInput {
   [[location(2)]] normal: vec3<f32>;
   [[location(3)]] tangent: vec3<f32>;
   [[location(4)]] bitangent: vec3<f32>;
-};
-
-struct InstanceInput {
-  [[location(5)]] transform_0: vec4<f32>;
-  [[location(6)]] transform_1: vec4<f32>;
-  [[location(7)]] transform_2: vec4<f32>;
-  [[location(8)]] transform_3: vec4<f32>;
-
-  [[location(9)]]  rotate_0: vec3<f32>;
-  [[location(10)]] rotate_1: vec3<f32>;
-  [[location(11)]] rotate_2: vec3<f32>;
 };
 
 struct VertexOutput {
@@ -44,26 +40,12 @@ struct VertexOutput {
 [[stage(vertex)]]
 fn vs_main(
   vertex: VertexInput,
-  instance: InstanceInput,
 ) -> VertexOutput {
-  let transform = mat4x4<f32>(
-    instance.transform_0,
-    instance.transform_1,
-    instance.transform_2,
-    instance.transform_3,
-  );
+  let world_position = transform.transform * vec4<f32>(vertex.position, 1.0);
 
-  let rotate = mat3x3<f32>(
-    instance.rotate_0,
-    instance.rotate_1,
-    instance.rotate_2,
-  );
-
-  let world_position = transform * vec4<f32>(vertex.position, 1.0);
-
-  let world_normal = normalize(rotate * vertex.normal);
-  let world_tangent = normalize(rotate * vertex.tangent);
-  let world_bitangent = normalize(rotate * vertex.bitangent);
+  let world_normal = normalize(transform.rotate * vertex.normal);
+  let world_tangent = normalize(transform.rotate * vertex.tangent);
+  let world_bitangent = normalize(transform.rotate * vertex.bitangent);
   let tangent_matrix = transpose(mat3x3<f32>(
     world_tangent.xyz,
     world_bitangent.xyz,
@@ -71,7 +53,7 @@ fn vs_main(
   ));
 
   var out: VertexOutput;
-  out.clip_position = camera.view_proj * transform * vec4<f32>(vertex.position, 1.0);
+  out.clip_position = camera.view_proj * transform.transform * vec4<f32>(vertex.position, 1.0);
   out.tex_coords = vertex.tex_coords;
   out.tangent_position = tangent_matrix * world_position.xyz;
   out.tangent_light = tangent_matrix * light.position;
