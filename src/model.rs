@@ -3,6 +3,7 @@ use cgmath::InnerSpace;
 use wgpu::util::DeviceExt;
 
 use crate::camera;
+use crate::light;
 use crate::renderer;
 use crate::texture;
 
@@ -69,6 +70,7 @@ impl Transform {
                 * cgmath::Matrix4::from(self.rotation)
                 * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
+            rotate: cgmath::Matrix3::from(self.rotation).into(),
         }
     }
 }
@@ -77,6 +79,7 @@ impl Transform {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TransformRaw {
     transform: [[f32; 4]; 4],
+    rotate: [[f32; 3]; 3],
 }
 
 impl TransformRaw {
@@ -104,6 +107,21 @@ impl TransformRaw {
                     offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 8,
                     format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                    shader_location: 9,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
+                    shader_location: 10,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
+                    shader_location: 11,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
             ],
         }
@@ -340,13 +358,19 @@ impl Model {
 }
 
 pub trait DrawModel<'a> {
-    fn draw_model(&mut self, model: &'a Model, camera: &'a camera::RenderCamera);
+    fn draw_model(
+        &mut self,
+        model: &'a Model,
+        camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
+    );
 
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         instances: std::ops::Range<u32>,
         camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
     );
 
     fn draw_mesh(
@@ -354,6 +378,7 @@ pub trait DrawModel<'a> {
         mesh: &'a Mesh,
         material: &'a Material,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     );
 
     fn draw_mesh_instanced(
@@ -362,6 +387,7 @@ pub trait DrawModel<'a> {
         material: &'a Material,
         instances: std::ops::Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     );
 }
 
@@ -369,8 +395,14 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_model(&mut self, model: &'a Model, camera: &'a camera::RenderCamera) {
-        self.draw_model_instanced(model, 0..1, camera);
+    fn draw_model(
+        &mut self,
+        model: &'a Model,
+        camera: &'a camera::RenderCamera,
+
+        light: &'a light::RenderLight,
+    ) {
+        self.draw_model_instanced(model, 0..1, camera, light);
     }
 
     fn draw_model_instanced(
@@ -378,10 +410,17 @@ where
         model: &'a Model,
         instances: std::ops::Range<u32>,
         camera: &'a camera::RenderCamera,
+        light: &'a light::RenderLight,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, instances.clone(), &camera.bind_group);
+            self.draw_mesh_instanced(
+                mesh,
+                material,
+                instances.clone(),
+                &camera.bind_group,
+                &light.bind_group,
+            );
         }
     }
 
@@ -390,8 +429,9 @@ where
         mesh: &'a Mesh,
         material: &'a Material,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     ) {
-        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group);
+        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group, light_bind_group);
     }
 
     fn draw_mesh_instanced(
@@ -400,11 +440,13 @@ where
         material: &'a Material,
         instances: std::ops::Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &material.bind_group, &[]);
         self.set_bind_group(1, camera_bind_group, &[]);
+        self.set_bind_group(2, light_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }

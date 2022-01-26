@@ -2,6 +2,7 @@ use winit::window::Window;
 
 use crate::camera;
 use crate::texture;
+use crate::light;
 use crate::model::{self, DrawModel};
 
 pub struct Renderer {
@@ -74,6 +75,7 @@ impl Renderer {
         model: &model::Model,
         instance_buffer: &wgpu::Buffer,
         render_camera: &camera::RenderCamera,
+        render_light: &light::RenderLight,
         depth_texture: &texture::Texture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -115,7 +117,7 @@ impl Renderer {
             if let Some(pipeline) = &self.pipeline {
                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                 render_pass.set_pipeline(pipeline);
-                render_pass.draw_model_instanced(model, 0..2, render_camera);
+                render_pass.draw_model(model, render_camera, render_light);
             }
         }
 

@@ -1,12 +1,13 @@
+use cgmath::prelude::*;
+use wgpu::util::DeviceExt;
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use cgmath::prelude::*;
-use wgpu::util::DeviceExt;
 
 mod camera;
+mod light;
 mod model;
 mod renderer;
 mod texture;
@@ -29,16 +30,17 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
 
-    let light_transform = model::Transform {
-        translation: (5.0, 5.0, 0.0).into(),
-        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-        scale: (0.5, 0.5, 0.5).into(),
-    };
-    let instance_buffer = renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("instance_buffer"),
-        contents: bytemuck::cast_slice(&vec![transform.to_raw(), light_transform.to_raw()]),
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-    });
+    let instance_buffer = renderer
+        .device
+        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("instance_buffer"),
+            contents: bytemuck::cast_slice(&vec![transform.to_raw()]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+
+    let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
+
+    let render_light = light::RenderLight::new(&renderer, &light);
 
     let mut camera = camera::Camera::new(
         (0.0, 5.0, 10.0),
@@ -56,7 +58,11 @@ fn main() {
     let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
 
     renderer.create_render_pipeline(
-        &[&model.bind_group_layout, &render_camera.bind_group_layout],
+        &[
+            &model.bind_group_layout,
+            &render_camera.bind_group_layout,
+            &render_light.bind_group_layout,
+        ],
         &[model::ModelVertex::desc(), model::TransformRaw::desc()],
     );
 
@@ -116,12 +122,24 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
-                transform.rotation = transform.rotation * cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(dt.as_secs_f32() * 5.0));
-                renderer
-                    .queue
-                    .write_buffer(&instance_buffer, 0, bytemuck::cast_slice(&[transform.to_raw()]));
+                transform.rotation = transform.rotation
+                    * cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(dt.as_secs_f32() * 60.0),
+                    );
+                renderer.queue.write_buffer(
+                    &instance_buffer,
+                    0,
+                    bytemuck::cast_slice(&[transform.to_raw()]),
+                );
 
-                match renderer.render(&model, &instance_buffer, &render_camera, &depth_texture) {
+                match renderer.render(
+                    &model,
+                    &instance_buffer,
+                    &render_camera,
+                    &render_light,
+                    &depth_texture,
+                ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
