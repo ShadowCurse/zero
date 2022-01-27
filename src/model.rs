@@ -65,12 +65,13 @@ pub struct Transform {
 
 impl Transform {
     pub fn to_uniform(&self) -> TransformUniform {
+        let rotate = cgmath::Matrix4::from(self.rotation);
         TransformUniform {
             transform: (cgmath::Matrix4::from_translation(self.translation)
-                * cgmath::Matrix4::from(self.rotation)
+                * rotate
                 * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
-            rotate: cgmath::Matrix3::from(self.rotation).into(),
+            rotate: rotate.into(), 
             ..Default::default()
         }
     }
@@ -80,8 +81,7 @@ impl Transform {
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TransformUniform {
     transform: [[f32; 4]; 4],
-    rotate: [[f32; 3]; 3],
-    _pad: [f32; 3],
+    rotate: [[f32; 4]; 4],
 }
 
 impl TransformUniform {

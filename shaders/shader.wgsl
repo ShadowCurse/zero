@@ -2,13 +2,13 @@
 
 struct TransformUniform {
   transform: mat4x4<f32>;
-  rotate: mat3x3<f32>;
+  rotate: mat4x4<f32>;
 };
 [[group(1), binding(0)]]
 var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
-  view_pos: vec4<f32>;
+  position: vec4<f32>;
   view_proj: mat4x4<f32>;
 };
 [[group(2), binding(0)]]
@@ -43,9 +43,9 @@ fn vs_main(
 ) -> VertexOutput {
   let world_position = transform.transform * vec4<f32>(vertex.position, 1.0);
 
-  let world_normal = normalize(transform.rotate * vertex.normal);
-  let world_tangent = normalize(transform.rotate * vertex.tangent);
-  let world_bitangent = normalize(transform.rotate * vertex.bitangent);
+  let world_normal = normalize(transform.rotate * vec4<f32>(vertex.normal, 1.0));
+  let world_tangent = normalize(transform.rotate * vec4<f32>(vertex.tangent, 1.0));
+  let world_bitangent = normalize(transform.rotate * vec4<f32>(vertex.bitangent, 1.0));
   let tangent_matrix = transpose(mat3x3<f32>(
     world_tangent.xyz,
     world_bitangent.xyz,
@@ -53,12 +53,12 @@ fn vs_main(
   ));
 
   var out: VertexOutput;
-  out.clip_position = camera.view_proj * transform.transform * vec4<f32>(vertex.position, 1.0);
+  out.clip_position = camera.view_proj * world_position;
   out.tex_coords = vertex.tex_coords;
   out.tangent_position = tangent_matrix * world_position.xyz;
   out.tangent_light = tangent_matrix * light.position;
-  out.tangent_view = tangent_matrix * camera.view_pos.xyz;
-  
+  out.tangent_view = tangent_matrix * camera.position.xyz;
+
   return out;
 }
 
