@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::renderer;
 
 pub struct Light {
-    pub position: cgmath::Vector3<f32>, 
+    pub position: cgmath::Vector3<f32>,
     pub color: cgmath::Vector3<f32>,
 }
 

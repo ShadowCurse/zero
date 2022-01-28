@@ -1,9 +1,13 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 use winit::window::Window;
 
 use crate::camera;
-use crate::texture;
 use crate::light;
 use crate::model::{self, DrawModel};
+use crate::skybox::{self, DrawSkybox};
+use crate::texture;
 
 pub struct Renderer {
     pub surface: wgpu::Surface,
@@ -11,7 +15,6 @@ pub struct Renderer {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl Renderer {
@@ -56,7 +59,6 @@ impl Renderer {
             queue,
             config,
             size,
-            pipeline: None,
         }
     }
 
@@ -72,10 +74,13 @@ impl Renderer {
 
     pub fn render(
         &mut self,
+        model_pipeline: &wgpu::RenderPipeline,
         model: &model::Model,
         render_transform: &model::RenderTransform,
         render_camera: &camera::RenderCamera,
         render_light: &light::RenderLight,
+        skybox_pipeline: &wgpu::RenderPipeline,
+        skybox: &skybox::Skybox,
         depth_texture: &texture::Texture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -105,19 +110,20 @@ impl Renderer {
                     },
                 }],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                            view: &depth_texture.view,
-        depth_ops: Some(wgpu::Operations {
-            load: wgpu::LoadOp::Clear(1.0),
-            store: true,
-        }),
-        stencil_ops: None,
+                    view: &depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
                 }),
             });
 
-            if let Some(pipeline) = &self.pipeline {
-                render_pass.set_pipeline(pipeline);
-                render_pass.draw_model(model, render_transform, render_camera, render_light);
-            }
+            render_pass.set_pipeline(model_pipeline);
+            render_pass.draw_model(model, render_transform, render_camera, render_light);
+
+            render_pass.set_pipeline(skybox_pipeline);
+            render_pass.draw_skybox(skybox, render_camera);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -125,11 +131,12 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn create_render_pipeline(
+    pub fn create_render_pipeline<P: AsRef<Path>>(
         &mut self,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
         vertex_layouts: &[wgpu::VertexBufferLayout],
-    ) {
+        shader_path: P,
+    ) -> wgpu::RenderPipeline {
         let layout = self
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -138,15 +145,19 @@ impl Renderer {
                 push_constant_ranges: &[],
             });
 
+        let mut contents = String::new();
+        let mut file = File::open(shader_path.as_ref()).unwrap();
+        file.read_to_string(&mut contents).unwrap();
+
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("default_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
+            // source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(contents.into()),
         };
 
         let shader = self.device.create_shader_module(&shader);
 
-        let pipeline = self
-            .device
+        self.device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("render_pipeline"),
                 layout: Some(&layout),
@@ -179,7 +190,7 @@ impl Renderer {
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: texture::Texture::DEPTH_FORMAT,
                     depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Less,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState::default(),
                 }),
@@ -189,7 +200,6 @@ impl Renderer {
                     alpha_to_coverage_enabled: false,
                 },
                 multiview: None,
-            });
-        self.pipeline = Some(pipeline);
+            })
     }
 }

@@ -71,7 +71,7 @@ impl Transform {
                 * rotate
                 * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
-            rotate: rotate.into(), 
+            rotate: rotate.into(),
             ..Default::default()
         }
     }
@@ -151,28 +151,28 @@ impl RenderTransform {
             renderer
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::VERTEX,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                    ],
+                        count: None,
+                    }],
                     label: Some("texture_bind_group_layout"),
                 });
-        let bind_group = renderer.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("transform_bind_group"),
-        });
+        let bind_group = renderer
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+                label: Some("transform_bind_group"),
+            });
 
         Self {
             buffer,
@@ -182,9 +182,11 @@ impl RenderTransform {
     }
 
     pub fn update(&mut self, renderer: &renderer::Renderer, transform: &Transform) {
-        renderer
-            .queue
-            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[transform.to_uniform()]));
+        renderer.queue.write_buffer(
+            &self.buffer,
+            0,
+            bytemuck::cast_slice(&[transform.to_uniform()]),
+        );
     }
 }
 
@@ -266,10 +268,8 @@ impl Model {
         let containing_folder = path.as_ref().parent().context("Directory has no parent")?;
 
         let mut materials = Vec::new();
-        // println!("{:#?}", obj_materials);
         for mat in obj_materials {
             let diffuse_path = containing_folder.join(mat.diffuse_texture);
-            // println!("loading materials from: {:#?}", diffuse_path);
             let diffuse_texture = texture::Texture::load(
                 &renderer.device,
                 &renderer.queue,
@@ -278,7 +278,6 @@ impl Model {
             )?;
 
             let normal_path = containing_folder.join(mat.normal_texture);
-            // println!("loading materials from: {:#?}", diffuse_path);
             let normal_texture = texture::Texture::load(
                 &renderer.device,
                 &renderer.queue,
@@ -377,7 +376,7 @@ impl Model {
                     (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
             }
 
-            for v in vertices.iter_mut() {
+            for v in &mut vertices {
                 v.tangent = cgmath::Vector3::from(v.tangent).normalize().into();
                 v.bitangent = cgmath::Vector3::from(v.bitangent).normalize().into();
             }
@@ -479,13 +478,7 @@ where
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(
-                mesh,
-                material, transform,
-                camera,
-                light,
-                instances.clone(),
-            );
+            self.draw_mesh_instanced(mesh, material, transform, camera, light, instances.clone());
         }
     }
 

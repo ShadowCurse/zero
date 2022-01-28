@@ -1,5 +1,4 @@
 use cgmath::prelude::*;
-use wgpu::util::DeviceExt;
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -10,6 +9,7 @@ mod camera;
 mod light;
 mod model;
 mod renderer;
+mod skybox;
 mod texture;
 
 use model::Vertex;
@@ -22,22 +22,8 @@ fn main() {
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
 
-    let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
-
-    let mut transform = model::Transform {
-        translation: (0.0, 0.0, 0.0).into(),
-        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-        scale: (1.0, 1.0, 1.0).into(),
-    };
-
-    let mut render_transform = model::RenderTransform::new(&renderer, &transform);
-
-    let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
-
-    let render_light = light::RenderLight::new(&renderer, &light);
-
     let mut camera = camera::Camera::new(
-        (0.0, 5.0, 10.0),
+        (0.0, 0.0, 0.0),
         cgmath::Deg(-90.0),
         cgmath::Deg(-20.0),
         renderer.config.width,
@@ -49,9 +35,42 @@ fn main() {
     let mut camera_controller = camera::CameraController::new(5.0, 0.4);
     let mut render_camera = camera::RenderCamera::new(&renderer, &camera);
 
+    let skybox = skybox::Skybox::load(
+        &renderer,
+        [
+            "./res/skybox/right.jpg",
+            "./res/skybox/left.jpg",
+            "./res/skybox/top.jpg",
+            "./res/skybox/bottom.jpg",
+            "./res/skybox/front.jpg",
+            "./res/skybox/back.jpg",
+        ],
+    )
+    .unwrap();
+
+    let skybox_pipeline = renderer.create_render_pipeline(
+        &[&skybox.bind_group_layout, &render_camera.bind_group_layout],
+        &[skybox::SkyboxVertex::desc()],
+        "./shaders/skybox.wgsl",
+    );
+
+    let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
+
+    let mut transform = model::Transform {
+        translation: (0.0, 0.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (0.1, 0.1, 0.1).into(),
+    };
+
+    let mut render_transform = model::RenderTransform::new(&renderer, &transform);
+
+    let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
+
+    let render_light = light::RenderLight::new(&renderer, &light);
+
     let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
 
-    renderer.create_render_pipeline(
+    let model_pipeline = renderer.create_render_pipeline(
         &[
             &model.bind_group_layout,
             &render_transform.bind_group_layout,
@@ -59,6 +78,7 @@ fn main() {
             &render_light.bind_group_layout,
         ],
         &[model::ModelVertex::desc()],
+        "./shaders/shader.wgsl",
     );
 
     let mut last_render_time = std::time::Instant::now();
@@ -125,10 +145,13 @@ fn main() {
                 render_transform.update(&renderer, &transform);
 
                 match renderer.render(
+                    &model_pipeline,
                     &model,
                     &render_transform,
                     &render_camera,
                     &render_light,
+                    &skybox_pipeline,
+                    &skybox,
                     &depth_texture,
                 ) {
                     Ok(_) => {}
