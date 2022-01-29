@@ -3,11 +3,13 @@ use std::io::prelude::*;
 use std::path::Path;
 use winit::window::Window;
 
-use crate::camera;
-use crate::light;
-use crate::model::{self, DrawModel};
-use crate::skybox::{self, DrawSkybox};
 use crate::texture;
+
+pub trait RenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b;
+}
 
 pub struct Renderer {
     pub surface: wgpu::Surface,
@@ -74,13 +76,7 @@ impl Renderer {
 
     pub fn render(
         &mut self,
-        model_pipeline: &wgpu::RenderPipeline,
-        model: &model::Model,
-        render_transform: &model::RenderTransform,
-        render_camera: &camera::RenderCamera,
-        render_light: &light::RenderLight,
-        skybox_pipeline: &wgpu::RenderPipeline,
-        skybox: &skybox::Skybox,
+        commands: &Vec<&dyn RenderCommand>,
         depth_texture: &texture::Texture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -119,11 +115,9 @@ impl Renderer {
                 }),
             });
 
-            render_pass.set_pipeline(model_pipeline);
-            render_pass.draw_model(model, render_transform, render_camera, render_light);
-
-            render_pass.set_pipeline(skybox_pipeline);
-            render_pass.draw_skybox(skybox, render_camera);
+            for command in commands {
+                command.execute(&mut render_pass);
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -150,8 +144,7 @@ impl Renderer {
         file.read_to_string(&mut contents).unwrap();
 
         let shader = wgpu::ShaderModuleDescriptor {
-            label: Some("default_shader"),
-            // source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
+            label: Some("shader"),
             source: wgpu::ShaderSource::Wgsl(contents.into()),
         };
 

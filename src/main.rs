@@ -55,21 +55,15 @@ fn main() {
     );
 
     let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
-
     let mut transform = model::Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (0.1, 0.1, 0.1).into(),
     };
-
     let mut render_transform = model::RenderTransform::new(&renderer, &transform);
-
     let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
-
     let render_light = light::RenderLight::new(&renderer, &light);
-
     let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
-
     let model_pipeline = renderer.create_render_pipeline(
         &[
             &model.bind_group_layout,
@@ -144,16 +138,21 @@ fn main() {
                     );
                 render_transform.update(&renderer, &transform);
 
-                match renderer.render(
-                    &model_pipeline,
-                    &model,
-                    &render_transform,
-                    &render_camera,
-                    &render_light,
-                    &skybox_pipeline,
-                    &skybox,
-                    &depth_texture,
-                ) {
+                let skybox_command = skybox::SkyboxRenderCommand {
+                    pipeline: &skybox_pipeline,
+                    skybox: &skybox,
+                    camera: &render_camera,
+                };
+
+                let model_command = model::ModelRenderCommand {
+                    pipeline: &model_pipeline,
+                    models: vec![&model],
+                    transforms: vec![&render_transform],
+                    camera: &render_camera,
+                    light: &render_light,
+                };
+
+                match renderer.render(&vec![&skybox_command, &model_command], &depth_texture) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,

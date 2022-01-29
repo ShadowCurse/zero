@@ -121,6 +121,22 @@ impl Skybox {
     }
 }
 
+pub struct SkyboxRenderCommand<'a> {
+    pub pipeline: &'a wgpu::RenderPipeline,
+    pub skybox: &'a Skybox,
+    pub camera: &'a camera::RenderCamera,
+}
+
+impl<'a> renderer::RenderCommand<'a> for SkyboxRenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b,
+    {
+        render_pass.set_pipeline(self.pipeline);
+        render_pass.draw_skybox(self.skybox, self.camera);
+    }
+}
+
 pub trait DrawSkybox<'a> {
     fn draw_skybox(&mut self, skybox: &'a Skybox, camera: &'a camera::RenderCamera);
 }

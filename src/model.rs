@@ -416,6 +416,26 @@ impl Model {
     }
 }
 
+pub struct ModelRenderCommand<'a> {
+    pub pipeline: &'a wgpu::RenderPipeline,
+    pub models: Vec<&'a Model>,
+    pub transforms: Vec<&'a RenderTransform>,
+    pub camera: &'a camera::RenderCamera,
+    pub light: &'a light::RenderLight,
+}
+
+impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b,
+    {
+        render_pass.set_pipeline(self.pipeline);
+        for (i, model) in self.models.iter().enumerate() {
+            render_pass.draw_model(model, self.transforms[i], self.camera, self.light);
+        }
+    }
+}
+
 pub trait DrawModel<'a> {
     fn draw_model(
         &mut self,
