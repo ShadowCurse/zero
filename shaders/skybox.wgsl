@@ -21,10 +21,12 @@ fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
 
-  let pos = camera.view_proj * vec4<f32>(vertex.position, 1.0);
+  // removing translation from the view_proj matrix
+  let vp = mat3x3<f32>(camera.view_proj[0].xyz, camera.view_proj[1].xyz, camera.view_proj[2].xyz);
+  let pos = vp * vertex.position;
   var out: VertexOutput;
-  out.clip_position = pos.xyww;
-  out.position = pos.xyz;
+  out.clip_position = vec4<f32>(pos, 1.0).xyww;
+  out.position = pos;
 
   return out;
 }
