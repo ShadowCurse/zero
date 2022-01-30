@@ -194,7 +194,24 @@ pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
     pub normal_texture: texture::Texture,
+    pub ambient: [f32; 3],
+    pub diffuse: [f32; 3],
+    pub specular: [f32; 3],
+    pub shininess: f32,
+    pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MaterialPropertiesUniform {
+    pub ambient: [f32; 3],
+    _pad1: f32,
+    pub diffuse: [f32; 3],
+    _pad2: f32,
+    pub specular: [f32; 3],
+    _pad3: f32,
+    pub shininess: f32,
 }
 
 pub struct Mesh {
@@ -259,6 +276,16 @@ impl Model {
                             ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 4,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        }
                     ],
                     label: Some("texture_bind_group_layout"),
                 });
@@ -285,6 +312,22 @@ impl Model {
                 texture::TextureType::Normal,
             )?;
 
+            let properties = MaterialPropertiesUniform {
+                ambient: mat.ambient,
+                diffuse: mat.diffuse,
+                specular: mat.specular,
+                shininess: mat.shininess,
+                ..Default::default()
+            };
+
+            let buffer = renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("material_params_buffer"),
+                    contents: bytemuck::cast_slice(&[properties]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+
             let bind_group = renderer
                 .device
                 .create_bind_group(&wgpu::BindGroupDescriptor {
@@ -306,6 +349,10 @@ impl Model {
                             binding: 3,
                             resource: wgpu::BindingResource::Sampler(&normal_texture.sampler),
                         },
+                        wgpu::BindGroupEntry {
+                            binding: 4,
+                            resource: buffer.as_entire_binding(),
+                        },
                     ],
                     label: None,
                 });
@@ -314,6 +361,11 @@ impl Model {
                 name: mat.name,
                 diffuse_texture,
                 normal_texture,
+                ambient: mat.ambient,
+                diffuse: mat.diffuse,
+                specular: mat.specular,
+                shininess: mat.shininess,
+                buffer,
                 bind_group,
             });
         }
@@ -433,6 +485,25 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
         for (i, model) in self.models.iter().enumerate() {
             render_pass.draw_model(model, self.transforms[i], self.camera, self.light);
         }
+    }
+}
+
+pub struct MeshRenderCommand<'a> {
+    pub pipeline: &'a wgpu::RenderPipeline,
+    pub mesh: &'a Mesh,
+    pub material: &'a Material,
+    pub transform: &'a RenderTransform,
+    pub camera: &'a camera::RenderCamera,
+    pub light: &'a light::RenderLight,
+}
+
+impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b,
+    {
+        render_pass.set_pipeline(self.pipeline);
+        render_pass.draw_mesh(self.mesh, self.material, self.transform, self.camera, self.light);
     }
 }
 

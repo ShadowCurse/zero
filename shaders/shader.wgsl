@@ -64,6 +64,15 @@ fn vs_main(
 
 // Fragment shader
 
+struct MaterialProperties {
+    ambient: vec3<f32>;
+    diffuse: vec3<f32>;
+    specular: vec3<f32>;
+    shininess: f32;
+};
+[[group(0), binding(4)]]
+var<uniform> properties: MaterialProperties;
+
 [[group(0), binding(0)]]
 var t_diffuse: texture_2d<f32>;
 [[group(0), binding(1)]]
@@ -79,7 +88,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let object_normal: vec4<f32> = textureSample(t_normal, s_normal, vertex.tex_coords);
 
   let ambient_strength = 0.1;
-  let ambient_color = light.color * ambient_strength;
+  let ambient_color = properties.ambient * light.color * ambient_strength;
 
   let tangent_normal = object_normal.xyz * 2.0 - 1.0;
   let light_dir = normalize(vertex.tangent_light - vertex.tangent_position);
@@ -87,10 +96,10 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let half_dir = normalize(view_dir + light_dir);
 
   let diffuse_strength = max(dot(tangent_normal, light_dir), 0.0);
-  let diffuse_color = light.color * diffuse_strength;
+  let diffuse_color = properties.diffuse * light.color * diffuse_strength;
 
-  let specular_strength = pow(max(dot(tangent_normal, half_dir), 0.0), 32.0);
-  let specular_color = light.color * specular_strength;
+  let specular_strength = pow(max(dot(tangent_normal, half_dir), 0.0), properties.shininess);
+  let specular_color = properties.specular * light.color * specular_strength;
 
   let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
 
