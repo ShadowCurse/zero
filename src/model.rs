@@ -285,7 +285,7 @@ impl Model {
                                 min_binding_size: None,
                             },
                             count: None,
-                        }
+                        },
                     ],
                     label: Some("texture_bind_group_layout"),
                 });
@@ -503,7 +503,13 @@ impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
         'a: 'b,
     {
         render_pass.set_pipeline(self.pipeline);
-        render_pass.draw_mesh(self.mesh, self.material, self.transform, self.camera, self.light);
+        render_pass.draw_mesh(
+            self.mesh,
+            self.material,
+            self.transform,
+            self.camera,
+            self.light,
+        );
     }
 }
 

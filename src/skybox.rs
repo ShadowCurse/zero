@@ -28,7 +28,6 @@ impl Vertex for SkyboxVertex {
 
 pub struct Skybox {
     pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
     pub cube_map: texture::Texture,
     pub bind_group: wgpu::BindGroup,
@@ -102,17 +101,8 @@ impl Skybox {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        let index_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("cube_map_index_buffer"),
-                contents: bytemuck::cast_slice(&(0..37).collect::<Vec<_>>()),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-
         Ok(Self {
             vertex_buffer,
-            index_buffer,
             num_elements: 36,
             cube_map,
             bind_group,
@@ -147,9 +137,8 @@ where
 {
     fn draw_skybox(&mut self, skybox: &'a Skybox, camera: &'a camera::RenderCamera) {
         self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-        self.set_index_buffer(skybox.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &skybox.bind_group, &[]);
         self.set_bind_group(1, &camera.bind_group, &[]);
-        self.draw_indexed(0..skybox.num_elements, 0, 0..1);
+        self.draw(0..skybox.num_elements, 0..1);
     }
 }
