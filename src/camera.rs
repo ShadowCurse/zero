@@ -1,4 +1,4 @@
-use cgmath::{perspective, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Vector3};
+use cgmath::{perspective, InnerSpace, Matrix3, Matrix4, Point3, Rad, SquareMatrix, Vector3};
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
@@ -52,19 +52,34 @@ impl Camera {
         self.aspect = width as f32 / height as f32;
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
-        self.projection_matrix() * self.camera_matrix()
+    pub fn to_uniform(&self) -> CameraUniform {
+        let projection = self.projection();
+        CameraUniform {
+            position: self.position.to_homogeneous().into(),
+            view_projection: (projection * self.view()).into(),
+            vp_without_translation: (projection * self.view_without_translation()).into(),
+        }
     }
 
-    fn camera_matrix(&self) -> Matrix4<f32> {
-        Matrix4::look_to_rh(
-            self.position,
-            Vector3::new(self.yaw.0.cos(), self.pitch.0.sin(), self.yaw.0.sin()).normalize(),
-            Vector3::unit_y(),
-        )
+    fn view_without_translation(&self) -> Matrix4<f32> {
+        let view = self.view();
+        Matrix4::from(Matrix3::from_cols(
+            Vector3::from(view[0].truncate()),
+            Vector3::from(view[1].truncate()),
+            Vector3::from(view[2].truncate()),
+        ))
     }
 
-    fn projection_matrix(&self) -> Matrix4<f32> {
+    fn view(&self) -> Matrix4<f32> {
+        OPENGL_TO_WGPU_MATRIX
+            * Matrix4::look_to_rh(
+                self.position,
+                Vector3::new(self.yaw.0.cos(), self.pitch.0.sin(), self.yaw.0.sin()).normalize(),
+                Vector3::unit_y(),
+            )
+    }
+
+    fn projection(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
@@ -72,20 +87,14 @@ impl Camera {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
-    view_pos: [f32; 4],
-    view_proj: [[f32; 4]; 4],
+    position: [f32; 4],
+    view_projection: [[f32; 4]; 4],
+    vp_without_translation: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
-    fn new() -> Self {
-        Self {
-            view_pos: [0.0; 4],
-            view_proj: cgmath::Matrix4::identity().into(),
-        }
-    }
-    fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_pos = camera.position.to_homogeneous().into();
-        self.view_proj = camera.calc_matrix().into();
+    pub fn update(&mut self, camera: &Camera) {
+        *self = camera.to_uniform();
     }
 }
 
@@ -98,8 +107,7 @@ pub struct RenderCamera {
 
 impl RenderCamera {
     pub fn new(renderer: &renderer::Renderer, camera: &Camera) -> Self {
-        let mut uniform = CameraUniform::new();
-        uniform.update_view_proj(camera);
+        let uniform = camera.to_uniform();
 
         let buffer = renderer
             .device
@@ -146,7 +154,7 @@ impl RenderCamera {
     }
 
     pub fn update(&mut self, renderer: &renderer::Renderer, camera: &Camera) {
-        self.uniform.update_view_proj(camera);
+        self.uniform.update(camera);
         renderer
             .queue
             .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));

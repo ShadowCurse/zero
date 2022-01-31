@@ -9,7 +9,8 @@ var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
   position: vec4<f32>;
-  view_proj: mat4x4<f32>;
+  view_projection: mat4x4<f32>;
+  vp_without_translation: mat4x4<f32>;
 };
 [[group(2), binding(0)]]
 var<uniform> camera: CameraUniform;
@@ -52,8 +53,9 @@ fn vs_main(
     world_normal.xyz,
   ));
 
+
   var out: VertexOutput;
-  out.clip_position = camera.view_proj * world_position;
+  out.clip_position = camera.view_projection * world_position;
   out.tex_coords = vertex.tex_coords;
   out.tangent_position = tangent_matrix * world_position.xyz;
   out.tangent_light = tangent_matrix * light.position;

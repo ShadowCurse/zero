@@ -2,7 +2,8 @@
 
 struct CameraUniform {
   position: vec4<f32>;
-  view_proj: mat4x4<f32>;
+  view_projection: mat4x4<f32>;
+  vp_without_translation: mat4x4<f32>;
 };
 [[group(1), binding(0)]]
 var<uniform> camera: CameraUniform;
@@ -13,7 +14,7 @@ struct VertexInput {
 
 struct VertexOutput {
   [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] position: vec3<f32>;
+  [[location(0)]] uv: vec3<f32>;
 };
 
 [[stage(vertex)]]
@@ -21,12 +22,10 @@ fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
 
-  // removing translation from the view_proj matrix
-  let vp = mat3x3<f32>(camera.view_proj[0].xyz, camera.view_proj[1].xyz, camera.view_proj[2].xyz);
-  let pos = vp * vertex.position;
+  let position = camera.vp_without_translation* vec4<f32>(vertex.position, 1.0);
   var out: VertexOutput;
-  out.clip_position = vec4<f32>(pos, 1.0).xyww;
-  out.position = pos;
+  out.clip_position = position.xyww;
+  out.uv = vertex.position.xyz;
 
   return out;
 }
@@ -40,5 +39,5 @@ var s_cube: sampler;
 
 [[stage(fragment)]]
 fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
-  return textureSample(t_cube, s_cube, vertex.position);
+  return textureSample(t_cube, s_cube, vertex.uv);
 }
