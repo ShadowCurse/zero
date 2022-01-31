@@ -130,6 +130,7 @@ impl Renderer {
         bind_group_layouts: &[&wgpu::BindGroupLayout],
         vertex_layouts: &[wgpu::VertexBufferLayout],
         shader_path: P,
+        write_depth: bool,
     ) -> wgpu::RenderPipeline {
         let layout = self
             .device
@@ -182,7 +183,7 @@ impl Renderer {
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: texture::Texture::DEPTH_FORMAT,
-                    depth_write_enabled: true,
+                    depth_write_enabled: write_depth,
                     depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState::default(),

@@ -24,15 +24,15 @@ fn main() {
 
     let mut camera = camera::Camera::new(
         (0.0, 0.0, 0.0),
-        cgmath::Deg(-90.0),
-        cgmath::Deg(-20.0),
+        cgmath::Deg(0.0),
+        cgmath::Deg(0.0),
         renderer.config.width,
         renderer.config.height,
-        cgmath::Deg(45.0),
+        cgmath::Deg(90.0),
         0.1,
         100.0,
     );
-    let mut camera_controller = camera::CameraController::new(5.0, 0.4);
+    let mut camera_controller = camera::CameraController::new(5.0, 0.7);
     let mut render_camera = camera::RenderCamera::new(&renderer, &camera);
 
     let skybox = skybox::Skybox::load(
@@ -52,27 +52,38 @@ fn main() {
         &[&skybox.bind_group_layout, &render_camera.bind_group_layout],
         &[skybox::SkyboxVertex::desc()],
         "./shaders/skybox.wgsl",
+        false,
     );
 
-    let model = model::Model::load(&renderer, "./res/cube.obj").unwrap();
-    let mut transform = model::Transform {
+    let cube = model::Model::load(&renderer, "./res/cube.obj").unwrap();
+    let cube_transform = model::Transform {
+        translation: (0.0, 5.0, 5.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let cube_render_transform = model::RenderTransform::new(&renderer, &cube_transform);
+
+    let rifle = model::Model::load(&renderer, "./res/sniper_rifle.obj").unwrap();
+    let mut rifle_transform = model::Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-        scale: (0.1, 0.1, 0.1).into(),
+        scale: (1.0, 1.0, 1.0).into(),
     };
-    let mut render_transform = model::RenderTransform::new(&renderer, &transform);
+    let mut rifle_render_transform = model::RenderTransform::new(&renderer, &rifle_transform);
+
     let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
     let render_light = light::RenderLight::new(&renderer, &light);
     let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
     let model_pipeline = renderer.create_render_pipeline(
         &[
-            &model.bind_group_layout,
-            &render_transform.bind_group_layout,
+            &cube.bind_group_layout,
+            &cube_render_transform.bind_group_layout,
             &render_camera.bind_group_layout,
             &render_light.bind_group_layout,
         ],
         &[model::ModelVertex::desc()],
         "./shaders/shader.wgsl",
+        true,
     );
 
     let mut last_render_time = std::time::Instant::now();
@@ -127,16 +138,17 @@ fn main() {
                 let now = std::time::Instant::now();
                 let dt = now - last_render_time;
                 last_render_time = now;
+                // println!("frame time: {}ms", dt.as_millis());
 
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
-                transform.rotation = transform.rotation
+                rifle_transform.rotation = rifle_transform.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(dt.as_secs_f32() * 60.0),
                     );
-                render_transform.update(&renderer, &transform);
+                rifle_render_transform.update(&renderer, &rifle_transform);
 
                 let skybox_command = skybox::SkyboxRenderCommand {
                     pipeline: &skybox_pipeline,
@@ -146,8 +158,8 @@ fn main() {
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,
-                    models: vec![&model],
-                    transforms: vec![&render_transform],
+                    models: vec![&cube, &rifle],
+                    transforms: vec![&cube_render_transform, &rifle_render_transform],
                     camera: &render_camera,
                     light: &render_light,
                 };
