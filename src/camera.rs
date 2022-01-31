@@ -215,7 +215,7 @@ impl CameraController {
     pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
         if self.mouse_active {
             self.rotate_horizontal = mouse_dx as f32;
-            self.rotate_vertical = mouse_dy as f32;
+            self.rotate_vertical = -mouse_dy as f32;
         }
     }
 
@@ -235,7 +235,7 @@ impl CameraController {
         camera.pitch += Rad(self.rotate_vertical) * self.sensitivity * dt;
 
         self.rotate_horizontal = 0.0;
-        self.rotate_horizontal = 0.0;
+        self.rotate_vertical = 0.0;
 
         if camera.pitch < -Rad(SAFE_FRAC_PI_2) {
             camera.pitch = -Rad(SAFE_FRAC_PI_2);
