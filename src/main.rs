@@ -86,6 +86,19 @@ fn main() {
         true,
     );
 
+    let color_material = model::ColorMaterial::new(&renderer, [0.5, 0.5, 0.5], [0.5, 0.0, 0.8], [0.0, 0.5, 0.0], 32.0);
+    let color_pipeline = renderer.create_render_pipeline(
+        &[
+            &color_material.bind_group_layout,
+            &cube_render_transform.bind_group_layout,
+            &render_camera.bind_group_layout,
+            &render_light.bind_group_layout,
+        ],
+        &[model::ModelVertex::desc()],
+        "./shaders/color.wgsl",
+        true,
+    );
+
     let mut last_render_time = std::time::Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -158,13 +171,22 @@ fn main() {
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,
-                    models: vec![&cube, &rifle],
-                    transforms: vec![&cube_render_transform, &rifle_render_transform],
+                    models: vec![&cube],
+                    transforms: vec![&cube_render_transform],
                     camera: &render_camera,
                     light: &render_light,
                 };
 
-                match renderer.render(&vec![&skybox_command, &model_command], &depth_texture) {
+                let color_command = model::MeshRenderCommand {
+                    pipeline: &color_pipeline,
+                    mesh: &cube.meshes[0],
+                    material: &color_material,
+                    transform: &rifle_render_transform,
+                    camera: &render_camera,
+                    light: &render_light,
+                };
+
+                match renderer.render(&vec![&skybox_command, &model_command, &color_command], &depth_texture) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,

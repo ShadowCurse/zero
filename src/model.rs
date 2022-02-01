@@ -202,6 +202,78 @@ pub struct Material {
     pub bind_group: wgpu::BindGroup,
 }
 
+pub struct ColorMaterial {
+    pub ambient: [f32; 3],
+    pub diffuse: [f32; 3],
+    pub specular: [f32; 3],
+    pub shininess: f32,
+    pub buffer: wgpu::Buffer,
+    pub bind_group: wgpu::BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+impl ColorMaterial {
+    pub fn new(renderer: &renderer::Renderer, ambient: [f32; 3], diffuse: [f32; 3], specular: [f32; 3], shininess: f32) -> Self {
+        let bind_group_layout =
+            renderer
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                    ],
+                    label: Some("texture_bind_group_layout"),
+                });
+
+            let properties = MaterialPropertiesUniform {
+                ambient,
+                diffuse,
+                specular,
+                shininess,
+                ..Default::default()
+            };
+
+            let buffer = renderer
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("material_params_buffer"),
+                    contents: bytemuck::cast_slice(&[properties]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+
+            let bind_group = renderer
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: buffer.as_entire_binding(),
+                        },
+                    ],
+                    label: None,
+                });
+
+            Self {
+                ambient,
+                diffuse,
+                specular,
+                shininess,
+                buffer,
+                bind_group,
+                bind_group_layout,
+            }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct MaterialPropertiesUniform {
@@ -491,7 +563,7 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
 pub struct MeshRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub mesh: &'a Mesh,
-    pub material: &'a Material,
+    pub material: &'a ColorMaterial,
     pub transform: &'a RenderTransform,
     pub camera: &'a camera::RenderCamera,
     pub light: &'a light::RenderLight,
@@ -503,13 +575,20 @@ impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
         'a: 'b,
     {
         render_pass.set_pipeline(self.pipeline);
-        render_pass.draw_mesh(
-            self.mesh,
-            self.material,
-            self.transform,
-            self.camera,
-            self.light,
-        );
+        // render_pass.draw_mesh(
+        //     self.mesh,
+        //     self.material,
+        //     self.transform,
+        //     self.camera,
+        //     self.light,
+        // );
+        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_bind_group(0, &self.material.bind_group, &[]);
+        render_pass.set_bind_group(1, &self.transform.bind_group, &[]);
+        render_pass.set_bind_group(2, &self.camera.bind_group, &[]);
+        render_pass.set_bind_group(3, &self.light.bind_group, &[]);
+        render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
     }
 }
 
