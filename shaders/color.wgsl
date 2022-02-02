@@ -8,7 +8,7 @@ struct TransformUniform {
 var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
-  position: vec4<f32>;
+  position: vec3<f32>;
   view_projection: mat4x4<f32>;
   vp_without_translation: mat4x4<f32>;
 };
@@ -32,9 +32,8 @@ struct VertexInput {
 
 struct VertexOutput {
   [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] tex_coords: vec2<f32>;
-  [[location(1)]] world_position: vec3<f32>;
-  [[location(2)]] world_normal: vec3<f32>;
+  [[location(0)]] world_position: vec3<f32>;
+  [[location(1)]] world_normal: vec3<f32>;
 };
 
 [[stage(vertex)]]
@@ -46,7 +45,6 @@ fn vs_main(
 
   var out: VertexOutput;
   out.clip_position = camera.view_projection * world_position;
-  out.tex_coords = vertex.tex_coords;
   out.world_position = world_position.xyz;
   out.world_normal = world_normal.xyz;
 
@@ -67,19 +65,18 @@ var<uniform> properties: MaterialProperties;
 [[stage(fragment)]]
 fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let ambient_strength = 0.1;
-  let ambient_color = properties.ambient * light.color * ambient_strength;
+  let ambient_color = properties.ambient * ambient_strength;
 
   let light_dir = normalize(light.position - vertex.world_position);
-  let view_dir = normalize(camera.position.xyz - vertex.world_position);
+  let view_dir = normalize(camera.position - vertex.world_position);
   let half_dir = normalize(view_dir + light_dir);
 
   let diffuse_strength = max(dot(vertex.world_normal, light_dir), 0.0);
-  let diffuse_color = properties.diffuse * light.color * diffuse_strength;
+  let diffuse_color = properties.diffuse * diffuse_strength;
 
-  let specular_strength = pow(max(dot(vertex.world_normal, half_dir), 0.0), properties.shininess);
-  let specular_color = properties.specular * light.color * specular_strength;
+  //let specular_strength = pow(max(dot(vertex.world_normal, half_dir), 0.0), properties.shininess);
+  //let specular_color = light.color * specular_strength;
 
-  let result = ambient_color + diffuse_color + specular_color;
-
+  let result = ambient_color + diffuse_color;
   return vec4<f32>(result, 1.0); 
 }
