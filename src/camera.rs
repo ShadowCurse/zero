@@ -1,4 +1,4 @@
-use cgmath::{perspective, InnerSpace, Matrix3, Matrix4, Point3, Rad, SquareMatrix, Vector3};
+use cgmath::{perspective, InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
@@ -55,9 +55,10 @@ impl Camera {
     pub fn to_uniform(&self) -> CameraUniform {
         let projection = self.projection();
         CameraUniform {
-            position: self.position.to_homogeneous().into(),
+            position: self.position.into(),
             view_projection: (projection * self.view()).into(),
             vp_without_translation: (projection * self.view_without_translation()).into(),
+            ..Default::default()
         }
     }
 
@@ -85,9 +86,10 @@ impl Camera {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
-    position: [f32; 4],
+    position: [f32; 3],
+    _pad: f32,
     view_projection: [[f32; 4]; 4],
     vp_without_translation: [[f32; 4]; 4],
 }

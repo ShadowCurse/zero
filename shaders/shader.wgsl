@@ -8,7 +8,7 @@ struct TransformUniform {
 var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
-  position: vec4<f32>;
+  position: vec3<f32>;
   view_projection: mat4x4<f32>;
   vp_without_translation: mat4x4<f32>;
 };
