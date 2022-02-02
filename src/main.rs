@@ -35,6 +35,10 @@ fn main() {
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
     let mut render_camera = camera::RenderCamera::new(&renderer, &camera);
 
+    let mut light = light::Light::new((0.0, 0.0, 0.0), (1.0, 1.0, 1.0));
+    let mut render_light = light::RenderLight::new(&renderer, &light);
+    let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
+
     let skybox = skybox::Skybox::load(
         &renderer,
         [
@@ -55,25 +59,22 @@ fn main() {
         false,
     );
 
-    let cube = model::Model::load(&renderer, "./res/cube.obj").unwrap();
-    let cube_transform = model::Transform {
-        translation: (0.0, 5.0, 5.0).into(),
+    let cube = model::Model::load(&renderer, "./res/cube/cube.obj").unwrap();
+    let mut cube_transform = model::Transform {
+        translation: (5.0, -5.0, 5.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let cube_render_transform = model::RenderTransform::new(&renderer, &cube_transform);
+    let mut cube_render_transform = model::RenderTransform::new(&renderer, &cube_transform);
 
-    let rifle = model::Model::load(&renderer, "./res/sniper_rifle.obj").unwrap();
+    // let rifle = model::Model::load(&renderer, "./res/sniper_rifle/sniper_rifle.obj").unwrap();
     let mut rifle_transform = model::Transform {
-        translation: (0.0, 0.0, 0.0).into(),
+        translation: (5.0, 5.0, 5.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
     let mut rifle_render_transform = model::RenderTransform::new(&renderer, &rifle_transform);
 
-    let light = light::Light::new((5.0, 5.0, 5.0), (1.0, 1.0, 1.0));
-    let render_light = light::RenderLight::new(&renderer, &light);
-    let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
     let model_pipeline = renderer.create_render_pipeline(
         &[
             &cube.bind_group_layout,
@@ -86,7 +87,13 @@ fn main() {
         true,
     );
 
-    let color_material = model::ColorMaterial::new(&renderer, [0.5, 0.5, 0.5], [0.5, 0.0, 0.8], [0.0, 0.5, 0.0], 32.0);
+    let color_material = model::ColorMaterial::new(
+        &renderer,
+        [0.5, 0.0, 0.8],
+        [0.5, 0.0, 0.8],
+        [0.5, 0.0, 0.8],
+        0.0,
+    );
     let color_pipeline = renderer.create_render_pipeline(
         &[
             &color_material.bind_group_layout,
@@ -153,6 +160,11 @@ fn main() {
                 last_render_time = now;
                 // println!("frame time: {}ms", dt.as_millis());
 
+                light.position =
+                    cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+                        * light.position;
+                render_light.update(&renderer, &light);
+
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
@@ -163,11 +175,12 @@ fn main() {
                     );
                 rifle_render_transform.update(&renderer, &rifle_transform);
 
-                let skybox_command = skybox::SkyboxRenderCommand {
-                    pipeline: &skybox_pipeline,
-                    skybox: &skybox,
-                    camera: &render_camera,
-                };
+                cube_transform.rotation = cube_transform.rotation
+                    * cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-dt.as_secs_f32() * 120.0),
+                    );
+                cube_render_transform.update(&renderer, &cube_transform);
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,
@@ -186,7 +199,16 @@ fn main() {
                     light: &render_light,
                 };
 
-                match renderer.render(&vec![&skybox_command, &model_command, &color_command], &depth_texture) {
+                let skybox_command = skybox::SkyboxRenderCommand {
+                    pipeline: &skybox_pipeline,
+                    skybox: &skybox,
+                    camera: &render_camera,
+                };
+
+                match renderer.render(
+                    &vec![&model_command, &color_command, &skybox_command],
+                    &depth_texture,
+                ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,

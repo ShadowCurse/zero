@@ -213,64 +213,66 @@ pub struct ColorMaterial {
 }
 
 impl ColorMaterial {
-    pub fn new(renderer: &renderer::Renderer, ambient: [f32; 3], diffuse: [f32; 3], specular: [f32; 3], shininess: f32) -> Self {
+    pub fn new(
+        renderer: &renderer::Renderer,
+        ambient: [f32; 3],
+        diffuse: [f32; 3],
+        specular: [f32; 3],
+        shininess: f32,
+    ) -> Self {
         let bind_group_layout =
             renderer
                 .device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Buffer {
-                                ty: wgpu::BufferBindingType::Uniform,
-                                has_dynamic_offset: false,
-                                min_binding_size: None,
-                            },
-                            count: None,
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
                         },
-                    ],
+                        count: None,
+                    }],
                     label: Some("texture_bind_group_layout"),
                 });
 
-            let properties = MaterialPropertiesUniform {
-                ambient,
-                diffuse,
-                specular,
-                shininess,
-                ..Default::default()
-            };
+        let properties = MaterialPropertiesUniform {
+            ambient,
+            diffuse,
+            specular,
+            shininess,
+            ..Default::default()
+        };
 
-            let buffer = renderer
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("material_params_buffer"),
-                    contents: bytemuck::cast_slice(&[properties]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
+        let buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("material_params_buffer"),
+                contents: bytemuck::cast_slice(&[properties]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
 
-            let bind_group = renderer
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &bind_group_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: buffer.as_entire_binding(),
-                        },
-                    ],
-                    label: None,
-                });
+        let bind_group = renderer
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+                label: None,
+            });
 
-            Self {
-                ambient,
-                diffuse,
-                specular,
-                shininess,
-                buffer,
-                bind_group,
-                bind_group_layout,
-            }
+        Self {
+            ambient,
+            diffuse,
+            specular,
+            shininess,
+            buffer,
+            bind_group,
+            bind_group_layout,
+        }
     }
 }
 

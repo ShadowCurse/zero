@@ -88,4 +88,10 @@ impl RenderLight {
             bind_group_layout,
         }
     }
+
+    pub fn update(&mut self, renderer: &renderer::Renderer, light: &Light) {
+        renderer
+            .queue
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[light.to_uniform()]));
+    }
 }
