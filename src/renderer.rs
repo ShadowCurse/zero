@@ -5,23 +5,40 @@ use winit::window::Window;
 
 use crate::texture;
 
+pub trait Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
+}
+
 pub trait RenderCommand<'a> {
     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
     where
         'a: 'b;
 }
 
-pub trait GpuResource {
+/// Trait for resources located on the GPU
+pub trait GpuResource {}
+
+/// Trait for types that can be loaded to the GPU
+pub trait GpuAsset {
+    type GpuType: GpuResource;
+
+    fn build(&self, renderer: &Renderer) -> Self::GpuType;
+}
+
+/// Trait for types that compose Gpu resources into bind group
+pub trait RenderResource {
     fn bind_group(&self) -> &wgpu::BindGroup;
 }
 
+/// Trait for the types that can be converted to the RenderResource
 pub trait RenderAsset {
-    type GpuType: GpuResource;
+    type RenderType: RenderResource;
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout;
-    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::GpuType;
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType;
 }
 
+/// Builder for objects with the same bind_group_layout
 pub struct RenderAssetBuilder<T: RenderAsset> {
     pub bind_group_layout: wgpu::BindGroupLayout,
     _phantom: std::marker::PhantomData<fn() -> T>,
@@ -35,7 +52,7 @@ impl<T: RenderAsset> RenderAssetBuilder<T> {
         }
     }
 
-    pub fn build(&self, renderer: &Renderer, resource: &T) -> T::GpuType {
+    pub fn build(&self, renderer: &Renderer, resource: &T) -> T::RenderType {
         resource.build(renderer, &self.bind_group_layout)
     }
 }
@@ -106,7 +123,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         commands: &Vec<&dyn RenderCommand>,
-        depth_texture: &texture::RenderTexture,
+        depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output

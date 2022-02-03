@@ -24,7 +24,7 @@ impl RenderTransform {
     }
 }
 
-impl renderer::GpuResource for RenderTransform {
+impl renderer::RenderResource for RenderTransform {
     fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }
@@ -51,7 +51,7 @@ impl Transform {
 }
 
 impl renderer::RenderAsset for Transform {
-    type GpuType = RenderTransform;
+    type RenderType = RenderTransform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -75,7 +75,7 @@ impl renderer::RenderAsset for Transform {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::GpuType {
+    ) -> Self::RenderType {
         let uniform = self.to_uniform();
         let buffer = renderer
             .device
@@ -96,6 +96,6 @@ impl renderer::RenderAsset for Transform {
                 label: Some("transform_bind_group"),
             });
 
-        Self::GpuType { buffer, bind_group }
+        Self::RenderType { buffer, bind_group }
     }
 }

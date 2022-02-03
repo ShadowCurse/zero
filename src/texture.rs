@@ -4,11 +4,13 @@ use std::path::Path;
 
 use crate::renderer;
 
-pub struct RenderTexture {
+pub struct GpuTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
+
+impl renderer::GpuResource for GpuTexture {}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
@@ -30,12 +32,8 @@ pub struct CubeMap {
 }
 
 impl Texture {
-    pub fn load<P: AsRef<Path>>(
-        path: P,
-        texture_type: TextureType,
-    ) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
         let path_copy = path.as_ref().to_path_buf();
-        let label = path_copy.to_str();
 
         println!("loading texture from {:#?}", path_copy);
         let img = image::open(path)?;
@@ -46,8 +44,12 @@ impl Texture {
             dimensions: img.dimensions(),
         })
     }
+}
 
-    pub fn build(&self, renderer: &renderer::Renderer) -> RenderTexture {
+impl renderer::GpuAsset for Texture {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
         let texture_size = wgpu::Extent3d {
             width: self.dimensions.0,
             height: self.dimensions.1,
@@ -78,7 +80,6 @@ impl Texture {
             ..Default::default()
         });
 
-
         renderer.queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &texture,
@@ -95,7 +96,7 @@ impl Texture {
             texture_size,
         );
 
-        RenderTexture {
+        Self::GpuType {
             texture,
             view,
             sampler,
@@ -106,7 +107,7 @@ impl Texture {
 impl DepthTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn build(renderer: &renderer::Renderer) -> RenderTexture {
+    pub fn build(renderer: &renderer::Renderer) -> GpuTexture {
         let size = wgpu::Extent3d {
             width: renderer.config.width,
             height: renderer.config.height,
@@ -137,7 +138,7 @@ impl DepthTexture {
             ..Default::default()
         });
 
-        RenderTexture {
+        GpuTexture {
             texture,
             view,
             sampler,
@@ -146,9 +147,7 @@ impl DepthTexture {
 }
 
 impl CubeMap {
-    pub fn load<P: AsRef<Path>>(
-        paths: [P; 6],
-    ) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(paths: [P; 6]) -> Result<Self> {
         let mut texture_data = Vec::new();
         let mut dimensions = (0, 0);
         for path in paths {
@@ -165,7 +164,7 @@ impl CubeMap {
         })
     }
 
-    pub fn build(&self, renderer: &renderer::Renderer) -> RenderTexture {
+    pub fn build(&self, renderer: &renderer::Renderer) -> GpuTexture {
         let texture_size = wgpu::Extent3d {
             width: self.dimensions.0,
             height: self.dimensions.1,
@@ -212,7 +211,7 @@ impl CubeMap {
             texture_size,
         );
 
-        RenderTexture {
+        GpuTexture {
             texture,
             view,
             sampler,

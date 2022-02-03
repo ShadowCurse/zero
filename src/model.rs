@@ -5,13 +5,9 @@ use wgpu::util::DeviceExt;
 use crate::camera;
 use crate::light;
 use crate::material;
-use crate::renderer;
+use crate::renderer::{self, GpuAsset};
 use crate::texture;
 use crate::transform;
-
-pub trait Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -23,7 +19,7 @@ pub struct ModelVertex {
     bitangent: [f32; 3],
 }
 
-impl Vertex for ModelVertex {
+impl renderer::Vertex for ModelVertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -59,12 +55,14 @@ impl Vertex for ModelVertex {
     }
 }
 
-pub struct RenderMesh {
+pub struct GpuMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
     pub material: usize,
 }
+
+impl renderer::GpuResource for GpuMesh {}
 
 pub struct Mesh {
     pub name: String,
@@ -73,8 +71,37 @@ pub struct Mesh {
     pub material: usize,
 }
 
+impl renderer::GpuAsset for Mesh {
+    type GpuType = GpuMesh;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
+        let vertex_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("vertex_buffer"),
+                contents: bytemuck::cast_slice(&self.vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let index_buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("index_buffer"),
+                contents: bytemuck::cast_slice(&self.indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+
+        Self::GpuType {
+            vertex_buffer,
+            index_buffer,
+            num_elements: self.indices.len() as u32,
+            material: self.material,
+        }
+    }
+}
+
 pub struct RenderModel {
-    pub meshes: Vec<RenderMesh>,
+    pub meshes: Vec<GpuMesh>,
     pub materials: Vec<material::RenderMaterial>,
 }
 
@@ -200,32 +227,7 @@ impl Model {
         let meshes = self
             .meshes
             .iter()
-            .map(|mesh| {
-                let vertex_buffer =
-                    renderer
-                        .device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("vertex_buffer"),
-                            contents: bytemuck::cast_slice(&mesh.vertices),
-                            usage: wgpu::BufferUsages::VERTEX,
-                        });
-
-                let index_buffer =
-                    renderer
-                        .device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("index_buffer"),
-                            contents: bytemuck::cast_slice(&mesh.indices),
-                            usage: wgpu::BufferUsages::INDEX,
-                        });
-
-                RenderMesh {
-                    vertex_buffer,
-                    index_buffer,
-                    num_elements: mesh.indices.len() as u32,
-                    material: mesh.material,
-                }
-            })
+            .map(|mesh| mesh.build(renderer))
             .collect();
 
         let materials = self
@@ -260,7 +262,7 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
 
 pub struct MeshRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
-    pub mesh: &'a RenderMesh,
+    pub mesh: &'a GpuMesh,
     pub material: &'a material::RenderColorMaterial,
     pub transform: &'a transform::RenderTransform,
     pub camera: &'a camera::RenderCamera,
@@ -303,7 +305,7 @@ pub trait DrawModel<'a> {
 
     fn draw_mesh(
         &mut self,
-        mesh: &'a RenderMesh,
+        mesh: &'a GpuMesh,
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
@@ -312,7 +314,7 @@ pub trait DrawModel<'a> {
 
     fn draw_mesh_instanced(
         &mut self,
-        mesh: &'a RenderMesh,
+        mesh: &'a GpuMesh,
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
@@ -351,7 +353,7 @@ where
 
     fn draw_mesh(
         &mut self,
-        mesh: &'a RenderMesh,
+        mesh: &'a GpuMesh,
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
@@ -362,7 +364,7 @@ where
 
     fn draw_mesh_instanced(
         &mut self,
-        mesh: &'a RenderMesh,
+        mesh: &'a GpuMesh,
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,

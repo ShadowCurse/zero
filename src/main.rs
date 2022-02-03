@@ -7,14 +7,14 @@ use winit::{
 
 mod camera;
 mod light;
+mod material;
 mod model;
 mod renderer;
 mod skybox;
 mod texture;
 mod transform;
-mod material;
 
-use model::Vertex;
+use renderer::Vertex;
 
 fn main() {
     env_logger::init();
@@ -23,6 +23,15 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
+    let mut depth_texture = texture::DepthTexture::build(&renderer);
+
+    let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
+    let light_builder = renderer::RenderAssetBuilder::<light::Light>::new(&renderer);
+    let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
+    let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
+    let color_material_builder =
+        renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
+    let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
 
     let mut camera = camera::Camera::new(
         (0.0, 0.0, 0.0),
@@ -34,36 +43,22 @@ fn main() {
         0.1,
         100.0,
     );
+    let mut render_camera = camera_builder.build(&renderer, &camera);
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
-    let mut render_camera = camera::RenderCamera::new(&renderer, &camera);
 
     let mut light = light::Light::new((0.0, 0.0, 0.0), (1.0, 1.0, 1.0));
-    let mut render_light = light::RenderLight::new(&renderer, &light);
-    let mut depth_texture = texture::DepthTexture::build(&renderer);
+    let mut render_light = light_builder.build(&renderer, &light);
 
-    // let skybox = skybox::Skybox::load(
-    //     &renderer,
-    //     [
-    //         "./res/skybox/right.jpg",
-    //         "./res/skybox/left.jpg",
-    //         "./res/skybox/top.jpg",
-    //         "./res/skybox/bottom.jpg",
-    //         "./res/skybox/front.jpg",
-    //         "./res/skybox/back.jpg",
-    //     ],
-    // )
-    // .unwrap();
-
-    // let skybox_pipeline = renderer.create_render_pipeline(
-    //     &[&skybox.bind_group_layout, &render_camera.bind_group_layout],
-    //     &[skybox::SkyboxVertex::desc()],
-    //     "./shaders/skybox.wgsl",
-    //     false,
-    // );
-
-    let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
-    let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
-    let color_material_builder = renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
+    let skybox = skybox::Skybox::load([
+        "./res/skybox/right.jpg",
+        "./res/skybox/left.jpg",
+        "./res/skybox/top.jpg",
+        "./res/skybox/bottom.jpg",
+        "./res/skybox/front.jpg",
+        "./res/skybox/back.jpg",
+    ])
+    .unwrap();
+    let render_skybox = skybox_builder.build(&renderer, &skybox);
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
@@ -74,29 +69,12 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let mut render_transform_1 = transform_builder.build(&renderer, &transform_1);
-
-    // let mut cube_render_transform = transform::RenderTransform::new(&renderer, &cube_transform);
-
-    // let rifle = model::Model::load(&renderer, "./res/sniper_rifle/sniper_rifle.obj").unwrap();
     let mut transform_2 = transform::Transform {
         translation: (5.0, 5.0, 5.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
     let mut render_transform_2 = transform_builder.build(&renderer, &transform_2);
-    // let mut rifle_render_transform = transform::RenderTransform::new(&renderer, &rifle_transform);
-
-    let model_pipeline = renderer.create_render_pipeline(
-        &[
-            &material_builder.bind_group_layout,
-            &transform_builder.bind_group_layout,
-            &render_camera.bind_group_layout,
-            &render_light.bind_group_layout,
-        ],
-        &[model::ModelVertex::desc()],
-        "./shaders/shader.wgsl",
-        true,
-    );
 
     let color_material = material::ColorMaterial {
         ambient: [0.5, 0.0, 0.8],
@@ -105,12 +83,35 @@ fn main() {
         shininess: 0.0,
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
+
+    let skybox_pipeline = renderer.create_render_pipeline(
+        &[
+            &skybox_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+        ],
+        &[skybox::SkyboxVertex::desc()],
+        "./shaders/skybox.wgsl",
+        false,
+    );
+
+    let model_pipeline = renderer.create_render_pipeline(
+        &[
+            &material_builder.bind_group_layout,
+            &transform_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+            &light_builder.bind_group_layout,
+        ],
+        &[model::ModelVertex::desc()],
+        "./shaders/shader.wgsl",
+        true,
+    );
+
     let color_pipeline = renderer.create_render_pipeline(
         &[
             &color_material_builder.bind_group_layout,
             &transform_builder.bind_group_layout,
-            &render_camera.bind_group_layout,
-            &render_light.bind_group_layout,
+            &camera_builder.bind_group_layout,
+            &light_builder.bind_group_layout,
         ],
         &[model::ModelVertex::desc()],
         "./shaders/color.wgsl",
@@ -154,14 +155,12 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
-                    depth_texture =
-                        texture::DepthTexture::build(&renderer);
+                    depth_texture = texture::DepthTexture::build(&renderer);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
-                    depth_texture =
-                        texture::DepthTexture::build(&renderer);
+                    depth_texture = texture::DepthTexture::build(&renderer);
                 }
                 _ => {}
             },
@@ -210,14 +209,14 @@ fn main() {
                     light: &render_light,
                 };
 
-                // let skybox_command = skybox::SkyboxRenderCommand {
-                //     pipeline: &skybox_pipeline,
-                //     skybox: &skybox,
-                //     camera: &render_camera,
-                // };
+                let skybox_command = skybox::SkyboxRenderCommand {
+                    pipeline: &skybox_pipeline,
+                    skybox: &render_skybox,
+                    camera: &render_camera,
+                };
 
                 match renderer.render(
-                    &vec![&model_command, &color_command],
+                    &vec![&model_command, &color_command, &skybox_command],
                     &depth_texture,
                 ) {
                     Ok(_) => {}
