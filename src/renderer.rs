@@ -11,6 +11,35 @@ pub trait RenderCommand<'a> {
         'a: 'b;
 }
 
+pub trait GpuResource {
+    fn bind_group(&self) -> &wgpu::BindGroup;
+}
+
+pub trait RenderAsset {
+    type GpuType: GpuResource;
+
+    fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout;
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::GpuType;
+}
+
+pub struct RenderAssetBuilder<T: RenderAsset> {
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    _phantom: std::marker::PhantomData<fn() -> T>,
+}
+
+impl<T: RenderAsset> RenderAssetBuilder<T> {
+    pub fn new(renderer: &Renderer) -> Self {
+        Self {
+            bind_group_layout: T::bind_group_layout(renderer),
+            _phantom: std::marker::PhantomData::default(),
+        }
+    }
+
+    pub fn build(&self, renderer: &Renderer, resource: &T) -> T::GpuType {
+        resource.build(renderer, &self.bind_group_layout)
+    }
+}
+
 pub struct Renderer {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -77,7 +106,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         commands: &Vec<&dyn RenderCommand>,
-        depth_texture: &texture::Texture,
+        depth_texture: &texture::RenderTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -182,7 +211,7 @@ impl Renderer {
                     conservative: false,
                 },
                 depth_stencil: Some(wgpu::DepthStencilState {
-                    format: texture::Texture::DEPTH_FORMAT,
+                    format: texture::DepthTexture::DEPTH_FORMAT,
                     depth_write_enabled: write_depth,
                     depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),

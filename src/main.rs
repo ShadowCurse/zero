@@ -11,6 +11,8 @@ mod model;
 mod renderer;
 mod skybox;
 mod texture;
+mod transform;
+mod material;
 
 use model::Vertex;
 
@@ -37,48 +39,57 @@ fn main() {
 
     let mut light = light::Light::new((0.0, 0.0, 0.0), (1.0, 1.0, 1.0));
     let mut render_light = light::RenderLight::new(&renderer, &light);
-    let mut depth_texture = texture::Texture::create_depth_texture(&renderer, "depth_texture");
+    let mut depth_texture = texture::DepthTexture::build(&renderer);
 
-    let skybox = skybox::Skybox::load(
-        &renderer,
-        [
-            "./res/skybox/right.jpg",
-            "./res/skybox/left.jpg",
-            "./res/skybox/top.jpg",
-            "./res/skybox/bottom.jpg",
-            "./res/skybox/front.jpg",
-            "./res/skybox/back.jpg",
-        ],
-    )
-    .unwrap();
+    // let skybox = skybox::Skybox::load(
+    //     &renderer,
+    //     [
+    //         "./res/skybox/right.jpg",
+    //         "./res/skybox/left.jpg",
+    //         "./res/skybox/top.jpg",
+    //         "./res/skybox/bottom.jpg",
+    //         "./res/skybox/front.jpg",
+    //         "./res/skybox/back.jpg",
+    //     ],
+    // )
+    // .unwrap();
 
-    let skybox_pipeline = renderer.create_render_pipeline(
-        &[&skybox.bind_group_layout, &render_camera.bind_group_layout],
-        &[skybox::SkyboxVertex::desc()],
-        "./shaders/skybox.wgsl",
-        false,
-    );
+    // let skybox_pipeline = renderer.create_render_pipeline(
+    //     &[&skybox.bind_group_layout, &render_camera.bind_group_layout],
+    //     &[skybox::SkyboxVertex::desc()],
+    //     "./shaders/skybox.wgsl",
+    //     false,
+    // );
 
-    let cube = model::Model::load(&renderer, "./res/cube/cube.obj").unwrap();
-    let mut cube_transform = model::Transform {
+    let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
+    let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
+    let color_material_builder = renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
+
+    let cube = model::Model::load("./res/cube/cube.obj").unwrap();
+    let render_cube = cube.build(&renderer, &material_builder);
+
+    let mut transform_1 = transform::Transform {
         translation: (5.0, -5.0, 5.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let mut cube_render_transform = model::RenderTransform::new(&renderer, &cube_transform);
+    let mut render_transform_1 = transform_builder.build(&renderer, &transform_1);
+
+    // let mut cube_render_transform = transform::RenderTransform::new(&renderer, &cube_transform);
 
     // let rifle = model::Model::load(&renderer, "./res/sniper_rifle/sniper_rifle.obj").unwrap();
-    let mut rifle_transform = model::Transform {
+    let mut transform_2 = transform::Transform {
         translation: (5.0, 5.0, 5.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let mut rifle_render_transform = model::RenderTransform::new(&renderer, &rifle_transform);
+    let mut render_transform_2 = transform_builder.build(&renderer, &transform_2);
+    // let mut rifle_render_transform = transform::RenderTransform::new(&renderer, &rifle_transform);
 
     let model_pipeline = renderer.create_render_pipeline(
         &[
-            &cube.bind_group_layout,
-            &cube_render_transform.bind_group_layout,
+            &material_builder.bind_group_layout,
+            &transform_builder.bind_group_layout,
             &render_camera.bind_group_layout,
             &render_light.bind_group_layout,
         ],
@@ -87,17 +98,17 @@ fn main() {
         true,
     );
 
-    let color_material = model::ColorMaterial::new(
-        &renderer,
-        [0.5, 0.0, 0.8],
-        [0.5, 0.0, 0.8],
-        [0.5, 0.0, 0.8],
-        0.0,
-    );
+    let color_material = material::ColorMaterial {
+        ambient: [0.5, 0.0, 0.8],
+        diffuse: [0.5, 0.0, 0.8],
+        specular: [0.5, 0.0, 0.8],
+        shininess: 0.0,
+    };
+    let color_render_material = color_material_builder.build(&renderer, &color_material);
     let color_pipeline = renderer.create_render_pipeline(
         &[
-            &color_material.bind_group_layout,
-            &cube_render_transform.bind_group_layout,
+            &color_material_builder.bind_group_layout,
+            &transform_builder.bind_group_layout,
             &render_camera.bind_group_layout,
             &render_light.bind_group_layout,
         ],
@@ -144,13 +155,13 @@ fn main() {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
                     depth_texture =
-                        texture::Texture::create_depth_texture(&renderer, "depth_texture");
+                        texture::DepthTexture::build(&renderer);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
                     depth_texture =
-                        texture::Texture::create_depth_texture(&renderer, "depth_texture");
+                        texture::DepthTexture::build(&renderer);
                 }
                 _ => {}
             },
@@ -168,45 +179,45 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
 
-                rifle_transform.rotation = rifle_transform.rotation
+                transform_2.rotation = transform_2.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(dt.as_secs_f32() * 60.0),
                     );
-                rifle_render_transform.update(&renderer, &rifle_transform);
+                render_transform_2.update(&renderer, &transform_2);
 
-                cube_transform.rotation = cube_transform.rotation
+                transform_1.rotation = transform_1.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(-dt.as_secs_f32() * 120.0),
                     );
-                cube_render_transform.update(&renderer, &cube_transform);
+                render_transform_1.update(&renderer, &transform_1);
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,
-                    models: vec![&cube],
-                    transforms: vec![&cube_render_transform],
+                    models: vec![&render_cube],
+                    transforms: vec![&render_transform_1],
                     camera: &render_camera,
                     light: &render_light,
                 };
 
                 let color_command = model::MeshRenderCommand {
                     pipeline: &color_pipeline,
-                    mesh: &cube.meshes[0],
-                    material: &color_material,
-                    transform: &rifle_render_transform,
+                    mesh: &render_cube.meshes[0],
+                    material: &color_render_material,
+                    transform: &render_transform_2,
                     camera: &render_camera,
                     light: &render_light,
                 };
 
-                let skybox_command = skybox::SkyboxRenderCommand {
-                    pipeline: &skybox_pipeline,
-                    skybox: &skybox,
-                    camera: &render_camera,
-                };
+                // let skybox_command = skybox::SkyboxRenderCommand {
+                //     pipeline: &skybox_pipeline,
+                //     skybox: &skybox,
+                //     camera: &render_camera,
+                // };
 
                 match renderer.render(
-                    &vec![&model_command, &color_command, &skybox_command],
+                    &vec![&model_command, &color_command],
                     &depth_texture,
                 ) {
                     Ok(_) => {}

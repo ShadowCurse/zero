@@ -26,12 +26,17 @@ impl Vertex for SkyboxVertex {
     }
 }
 
-pub struct Skybox {
+pub struct RenderSkybox {
     pub vertex_buffer: wgpu::Buffer,
     pub num_elements: u32,
-    pub cube_map: texture::Texture,
+    pub cube_map: texture::RenderTexture,
     pub bind_group: wgpu::BindGroup,
-    pub bind_group_layout: wgpu::BindGroupLayout,
+}
+
+pub struct Skybox {
+    pub vertices: Vec<f32>,
+    pub num_indices: u32,
+    pub cube_map: texture::CubeMap,
 }
 
 impl Skybox {
@@ -39,51 +44,51 @@ impl Skybox {
         renderer: &renderer::Renderer,
         paths: [P; 6],
     ) -> Result<Self> {
-        let bind_group_layout =
-            renderer
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                multisampled: false,
-                                view_dimension: wgpu::TextureViewDimension::Cube,
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                    label: Some("skybox_bind_group_layout"),
-                });
+        // let bind_group_layout =
+        //     renderer
+        //         .device
+        //         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //             entries: &[
+        //                 wgpu::BindGroupLayoutEntry {
+        //                     binding: 0,
+        //                     visibility: wgpu::ShaderStages::FRAGMENT,
+        //                     ty: wgpu::BindingType::Texture {
+        //                         multisampled: false,
+        //                         view_dimension: wgpu::TextureViewDimension::Cube,
+        //                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        //                     },
+        //                     count: None,
+        //                 },
+        //                 wgpu::BindGroupLayoutEntry {
+        //                     binding: 1,
+        //                     visibility: wgpu::ShaderStages::FRAGMENT,
+        //                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+        //                     count: None,
+        //                 },
+        //             ],
+        //             label: Some("skybox_bind_group_layout"),
+        //         });
 
-        let cube_map = texture::Texture::load_cube_map(&renderer.device, &renderer.queue, paths)?;
+        let cube_map = texture::CubeMap::load(paths)?;
 
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&cube_map.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&cube_map.sampler),
-                    },
-                ],
-                label: None,
-            });
+        // let bind_group = renderer
+        //     .device
+        //     .create_bind_group(&wgpu::BindGroupDescriptor {
+        //         layout: &bind_group_layout,
+        //         entries: &[
+        //             wgpu::BindGroupEntry {
+        //                 binding: 0,
+        //                 resource: wgpu::BindingResource::TextureView(&cube_map.view),
+        //             },
+        //             wgpu::BindGroupEntry {
+        //                 binding: 1,
+        //                 resource: wgpu::BindingResource::Sampler(&cube_map.sampler),
+        //             },
+        //         ],
+        //         label: None,
+        //     });
 
-        let skybox_vertices: Vec<f32> = vec![
+        let vertices: Vec<f32> = vec![
             -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0,
             -1.0, 1.0, -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0,
             -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -93,20 +98,18 @@ impl Skybox {
             -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0,
         ];
 
-        let vertex_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("cube_map_vertex_buffer"),
-                contents: bytemuck::cast_slice(&skybox_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        // let vertex_buffer = renderer
+        //     .device
+        //     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //         label: Some("cube_map_vertex_buffer"),
+        //         contents: bytemuck::cast_slice(&skybox_vertices),
+        //         usage: wgpu::BufferUsages::VERTEX,
+        //     });
 
         Ok(Self {
-            vertex_buffer,
-            num_elements: 36,
+            vertices,
+            num_indices: 36,
             cube_map,
-            bind_group,
-            bind_group_layout,
         })
     }
 }
@@ -136,9 +139,9 @@ where
     'b: 'a,
 {
     fn draw_skybox(&mut self, skybox: &'a Skybox, camera: &'a camera::RenderCamera) {
-        self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-        self.set_bind_group(0, &skybox.bind_group, &[]);
-        self.set_bind_group(1, &camera.bind_group, &[]);
-        self.draw(0..skybox.num_elements, 0..1);
+        // self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
+        // self.set_bind_group(0, &skybox.bind_group, &[]);
+        // self.set_bind_group(1, &camera.bind_group, &[]);
+        // self.draw(0..skybox.num_elements, 0..1);
     }
 }
