@@ -25,6 +25,7 @@ impl renderer::Vertex for SkyboxVertex {
     }
 }
 
+#[derive(Debug)]
 pub struct RenderSkybox {
     pub vertex_buffer: wgpu::Buffer,
     pub num_elements: u32,
@@ -38,6 +39,7 @@ impl renderer::RenderResource for RenderSkybox {
     }
 }
 
+#[derive(Debug)]
 pub struct Skybox {
     pub vertices: Vec<f32>,
     pub num_elements: u32,
@@ -136,6 +138,7 @@ impl renderer::RenderAsset for Skybox {
     }
 }
 
+#[derive(Debug)]
 pub struct SkyboxRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub skybox: &'a RenderSkybox,

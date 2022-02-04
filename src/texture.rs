@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::renderer;
 
+#[derive(Debug)]
 pub struct GpuTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -18,14 +19,17 @@ pub enum TextureType {
     Normal,
 }
 
+#[derive(Debug)]
 pub struct Texture {
     pub texture_type: TextureType,
     pub texture: image::RgbaImage,
     pub dimensions: (u32, u32),
 }
 
+#[derive(Debug)]
 pub struct DepthTexture;
 
+#[derive(Debug)]
 pub struct CubeMap {
     pub texture: Vec<u8>,
     pub dimensions: (u32, u32),

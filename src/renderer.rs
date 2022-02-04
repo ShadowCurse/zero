@@ -39,6 +39,7 @@ pub trait RenderAsset {
 }
 
 /// Builder for objects with the same bind_group_layout
+#[derive(Debug)]
 pub struct RenderAssetBuilder<T: RenderAsset> {
     pub bind_group_layout: wgpu::BindGroupLayout,
     _phantom: std::marker::PhantomData<fn() -> T>,
@@ -57,6 +58,7 @@ impl<T: RenderAsset> RenderAssetBuilder<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct Renderer {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,

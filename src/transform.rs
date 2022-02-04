@@ -9,6 +9,7 @@ pub struct TransformUniform {
     rotate: [[f32; 4]; 4],
 }
 
+#[derive(Debug)]
 pub struct RenderTransform {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -30,6 +31,7 @@ impl renderer::RenderResource for RenderTransform {
     }
 }
 
+#[derive(Debug)]
 pub struct Transform {
     pub translation: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,

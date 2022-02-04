@@ -12,6 +12,7 @@ pub struct LightUniform {
     _pad2: u32,
 }
 
+#[derive(Debug)]
 pub struct RenderLight {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -23,6 +24,7 @@ impl renderer::RenderResource for RenderLight {
     }
 }
 
+#[derive(Debug)]
 pub struct Light {
     pub position: cgmath::Vector3<f32>,
     pub color: cgmath::Vector3<f32>,

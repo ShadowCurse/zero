@@ -3,6 +3,7 @@ use wgpu::util::DeviceExt;
 use crate::renderer::{self, GpuAsset};
 use crate::texture;
 
+#[derive(Debug)]
 pub struct RenderMaterial {
     pub diffuse_texture: texture::GpuTexture,
     pub normal_texture: texture::GpuTexture,
@@ -16,6 +17,7 @@ impl renderer::RenderResource for RenderMaterial {
     }
 }
 
+#[derive(Debug)]
 pub struct RenderColorMaterial {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -39,6 +41,7 @@ pub struct MaterialPropertiesUniform {
     pub shininess: f32,
 }
 
+#[derive(Debug)]
 pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
@@ -166,6 +169,7 @@ impl renderer::RenderAsset for Material {
     }
 }
 
+#[derive(Debug)]
 pub struct ColorMaterial {
     pub ambient: [f32; 3],
     pub diffuse: [f32; 3],

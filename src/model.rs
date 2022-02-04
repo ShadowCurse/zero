@@ -10,13 +10,70 @@ use crate::texture;
 use crate::transform;
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ModelVertex {
     position: [f32; 3],
     tex_coords: [f32; 2],
     normal: [f32; 3],
     tangent: [f32; 3],
     bitangent: [f32; 3],
+}
+
+impl From<([f32; 3], [f32; 2], [f32; 3])> for ModelVertex {
+    fn from(data: ([f32; 3], [f32; 2], [f32; 3])) -> Self {
+        Self {
+            position: data.0,
+            tex_coords: data.1,
+            normal: data.2,
+            ..Default::default()
+        }
+    }
+}
+
+impl ModelVertex {
+    pub fn calc_tangents_and_bitangents(vertices: &mut Vec<ModelVertex>, indices: &Vec<u32>) {
+        for c in indices.chunks(3) {
+            let v0 = vertices[c[0] as usize];
+            let v1 = vertices[c[1] as usize];
+            let v2 = vertices[c[2] as usize];
+
+            let pos0: cgmath::Vector3<_> = v0.position.into();
+            let pos1: cgmath::Vector3<_> = v1.position.into();
+            let pos2: cgmath::Vector3<_> = v2.position.into();
+
+            let uv0: cgmath::Vector2<_> = v0.tex_coords.into();
+            let uv1: cgmath::Vector2<_> = v1.tex_coords.into();
+            let uv2: cgmath::Vector2<_> = v2.tex_coords.into();
+
+            let delta_pos1 = pos1 - pos0;
+            let delta_pos2 = pos2 - pos0;
+
+            let delta_uv1 = uv1 - uv0;
+            let delta_uv2 = uv2 - uv0;
+
+            let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+            let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
+            let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
+
+            vertices[c[0] as usize].tangent =
+                (tangent + cgmath::Vector3::from(vertices[c[0] as usize].tangent)).into();
+            vertices[c[1] as usize].tangent =
+                (tangent + cgmath::Vector3::from(vertices[c[1] as usize].tangent)).into();
+            vertices[c[2] as usize].tangent =
+                (tangent + cgmath::Vector3::from(vertices[c[2] as usize].tangent)).into();
+            vertices[c[0] as usize].bitangent =
+                (bitangent + cgmath::Vector3::from(vertices[c[0] as usize].bitangent)).into();
+            vertices[c[1] as usize].bitangent =
+                (bitangent + cgmath::Vector3::from(vertices[c[1] as usize].bitangent)).into();
+            vertices[c[2] as usize].bitangent =
+                (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
+        }
+
+        for v in vertices.iter_mut() {
+            v.tangent = cgmath::Vector3::from(v.tangent).normalize().into();
+            v.bitangent = cgmath::Vector3::from(v.bitangent).normalize().into();
+        }
+    }
 }
 
 impl renderer::Vertex for ModelVertex {
@@ -55,6 +112,7 @@ impl renderer::Vertex for ModelVertex {
     }
 }
 
+#[derive(Debug)]
 pub struct GpuMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -64,6 +122,7 @@ pub struct GpuMesh {
 
 impl renderer::GpuResource for GpuMesh {}
 
+#[derive(Debug)]
 pub struct Mesh {
     pub name: String,
     pub vertices: Vec<ModelVertex>,
@@ -100,11 +159,13 @@ impl renderer::GpuAsset for Mesh {
     }
 }
 
+#[derive(Debug)]
 pub struct RenderModel {
     pub meshes: Vec<GpuMesh>,
     pub materials: Vec<material::RenderMaterial>,
 }
 
+#[derive(Debug)]
 pub struct Model {
     pub meshes: Vec<Mesh>,
     pub materials: Vec<material::Material>,
@@ -166,47 +227,7 @@ impl Model {
                 });
             }
 
-            for c in m.mesh.indices.chunks(3) {
-                let v0 = vertices[c[0] as usize];
-                let v1 = vertices[c[1] as usize];
-                let v2 = vertices[c[2] as usize];
-
-                let pos0: cgmath::Vector3<_> = v0.position.into();
-                let pos1: cgmath::Vector3<_> = v1.position.into();
-                let pos2: cgmath::Vector3<_> = v2.position.into();
-
-                let uv0: cgmath::Vector2<_> = v0.tex_coords.into();
-                let uv1: cgmath::Vector2<_> = v1.tex_coords.into();
-                let uv2: cgmath::Vector2<_> = v2.tex_coords.into();
-
-                let delta_pos1 = pos1 - pos0;
-                let delta_pos2 = pos2 - pos0;
-
-                let delta_uv1 = uv1 - uv0;
-                let delta_uv2 = uv2 - uv0;
-
-                let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
-                let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
-                let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
-
-                vertices[c[0] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[0] as usize].tangent)).into();
-                vertices[c[1] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[1] as usize].tangent)).into();
-                vertices[c[2] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[2] as usize].tangent)).into();
-                vertices[c[0] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[0] as usize].bitangent)).into();
-                vertices[c[1] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[1] as usize].bitangent)).into();
-                vertices[c[2] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
-            }
-
-            for v in &mut vertices {
-                v.tangent = cgmath::Vector3::from(v.tangent).normalize().into();
-                v.bitangent = cgmath::Vector3::from(v.bitangent).normalize().into();
-            }
+            ModelVertex::calc_tangents_and_bitangents(&mut vertices, &m.mesh.indices);
 
             meshes.push(Mesh {
                 name: m.name,
@@ -240,6 +261,7 @@ impl Model {
     }
 }
 
+#[derive(Debug)]
 pub struct ModelRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub models: Vec<&'a RenderModel>,
@@ -260,6 +282,7 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct MeshRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub mesh: &'a GpuMesh,

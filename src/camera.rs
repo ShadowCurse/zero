@@ -15,6 +15,7 @@ pub struct CameraUniform {
     vp_without_translation: [[f32; 4]; 4],
 }
 
+#[derive(Debug)]
 pub struct RenderCamera {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -36,6 +37,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 
+#[derive(Debug)]
 pub struct Camera {
     pub position: Point3<f32>,
     yaw: Rad<f32>,
