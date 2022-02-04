@@ -13,8 +13,9 @@ mod renderer;
 mod skybox;
 mod texture;
 mod transform;
+mod shapes;
 
-use renderer::Vertex;
+use renderer::{Vertex, GpuAsset};
 
 fn main() {
     env_logger::init();
@@ -62,6 +63,9 @@ fn main() {
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
+
+    let plane: model::Mesh = shapes::Box::new(2.0, 5.0, 1.0).into();
+    let gpu_plane = plane.build(&renderer);
 
     let mut transform_1 = transform::Transform {
         translation: (5.0, -5.0, 5.0).into(),
@@ -202,7 +206,7 @@ fn main() {
 
                 let color_command = model::MeshRenderCommand {
                     pipeline: &color_pipeline,
-                    mesh: &render_cube.meshes[0],
+                    mesh: &gpu_plane,
                     material: &color_render_material,
                     transform: &render_transform_2,
                     camera: &render_camera,
