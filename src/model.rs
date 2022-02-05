@@ -267,7 +267,7 @@ pub struct ModelRenderCommand<'a> {
     pub models: Vec<&'a RenderModel>,
     pub transforms: Vec<&'a transform::RenderTransform>,
     pub camera: &'a camera::RenderCamera,
-    pub light: &'a light::RenderLight,
+    pub light: &'a light::RenderPointLight,
 }
 
 impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
@@ -289,7 +289,7 @@ pub struct MeshRenderCommand<'a> {
     pub material: &'a material::RenderColorMaterial,
     pub transform: &'a transform::RenderTransform,
     pub camera: &'a camera::RenderCamera,
-    pub light: &'a light::RenderLight,
+    pub light: &'a light::RenderPointLight,
 }
 
 impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
@@ -314,7 +314,7 @@ pub trait DrawModel<'a> {
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
     );
 
     fn draw_model_instanced(
@@ -322,7 +322,7 @@ pub trait DrawModel<'a> {
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
         instances: std::ops::Range<u32>,
     );
 
@@ -332,7 +332,7 @@ pub trait DrawModel<'a> {
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
     );
 
     fn draw_mesh_instanced(
@@ -341,7 +341,7 @@ pub trait DrawModel<'a> {
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
         instances: std::ops::Range<u32>,
     );
 }
@@ -355,7 +355,7 @@ where
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
     ) {
         self.draw_model_instanced(model, transform, camera, light, 0..1);
     }
@@ -365,7 +365,7 @@ where
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
         instances: std::ops::Range<u32>,
     ) {
         for mesh in &model.meshes {
@@ -380,7 +380,7 @@ where
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
     ) {
         self.draw_mesh_instanced(mesh, material, transform, camera, light, 0..1);
     }
@@ -391,7 +391,7 @@ where
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
+        light: &'a light::RenderPointLight,
         instances: std::ops::Range<u32>,
     ) {
         self.set_bind_group(0, &material.bind_group, &[]);

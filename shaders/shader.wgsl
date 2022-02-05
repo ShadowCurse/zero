@@ -18,6 +18,9 @@ var<uniform> camera: CameraUniform;
 struct LightUniform {
   position: vec3<f32>;
   color: vec3<f32>;
+  constant: f32;
+  linear: f32;
+  quadratic: f32;
 };
 [[group(3), binding(0)]]
 var<uniform> light: LightUniform;
@@ -89,6 +92,10 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, vertex.tex_coords);
   let object_normal: vec4<f32> = textureSample(t_normal, s_normal, vertex.tex_coords);
 
+  let distance = distance(vertex.tangent_light, vertex.tangent_position);
+  let attenuation = 1.0 / (light.constant + light.linear * distance + 
+    		    light.quadratic * (distance * distance));  
+
   let ambient_strength = 0.1;
   let ambient_color = properties.ambient * light.color * ambient_strength;
 
@@ -103,7 +110,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let specular_strength = pow(max(dot(tangent_normal, half_dir), 0.0), properties.shininess);
   let specular_color = properties.specular * light.color * specular_strength;
 
-  let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
+  let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz * attenuation;
 
   return vec4<f32>(result, object_color.a); 
 }

@@ -27,7 +27,7 @@ fn main() {
     let mut depth_texture = texture::DepthTexture::build(&renderer);
 
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
-    let light_builder = renderer::RenderAssetBuilder::<light::Light>::new(&renderer);
+    let light_builder = renderer::RenderAssetBuilder::<light::PointLight>::new(&renderer);
     let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
     let color_material_builder =
@@ -47,7 +47,7 @@ fn main() {
     let mut render_camera = camera_builder.build(&renderer, &camera);
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
 
-    let mut light = light::Light::new((0.0, 0.0, 0.0), (1.0, 1.0, 1.0));
+    let mut light = light::PointLight::new((5.0, 0.0, 5.0), (1.0, 1.0, 1.0), 1.0, 0.09, 0.032);
     let mut render_light = light_builder.build(&renderer, &light);
 
     let skybox = skybox::Skybox::load([

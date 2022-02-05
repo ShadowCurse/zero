@@ -18,6 +18,9 @@ var<uniform> camera: CameraUniform;
 struct LightUniform {
   position: vec3<f32>;
   color: vec3<f32>;
+  constant: f32;
+  linear: f32;
+  quadrantic: f32;
 };
 [[group(3), binding(0)]]
 var<uniform> light: LightUniform;

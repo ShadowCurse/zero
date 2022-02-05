@@ -5,50 +5,63 @@ use crate::renderer;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct LightUniform {
+pub struct PointLightUniform {
     pub position: [f32; 3],
     _pad1: u32,
     pub color: [f32; 3],
     _pad2: u32,
+    pub constant: f32,
+    pub linear: f32,
+    pub quadratic: f32,
+    _pad3: u32,
 }
 
 #[derive(Debug)]
-pub struct RenderLight {
+pub struct RenderPointLight {
     pub buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl renderer::RenderResource for RenderLight {
+impl renderer::RenderResource for RenderPointLight {
     fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }
 }
 
 #[derive(Debug)]
-pub struct Light {
+pub struct PointLight {
     pub position: cgmath::Vector3<f32>,
     pub color: cgmath::Vector3<f32>,
+    pub constant: f32,
+    pub linear: f32,
+    pub quadratic: f32,
 }
 
-impl Light {
-    pub fn new<P: Into<Vector3<f32>>, C: Into<Vector3<f32>>>(position: P, color: C) -> Self {
+impl PointLight {
+    pub fn new<P: Into<Vector3<f32>>, C: Into<Vector3<f32>>>(position: P, color: C, constant: f32, linear: f32, quadratic: f32) -> Self {
         Self {
             position: position.into(),
             color: color.into(),
+            constant,
+            linear,
+            quadratic,
         }
     }
 
-    pub fn to_uniform(&self) -> LightUniform {
-        LightUniform {
+    pub fn to_uniform(&self) -> PointLightUniform {
+        PointLightUniform {
             position: self.position.into(),
             color: self.color.into(),
+            constant: self.constant,
+            linear: self.linear,
+            quadratic: self.quadratic,
             ..Default::default()
         }
     }
 }
 
-impl renderer::RenderAsset for Light {
-    type RenderType = RenderLight;
+impl renderer::RenderAsset for PointLight {
+    type RenderType = RenderPointLight;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -98,8 +111,8 @@ impl renderer::RenderAsset for Light {
     }
 }
 
-impl RenderLight {
-    pub fn update(&mut self, renderer: &renderer::Renderer, light: &Light) {
+impl RenderPointLight {
+    pub fn update(&mut self, renderer: &renderer::Renderer, light: &PointLight) {
         renderer
             .queue
             .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[light.to_uniform()]));
