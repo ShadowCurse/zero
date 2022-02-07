@@ -38,7 +38,13 @@ pub struct PointLight {
 }
 
 impl PointLight {
-    pub fn new<P: Into<Vector3<f32>>, C: Into<Vector3<f32>>>(position: P, color: C, constant: f32, linear: f32, quadratic: f32) -> Self {
+    pub fn new<P: Into<Vector3<f32>>, C: Into<Vector3<f32>>>(
+        position: P,
+        color: C,
+        constant: f32,
+        linear: f32,
+        quadratic: f32,
+    ) -> Self {
         Self {
             position: position.into(),
             color: color.into(),

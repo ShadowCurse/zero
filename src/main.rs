@@ -10,12 +10,12 @@ mod light;
 mod material;
 mod model;
 mod renderer;
+mod shapes;
 mod skybox;
 mod texture;
 mod transform;
-mod shapes;
 
-use renderer::{Vertex, GpuAsset};
+use renderer::{GpuAsset, Vertex};
 
 fn main() {
     env_logger::init();
@@ -35,7 +35,7 @@ fn main() {
     let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
 
     let mut camera = camera::Camera::new(
-        (0.0, 0.0, 0.0),
+        (-10.0, 2.0, 0.0),
         cgmath::Deg(0.0),
         cgmath::Deg(0.0),
         renderer.config.width,
@@ -47,7 +47,7 @@ fn main() {
     let mut render_camera = camera_builder.build(&renderer, &camera);
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
 
-    let mut light = light::PointLight::new((5.0, 0.0, 5.0), (1.0, 1.0, 1.0), 1.0, 0.09, 0.032);
+    let mut light = light::PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
     let mut render_light = light_builder.build(&renderer, &light);
 
     let skybox = skybox::Skybox::load([
@@ -64,27 +64,27 @@ fn main() {
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
 
-    let plane: model::Mesh = shapes::Box::new(2.0, 5.0, 1.0).into();
+    let plane: model::Mesh = shapes::Plane::new(10.0).into();
     let gpu_plane = plane.build(&renderer);
 
     let mut transform_1 = transform::Transform {
-        translation: (5.0, -5.0, 5.0).into(),
+        translation: (0.0, 5.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
     let mut render_transform_1 = transform_builder.build(&renderer, &transform_1);
-    let mut transform_2 = transform::Transform {
-        translation: (5.0, 5.0, 5.0).into(),
+    let transform_2 = transform::Transform {
+        translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let mut render_transform_2 = transform_builder.build(&renderer, &transform_2);
+    let render_transform_2 = transform_builder.build(&renderer, &transform_2);
 
     let color_material = material::ColorMaterial {
-        ambient: [0.5, 0.0, 0.8],
-        diffuse: [0.5, 0.0, 0.8],
-        specular: [0.5, 0.0, 0.8],
-        shininess: 0.0,
+        ambient: [0.4, 0.4, 0.4],
+        diffuse: [0.6, 0.6, 0.6],
+        specular: [1.0, 1.0, 1.0],
+        shininess: 32.0,
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
 
@@ -181,13 +181,6 @@ fn main() {
 
                 camera_controller.update_camera(&mut camera, dt);
                 render_camera.update(&renderer, &camera);
-
-                transform_2.rotation = transform_2.rotation
-                    * cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(dt.as_secs_f32() * 60.0),
-                    );
-                render_transform_2.update(&renderer, &transform_2);
 
                 transform_1.rotation = transform_1.rotation
                     * cgmath::Quaternion::from_axis_angle(
