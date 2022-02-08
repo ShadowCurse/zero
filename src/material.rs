@@ -54,6 +54,7 @@ pub struct Material {
 
 impl renderer::RenderAsset for Material {
     type RenderType = RenderMaterial;
+    type UniformType = MaterialPropertiesUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -107,6 +108,16 @@ impl renderer::RenderAsset for Material {
             })
     }
 
+    fn to_uniform(&self) -> Self::UniformType {
+        Self::UniformType {
+            ambient: self.ambient,
+            diffuse: self.diffuse,
+            specular: self.specular,
+            shininess: self.shininess,
+            ..Default::default()
+        }
+    }
+
     fn build(
         &self,
         renderer: &renderer::Renderer,
@@ -115,13 +126,7 @@ impl renderer::RenderAsset for Material {
         let diffuse_texture = self.diffuse_texture.build(renderer);
         let normal_texture = self.normal_texture.build(renderer);
 
-        let properties = MaterialPropertiesUniform {
-            ambient: self.ambient,
-            diffuse: self.diffuse,
-            specular: self.specular,
-            shininess: self.shininess,
-            ..Default::default()
-        };
+        let properties = self.to_uniform();
 
         let buffer = renderer
             .device
@@ -179,6 +184,7 @@ pub struct ColorMaterial {
 
 impl renderer::RenderAsset for ColorMaterial {
     type RenderType = RenderColorMaterial;
+    type UniformType = MaterialPropertiesUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -198,18 +204,22 @@ impl renderer::RenderAsset for ColorMaterial {
             })
     }
 
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
-        let uniform = MaterialPropertiesUniform {
+    fn to_uniform(&self) -> Self::UniformType {
+        Self::UniformType {
             ambient: self.ambient,
             diffuse: self.diffuse,
             specular: self.specular,
             shininess: self.shininess,
             ..Default::default()
-        };
+        }
+    }
+
+    fn build(
+        &self,
+        renderer: &renderer::Renderer,
+        layout: &wgpu::BindGroupLayout,
+    ) -> Self::RenderType {
+        let uniform = self.to_uniform();
 
         let buffer = renderer
             .device

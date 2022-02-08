@@ -74,16 +74,6 @@ impl Camera {
         self.aspect = width as f32 / height as f32;
     }
 
-    pub fn to_uniform(&self) -> CameraUniform {
-        let projection = self.projection();
-        CameraUniform {
-            position: self.position.into(),
-            view_projection: (projection * self.view()).into(),
-            vp_without_translation: (projection * self.view_without_translation()).into(),
-            ..Default::default()
-        }
-    }
-
     fn view_without_translation(&self) -> Matrix4<f32> {
         let view = self.view();
         Matrix4::from(Matrix3::from_cols(
@@ -109,6 +99,7 @@ impl Camera {
 
 impl renderer::RenderAsset for Camera {
     type RenderType = RenderCamera;
+    type UniformType = CameraUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -126,6 +117,16 @@ impl renderer::RenderAsset for Camera {
                 }],
                 label: Some("camera_binding_group_layout"),
             })
+    }
+
+    fn to_uniform(&self) -> Self::UniformType {
+        let projection = self.projection();
+        Self::UniformType {
+            position: self.position.into(),
+            view_projection: (projection * self.view()).into(),
+            vp_without_translation: (projection * self.view_without_translation()).into(),
+            ..Default::default()
+        }
     }
 
     fn build(
@@ -159,7 +160,7 @@ impl renderer::RenderAsset for Camera {
 }
 
 impl RenderCamera {
-    pub fn update(&mut self, renderer: &renderer::Renderer, camera: &Camera) {
+    pub fn update(&mut self, renderer: &renderer::Renderer, camera: &impl renderer::RenderAsset) {
         renderer.queue.write_buffer(
             &self.buffer,
             0,

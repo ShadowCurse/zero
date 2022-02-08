@@ -33,8 +33,10 @@ pub trait RenderResource {
 /// Trait for the types that can be converted to the RenderResource
 pub trait RenderAsset {
     type RenderType: RenderResource;
+    type UniformType: bytemuck::Pod + bytemuck::Zeroable;
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout;
+    fn to_uniform(&self) -> Self::UniformType;
     fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType;
 }
 

@@ -16,7 +16,11 @@ pub struct RenderTransform {
 }
 
 impl RenderTransform {
-    pub fn update(&mut self, renderer: &renderer::Renderer, transform: &Transform) {
+    pub fn update(
+        &mut self,
+        renderer: &renderer::Renderer,
+        transform: &impl renderer::RenderAsset,
+    ) {
         renderer.queue.write_buffer(
             &self.buffer,
             0,
@@ -38,22 +42,9 @@ pub struct Transform {
     pub scale: cgmath::Vector3<f32>,
 }
 
-impl Transform {
-    pub fn to_uniform(&self) -> TransformUniform {
-        let rotate = cgmath::Matrix4::from(self.rotation);
-        TransformUniform {
-            transform: (cgmath::Matrix4::from_translation(self.translation)
-                * rotate
-                * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
-            .into(),
-            rotate: rotate.into(),
-            ..Default::default()
-        }
-    }
-}
-
 impl renderer::RenderAsset for Transform {
     type RenderType = RenderTransform;
+    type UniformType = TransformUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -71,6 +62,18 @@ impl renderer::RenderAsset for Transform {
                 }],
                 label: Some("transform_bind_group_layout"),
             })
+    }
+
+    fn to_uniform(&self) -> Self::UniformType {
+        let rotate = cgmath::Matrix4::from(self.rotation);
+        Self::UniformType {
+            transform: (cgmath::Matrix4::from_translation(self.translation)
+                * rotate
+                * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
+            .into(),
+            rotate: rotate.into(),
+            ..Default::default()
+        }
     }
 
     fn build(
