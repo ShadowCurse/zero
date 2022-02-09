@@ -52,9 +52,20 @@ pub struct Material {
     pub shininess: f32,
 }
 
+impl Material {
+    fn to_uniform(&self) -> MaterialPropertiesUniform {
+        MaterialPropertiesUniform {
+            ambient: self.ambient,
+            diffuse: self.diffuse,
+            specular: self.specular,
+            shininess: self.shininess,
+            ..Default::default()
+        }
+    }
+}
+
 impl renderer::RenderAsset for Material {
     type RenderType = RenderMaterial;
-    type UniformType = MaterialPropertiesUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -106,16 +117,6 @@ impl renderer::RenderAsset for Material {
                 ],
                 label: Some("material_bind_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        Self::UniformType {
-            ambient: self.ambient,
-            diffuse: self.diffuse,
-            specular: self.specular,
-            shininess: self.shininess,
-            ..Default::default()
-        }
     }
 
     fn build(
@@ -182,9 +183,20 @@ pub struct ColorMaterial {
     pub shininess: f32,
 }
 
+impl ColorMaterial {
+    fn to_uniform(&self) -> MaterialPropertiesUniform {
+        MaterialPropertiesUniform {
+            ambient: self.ambient,
+            diffuse: self.diffuse,
+            specular: self.specular,
+            shininess: self.shininess,
+            ..Default::default()
+        }
+    }
+}
+
 impl renderer::RenderAsset for ColorMaterial {
     type RenderType = RenderColorMaterial;
-    type UniformType = MaterialPropertiesUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -202,16 +214,6 @@ impl renderer::RenderAsset for ColorMaterial {
                 }],
                 label: Some("color_material_bind_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        Self::UniformType {
-            ambient: self.ambient,
-            diffuse: self.diffuse,
-            specular: self.specular,
-            shininess: self.shininess,
-            ..Default::default()
-        }
     }
 
     fn build(

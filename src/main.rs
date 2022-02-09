@@ -15,7 +15,7 @@ mod skybox;
 mod texture;
 mod transform;
 
-use renderer::{GpuAsset, Vertex};
+use renderer::{GpuAsset, RenderAsset, Vertex};
 
 fn main() {
     env_logger::init();
@@ -177,17 +177,17 @@ fn main() {
                 light.position =
                     cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                         * light.position;
-                render_light.update(&renderer, &light);
+                light.update(&renderer, &render_light);
 
                 camera_controller.update_camera(&mut camera, dt);
-                render_camera.update(&renderer, &camera);
+                camera.update(&renderer, &render_camera);
 
                 transform_1.rotation = transform_1.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(-dt.as_secs_f32() * 120.0),
                     );
-                render_transform_1.update(&renderer, &transform_1);
+                transform_1.update(&renderer, &render_transform_1);
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,

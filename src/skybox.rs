@@ -70,7 +70,6 @@ impl Skybox {
 
 impl renderer::RenderAsset for Skybox {
     type RenderType = RenderSkybox;
-    type UniformType = ();
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -96,10 +95,6 @@ impl renderer::RenderAsset for Skybox {
                 ],
                 label: Some("skybox_bind_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        ()
     }
 
     fn build(

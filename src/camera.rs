@@ -95,11 +95,20 @@ impl Camera {
     fn projection(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
+
+    fn to_uniform(&self) -> CameraUniform {
+        let projection = self.projection();
+        CameraUniform {
+            position: self.position.into(),
+            view_projection: (projection * self.view()).into(),
+            vp_without_translation: (projection * self.view_without_translation()).into(),
+            ..Default::default()
+        }
+    }
 }
 
 impl renderer::RenderAsset for Camera {
     type RenderType = RenderCamera;
-    type UniformType = CameraUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -117,16 +126,6 @@ impl renderer::RenderAsset for Camera {
                 }],
                 label: Some("camera_binding_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        let projection = self.projection();
-        Self::UniformType {
-            position: self.position.into(),
-            view_projection: (projection * self.view()).into(),
-            vp_without_translation: (projection * self.view_without_translation()).into(),
-            ..Default::default()
-        }
     }
 
     fn build(
@@ -157,14 +156,12 @@ impl renderer::RenderAsset for Camera {
 
         Self::RenderType { buffer, bind_group }
     }
-}
 
-impl RenderCamera {
-    pub fn update(&mut self, renderer: &renderer::Renderer, camera: &impl renderer::RenderAsset) {
+    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
         renderer.queue.write_buffer(
-            &self.buffer,
+            &render_type.buffer,
             0,
-            bytemuck::cast_slice(&[camera.to_uniform()]),
+            bytemuck::cast_slice(&[self.to_uniform()]),
         );
     }
 }

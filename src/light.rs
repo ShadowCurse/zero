@@ -15,14 +15,6 @@ impl renderer::RenderResource for RenderLight {
     }
 }
 
-impl RenderLight {
-    pub fn update(&mut self, renderer: &renderer::Renderer, light: &impl renderer::RenderAsset) {
-        renderer
-            .queue
-            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[light.to_uniform()]));
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DirectionalLightUniform {
@@ -45,11 +37,18 @@ impl DirectionalLight {
             color: color.into(),
         }
     }
+
+    fn to_uniform(&self) -> DirectionalLightUniform {
+        DirectionalLightUniform {
+            direction: self.direction.into(),
+            color: self.color.into(),
+            ..Default::default()
+        }
+    }
 }
 
 impl renderer::RenderAsset for DirectionalLight {
     type RenderType = RenderLight;
-    type UniformType = DirectionalLightUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -67,14 +66,6 @@ impl renderer::RenderAsset for DirectionalLight {
                 }],
                 label: Some("directional_light_binding_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        Self::UniformType {
-            direction: self.direction.into(),
-            color: self.color.into(),
-            ..Default::default()
-        }
     }
 
     fn build(
@@ -104,6 +95,14 @@ impl renderer::RenderAsset for DirectionalLight {
             });
 
         Self::RenderType { buffer, bind_group }
+    }
+
+    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+        renderer.queue.write_buffer(
+            &render_type.buffer,
+            0,
+            bytemuck::cast_slice(&[self.to_uniform()]),
+        );
     }
 }
 
@@ -146,7 +145,7 @@ impl PointLight {
         }
     }
 
-    pub fn to_uniform(&self) -> PointLightUniform {
+    fn to_uniform(&self) -> PointLightUniform {
         PointLightUniform {
             position: self.position.into(),
             color: self.color.into(),
@@ -160,7 +159,6 @@ impl PointLight {
 
 impl renderer::RenderAsset for PointLight {
     type RenderType = RenderLight;
-    type UniformType = PointLightUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -176,19 +174,8 @@ impl renderer::RenderAsset for PointLight {
                     },
                     count: None,
                 }],
-                label: Some("light_binding_group_layout"),
+                label: Some("point_light_binding_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> Self::UniformType {
-        Self::UniformType {
-            position: self.position.into(),
-            color: self.color.into(),
-            constant: self.constant,
-            linear: self.linear,
-            quadratic: self.quadratic,
-            ..Default::default()
-        }
     }
 
     fn build(
@@ -201,7 +188,7 @@ impl renderer::RenderAsset for PointLight {
         let buffer = renderer
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("light_uniform"),
+                label: Some("point_light_uniform"),
                 contents: bytemuck::cast_slice(&[uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
@@ -214,10 +201,18 @@ impl renderer::RenderAsset for PointLight {
                     binding: 0,
                     resource: buffer.as_entire_binding(),
                 }],
-                label: Some("light_bind_group"),
+                label: Some("point_light_bind_group"),
             });
 
         Self::RenderType { buffer, bind_group }
+    }
+
+    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+        renderer.queue.write_buffer(
+            &render_type.buffer,
+            0,
+            bytemuck::cast_slice(&[self.to_uniform()]),
+        );
     }
 }
 
@@ -251,11 +246,19 @@ impl SpotLight {
             color: color.into(),
         }
     }
+
+    fn to_uniform(&self) -> SpotLightUniform {
+        SpotLightUniform {
+            position: self.position.into(),
+            direction: self.direction.into(),
+            color: self.color.into(),
+            ..Default::default()
+        }
+    }
 }
 
 impl renderer::RenderAsset for SpotLight {
     type RenderType = RenderLight;
-    type UniformType = SpotLightUniform;
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -271,17 +274,8 @@ impl renderer::RenderAsset for SpotLight {
                     },
                     count: None,
                 }],
-                label: Some("light_binding_group_layout"),
+                label: Some("spot_light_binding_group_layout"),
             })
-    }
-
-    fn to_uniform(&self) -> SpotLightUniform {
-        SpotLightUniform {
-            position: self.position.into(),
-            direction: self.direction.into(),
-            color: self.color.into(),
-            ..Default::default()
-        }
     }
 
     fn build(
@@ -294,7 +288,7 @@ impl renderer::RenderAsset for SpotLight {
         let buffer = renderer
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("light_uniform"),
+                label: Some("spot_light_uniform"),
                 contents: bytemuck::cast_slice(&[uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
@@ -307,9 +301,17 @@ impl renderer::RenderAsset for SpotLight {
                     binding: 0,
                     resource: buffer.as_entire_binding(),
                 }],
-                label: Some("light_bind_group"),
+                label: Some("spot_light_bind_group"),
             });
 
         Self::RenderType { buffer, bind_group }
+    }
+
+    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+        renderer.queue.write_buffer(
+            &render_type.buffer,
+            0,
+            bytemuck::cast_slice(&[self.to_uniform()]),
+        );
     }
 }
