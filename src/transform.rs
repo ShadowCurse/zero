@@ -21,7 +21,7 @@ impl renderer::RenderResource for RenderTransform {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Transform {
     pub translation: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,

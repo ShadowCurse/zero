@@ -109,7 +109,7 @@ impl renderer::GpuAsset for Texture {
 }
 
 impl DepthTexture {
-    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24PlusStencil8;
 
     pub fn build(renderer: &renderer::Renderer) -> GpuTexture {
         let size = wgpu::Extent3d {

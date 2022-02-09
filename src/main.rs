@@ -44,11 +44,11 @@ fn main() {
         0.1,
         100.0,
     );
-    let mut render_camera = camera_builder.build(&renderer, &camera);
+    let render_camera = camera_builder.build(&renderer, &camera);
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
 
     let mut light = light::PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
-    let mut render_light = light_builder.build(&renderer, &light);
+    let render_light = light_builder.build(&renderer, &light);
 
     let skybox = skybox::Skybox::load([
         "./res/skybox/right.jpg",
@@ -67,12 +67,17 @@ fn main() {
     let plane: model::Mesh = shapes::Plane::new(10.0).into();
     let gpu_plane = plane.build(&renderer);
 
-    let mut transform_1 = transform::Transform {
+    let transform_1 = transform::Transform {
         translation: (0.0, 5.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let mut render_transform_1 = transform_builder.build(&renderer, &transform_1);
+    let render_transform_1 = transform_builder.build(&renderer, &transform_1);
+
+    let mut transform_1_scaled = transform_1.clone();
+    transform_1_scaled.scale = (1.1, 1.1, 1.1).into();
+    let render_transform_1_scaled = transform_builder.build(&renderer, &transform_1_scaled);
+
     let transform_2 = transform::Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -96,6 +101,8 @@ fn main() {
         &[skybox::SkyboxVertex::desc()],
         "./shaders/skybox.wgsl",
         false,
+        0x00,
+        wgpu::CompareFunction::Always,
     );
 
     let model_pipeline = renderer.create_render_pipeline(
@@ -108,6 +115,8 @@ fn main() {
         &[model::ModelVertex::desc()],
         "./shaders/shader.wgsl",
         true,
+        0xff,
+        wgpu::CompareFunction::Always,
     );
 
     let color_pipeline = renderer.create_render_pipeline(
@@ -120,6 +129,20 @@ fn main() {
         &[model::ModelVertex::desc()],
         "./shaders/color.wgsl",
         true,
+        0x00,
+        wgpu::CompareFunction::Always,
+    );
+
+    let outline_pipeline = renderer.create_render_pipeline(
+        &[
+            &transform_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+        ],
+        &[model::ModelVertex::desc()],
+        "./shaders/outline.wgsl",
+        false,
+        0x00,
+        wgpu::CompareFunction::NotEqual,
     );
 
     let mut last_render_time = std::time::Instant::now();
@@ -182,12 +205,12 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 camera.update(&renderer, &render_camera);
 
-                transform_1.rotation = transform_1.rotation
-                    * cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(-dt.as_secs_f32() * 120.0),
-                    );
-                transform_1.update(&renderer, &render_transform_1);
+                // transform_1.rotation = transform_1.rotation
+                //     * cgmath::Quaternion::from_axis_angle(
+                //         cgmath::Vector3::unit_z(),
+                //         cgmath::Deg(-dt.as_secs_f32() * 120.0),
+                //     );
+                // transform_1.update(&renderer, &render_transform_1);
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,
@@ -212,8 +235,15 @@ fn main() {
                     camera: &render_camera,
                 };
 
+                let outline = model::ModelOutlineRenderCommand {
+                    pipeline: &outline_pipeline,
+                    models: vec![&render_cube],
+                    transforms: vec![&render_transform_1_scaled],
+                    camera: &render_camera,
+                };
+
                 match renderer.render(
-                    &vec![&model_command, &color_command, &skybox_command],
+                    &vec![&model_command, &color_command, &skybox_command, &outline],
                     &depth_texture,
                 ) {
                     Ok(_) => {}

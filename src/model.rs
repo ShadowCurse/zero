@@ -283,6 +283,33 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
 }
 
 #[derive(Debug)]
+pub struct ModelOutlineRenderCommand<'a> {
+    pub pipeline: &'a wgpu::RenderPipeline,
+    pub models: Vec<&'a RenderModel>,
+    pub transforms: Vec<&'a transform::RenderTransform>,
+    pub camera: &'a camera::RenderCamera,
+}
+
+impl<'a> renderer::RenderCommand<'a> for ModelOutlineRenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b,
+    {
+        render_pass.set_stencil_reference(1);
+        render_pass.set_pipeline(self.pipeline);
+        for (i, model) in self.models.iter().enumerate() {
+            render_pass.set_bind_group(0, &self.transforms[i].bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera.bind_group, &[]);
+            for mesh in &model.meshes {
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct MeshRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub mesh: &'a GpuMesh,

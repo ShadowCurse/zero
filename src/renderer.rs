@@ -160,7 +160,10 @@ impl Renderer {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: true,
                     }),
-                    stencil_ops: None,
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: true,
+                    }),
                 }),
             });
 
@@ -180,6 +183,8 @@ impl Renderer {
         vertex_layouts: &[wgpu::VertexBufferLayout],
         shader_path: P,
         write_depth: bool,
+        mask: u32,
+        comp: wgpu::CompareFunction,
     ) -> wgpu::RenderPipeline {
         let layout = self
             .device
@@ -199,6 +204,13 @@ impl Renderer {
         };
 
         let shader = self.device.create_shader_module(&shader);
+
+        let stencil_state = wgpu::StencilFaceState {
+            compare: comp,
+            fail_op: wgpu::StencilOperation::Keep,
+            depth_fail_op: wgpu::StencilOperation::Keep,
+            pass_op: wgpu::StencilOperation::IncrementClamp,
+        };
 
         self.device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -234,7 +246,12 @@ impl Renderer {
                     format: texture::DepthTexture::DEPTH_FORMAT,
                     depth_write_enabled: write_depth,
                     depth_compare: wgpu::CompareFunction::LessEqual,
-                    stencil: wgpu::StencilState::default(),
+                    stencil: wgpu::StencilState {
+                        front: stencil_state,
+                        back: stencil_state,
+                        read_mask: 0xff,
+                        write_mask: mask,
+                    },
                     bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
