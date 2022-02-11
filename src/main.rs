@@ -15,7 +15,7 @@ mod skybox;
 mod texture;
 mod transform;
 
-use renderer::{GpuAsset, RenderAsset, Vertex};
+use renderer::{GpuAsset, PipelineBuilder, RenderAsset, Vertex};
 
 fn main() {
     env_logger::init();
@@ -67,7 +67,7 @@ fn main() {
     let plane: model::Mesh = shapes::Plane::new(10.0).into();
     let gpu_plane = plane.build(&renderer);
 
-    let transform_1 = transform::Transform {
+    let mut transform_1 = transform::Transform {
         translation: (0.0, 5.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
@@ -93,57 +93,62 @@ fn main() {
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
 
-    let skybox_pipeline = renderer.create_render_pipeline(
-        &[
+    let skybox_pipeline = PipelineBuilder::new(
+        vec![
             &skybox_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
         ],
-        &[skybox::SkyboxVertex::desc()],
+        vec![skybox::SkyboxVertex::desc()],
         "./shaders/skybox.wgsl",
-        false,
-        0x00,
-        wgpu::CompareFunction::Always,
-    );
+    )
+    .stencil_compare(wgpu::CompareFunction::Always)
+    .stencil_write_mask(0x00)
+    .write_depth(false)
+    .build(&renderer);
 
-    let model_pipeline = renderer.create_render_pipeline(
-        &[
+    let model_pipeline = PipelineBuilder::new(
+        vec![
             &material_builder.bind_group_layout,
             &transform_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
             &light_builder.bind_group_layout,
         ],
-        &[model::ModelVertex::desc()],
+        vec![model::ModelVertex::desc()],
         "./shaders/shader.wgsl",
-        true,
-        0xff,
-        wgpu::CompareFunction::Always,
-    );
+    )
+    .stencil_compare(wgpu::CompareFunction::Always)
+    .stencil_write_mask(0xff)
+    .write_depth(true)
+    .build(&renderer);
 
-    let color_pipeline = renderer.create_render_pipeline(
-        &[
+    let color_pipeline = PipelineBuilder::new(
+        vec![
             &color_material_builder.bind_group_layout,
             &transform_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
             &light_builder.bind_group_layout,
         ],
-        &[model::ModelVertex::desc()],
+        vec![model::ModelVertex::desc()],
         "./shaders/color.wgsl",
-        true,
-        0x00,
-        wgpu::CompareFunction::Always,
-    );
+    )
+    .stencil_compare(wgpu::CompareFunction::Always)
+    .stencil_write_mask(0x00)
+    .write_depth(true)
+    .build(&renderer);
 
-    let outline_pipeline = renderer.create_render_pipeline(
-        &[
+    let outline_pipeline = PipelineBuilder::new(
+        vec![
             &transform_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
         ],
-        &[model::ModelVertex::desc()],
+        vec![model::ModelVertex::desc()],
         "./shaders/outline.wgsl",
-        false,
-        0x00,
-        wgpu::CompareFunction::NotEqual,
-    );
+    )
+    .stencil_compare(wgpu::CompareFunction::NotEqual)
+    .stencil_write_mask(0x00)
+    .stencil_read_mask(0xff)
+    .write_depth(false)
+    .build(&renderer);
 
     let mut last_render_time = std::time::Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -205,12 +210,19 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 camera.update(&renderer, &render_camera);
 
-                // transform_1.rotation = transform_1.rotation
-                //     * cgmath::Quaternion::from_axis_angle(
-                //         cgmath::Vector3::unit_z(),
-                //         cgmath::Deg(-dt.as_secs_f32() * 120.0),
-                //     );
-                // transform_1.update(&renderer, &render_transform_1);
+                transform_1.rotation = transform_1.rotation
+                    * cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-dt.as_secs_f32() * 120.0),
+                    );
+                transform_1.update(&renderer, &render_transform_1);
+
+                transform_1_scaled.rotation = transform_1_scaled.rotation
+                    * cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-dt.as_secs_f32() * 120.0),
+                    );
+                transform_1_scaled.update(&renderer, &render_transform_1_scaled);
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &model_pipeline,

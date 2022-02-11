@@ -36,7 +36,7 @@ pub trait RenderAsset {
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout;
     fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType;
-    fn update(&self, renderer: &Renderer, render_type: &Self::RenderType) {}
+    fn update(&self, _renderer: &Renderer, _render_type: &Self::RenderType) {}
 }
 
 /// Builder for objects with the same bind_group_layout
@@ -251,6 +251,146 @@ impl Renderer {
                         back: stencil_state,
                         read_mask: 0xff,
                         write_mask: mask,
+                    },
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            })
+    }
+}
+
+#[derive(Debug)]
+pub struct PipelineBuilder<'a> {
+    pub bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
+    pub vertex_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
+    pub shader_path: String,
+    pub stencil_compare: wgpu::CompareFunction,
+    pub stencil_read_mask: u32,
+    pub stencil_write_mask: u32,
+    pub write_depth: bool,
+}
+
+impl<'a> std::default::Default for PipelineBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            bind_group_layouts: Vec::new(),
+            vertex_layouts: Vec::new(),
+            shader_path: "".to_string(),
+            stencil_compare: wgpu::CompareFunction::Always,
+            stencil_read_mask: 0x00,
+            stencil_write_mask: 0x00,
+            write_depth: true,
+        }
+    }
+}
+
+impl<'a> PipelineBuilder<'a> {
+    pub fn new<P: Into<String>>(
+        bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
+        vertex_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
+        shader_path: P,
+    ) -> Self {
+        Self {
+            bind_group_layouts,
+            vertex_layouts,
+            shader_path: shader_path.into(),
+            stencil_compare: wgpu::CompareFunction::Always,
+            ..Default::default()
+        }
+    }
+
+    pub fn stencil_compare(mut self, stencil_compare: wgpu::CompareFunction) -> Self {
+        self.stencil_compare = stencil_compare;
+        self
+    }
+
+    pub fn stencil_read_mask(mut self, stencil_read_mask: u32) -> Self {
+        self.stencil_read_mask = stencil_read_mask;
+        self
+    }
+
+    pub fn stencil_write_mask(mut self, stencil_write_mask: u32) -> Self {
+        self.stencil_write_mask = stencil_write_mask;
+        self
+    }
+
+    pub fn write_depth(mut self, write_depth: bool) -> Self {
+        self.write_depth = write_depth;
+        self
+    }
+
+    pub fn build(self, renderer: &Renderer) -> wgpu::RenderPipeline {
+        let layout = renderer
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("render_pipeline_descriptor"),
+                bind_group_layouts: &self.bind_group_layouts,
+                push_constant_ranges: &[],
+            });
+
+        let mut contents = String::new();
+        let mut file = File::open(self.shader_path).unwrap();
+        file.read_to_string(&mut contents).unwrap();
+
+        let shader = wgpu::ShaderModuleDescriptor {
+            label: Some("shader"),
+            source: wgpu::ShaderSource::Wgsl(contents.into()),
+        };
+
+        let shader = renderer.device.create_shader_module(&shader);
+
+        let stencil_state = wgpu::StencilFaceState {
+            compare: self.stencil_compare,
+            fail_op: wgpu::StencilOperation::Keep,
+            depth_fail_op: wgpu::StencilOperation::Keep,
+            pass_op: wgpu::StencilOperation::IncrementClamp,
+        };
+
+        renderer
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("render_pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &self.vertex_layouts,
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: renderer.config.format,
+                        blend: Some(wgpu::BlendState {
+                            alpha: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: texture::DepthTexture::DEPTH_FORMAT,
+                    depth_write_enabled: self.write_depth,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: wgpu::StencilState {
+                        front: stencil_state,
+                        back: stencil_state,
+                        read_mask: self.stencil_read_mask,
+                        write_mask: self.stencil_write_mask,
                     },
                     bias: wgpu::DepthBiasState::default(),
                 }),
