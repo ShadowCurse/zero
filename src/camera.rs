@@ -17,8 +17,8 @@ pub struct CameraUniform {
 
 #[derive(Debug)]
 pub struct RenderCamera {
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderCamera {
@@ -40,12 +40,12 @@ const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 #[derive(Debug)]
 pub struct Camera {
     pub position: Point3<f32>,
-    yaw: Rad<f32>,
-    pitch: Rad<f32>,
-    aspect: f32,
-    fovy: Rad<f32>,
-    znear: f32,
-    zfar: f32,
+    pub yaw: Rad<f32>,
+    pub pitch: Rad<f32>,
+    pub aspect: f32,
+    pub fovy: Rad<f32>,
+    pub znear: f32,
+    pub zfar: f32,
 }
 
 impl Camera {
@@ -168,8 +168,8 @@ impl renderer::RenderAsset for Camera {
 
 #[derive(Debug, Default)]
 pub struct CameraController {
-    speed: f32,
-    sensitivity: f32,
+    pub speed: f32,
+    pub sensitivity: f32,
     forward: i8,
     backward: i8,
     left: i8,

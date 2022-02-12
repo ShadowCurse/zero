@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 use crate::camera;
 use crate::light;
 use crate::material;
-use crate::renderer::{self, GpuAsset};
+use crate::renderer::{self, GpuAsset, RenderResource};
 use crate::texture;
 use crate::transform;
 
@@ -114,10 +114,10 @@ impl renderer::Vertex for ModelVertex {
 
 #[derive(Debug)]
 pub struct GpuMesh {
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub num_elements: u32,
-    pub material: usize,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_elements: u32,
+    material: usize,
 }
 
 impl renderer::GpuResource for GpuMesh {}
@@ -161,8 +161,8 @@ impl renderer::GpuAsset for Mesh {
 
 #[derive(Debug)]
 pub struct RenderModel {
-    pub meshes: Vec<GpuMesh>,
-    pub materials: Vec<material::RenderMaterial>,
+    meshes: Vec<GpuMesh>,
+    materials: Vec<material::RenderMaterial>,
 }
 
 #[derive(Debug)]
@@ -298,11 +298,12 @@ impl<'a> renderer::RenderCommand<'a> for ModelOutlineRenderCommand<'a> {
         render_pass.set_stencil_reference(1);
         render_pass.set_pipeline(self.pipeline);
         for (i, model) in self.models.iter().enumerate() {
-            render_pass.set_bind_group(0, &self.transforms[i].bind_group, &[]);
-            render_pass.set_bind_group(1, &self.camera.bind_group, &[]);
+            render_pass.set_bind_group(0, &self.transforms[i].bind_group(), &[]);
+            render_pass.set_bind_group(1, &self.camera.bind_group(), &[]);
             for mesh in &model.meshes {
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass
+                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
             }
         }
@@ -325,10 +326,10 @@ impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
         'a: 'b,
     {
         render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, &self.material.bind_group, &[]);
-        render_pass.set_bind_group(1, &self.transform.bind_group, &[]);
-        render_pass.set_bind_group(2, &self.camera.bind_group, &[]);
-        render_pass.set_bind_group(3, &self.light.bind_group, &[]);
+        render_pass.set_bind_group(0, &self.material.bind_group(), &[]);
+        render_pass.set_bind_group(1, &self.transform.bind_group(), &[]);
+        render_pass.set_bind_group(2, &self.camera.bind_group(), &[]);
+        render_pass.set_bind_group(3, &self.light.bind_group(), &[]);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
@@ -421,10 +422,10 @@ where
         light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
     ) {
-        self.set_bind_group(0, &material.bind_group, &[]);
-        self.set_bind_group(1, &transform.bind_group, &[]);
-        self.set_bind_group(2, &camera.bind_group, &[]);
-        self.set_bind_group(3, &light.bind_group, &[]);
+        self.set_bind_group(0, &material.bind_group(), &[]);
+        self.set_bind_group(1, &transform.bind_group(), &[]);
+        self.set_bind_group(2, &camera.bind_group(), &[]);
+        self.set_bind_group(3, &light.bind_group(), &[]);
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.draw_indexed(0..mesh.num_elements, 0, instances);

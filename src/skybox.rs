@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use wgpu::util::DeviceExt;
 
 use crate::camera;
-use crate::renderer;
+use crate::renderer::{self, GpuAsset, RenderResource};
 use crate::texture;
 
 #[repr(C)]
@@ -27,10 +27,10 @@ impl renderer::Vertex for SkyboxVertex {
 
 #[derive(Debug)]
 pub struct RenderSkybox {
-    pub vertex_buffer: wgpu::Buffer,
-    pub num_elements: u32,
-    pub cube_map: texture::GpuTexture,
-    pub bind_group: wgpu::BindGroup,
+    vertex_buffer: wgpu::Buffer,
+    num_elements: u32,
+    cube_map: texture::GpuTexture,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderSkybox {
@@ -165,8 +165,8 @@ where
 {
     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera) {
         self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-        self.set_bind_group(0, &skybox.bind_group, &[]);
-        self.set_bind_group(1, &camera.bind_group, &[]);
+        self.set_bind_group(0, &skybox.bind_group(), &[]);
+        self.set_bind_group(1, &camera.bind_group(), &[]);
         self.draw(0..skybox.num_elements, 0..1);
     }
 }

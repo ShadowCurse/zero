@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
 use winit::window::Window;
 
 use crate::texture;
@@ -176,103 +175,17 @@ impl Renderer {
         output.present();
         Ok(())
     }
-
-    pub fn create_render_pipeline<P: AsRef<Path>>(
-        &mut self,
-        bind_group_layouts: &[&wgpu::BindGroupLayout],
-        vertex_layouts: &[wgpu::VertexBufferLayout],
-        shader_path: P,
-        write_depth: bool,
-        mask: u32,
-        comp: wgpu::CompareFunction,
-    ) -> wgpu::RenderPipeline {
-        let layout = self
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("render_pipeline_descriptor"),
-                bind_group_layouts,
-                push_constant_ranges: &[],
-            });
-
-        let mut contents = String::new();
-        let mut file = File::open(shader_path.as_ref()).unwrap();
-        file.read_to_string(&mut contents).unwrap();
-
-        let shader = wgpu::ShaderModuleDescriptor {
-            label: Some("shader"),
-            source: wgpu::ShaderSource::Wgsl(contents.into()),
-        };
-
-        let shader = self.device.create_shader_module(&shader);
-
-        let stencil_state = wgpu::StencilFaceState {
-            compare: comp,
-            fail_op: wgpu::StencilOperation::Keep,
-            depth_fail_op: wgpu::StencilOperation::Keep,
-            pass_op: wgpu::StencilOperation::IncrementClamp,
-        };
-
-        self.device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("render_pipeline"),
-                layout: Some(&layout),
-                vertex: wgpu::VertexState {
-                    module: &shader,
-                    entry_point: "vs_main",
-                    buffers: vertex_layouts,
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &shader,
-                    entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: self.config.format,
-                        blend: Some(wgpu::BlendState {
-                            alpha: wgpu::BlendComponent::REPLACE,
-                            color: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    unclipped_depth: false,
-                    conservative: false,
-                },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: texture::DepthTexture::DEPTH_FORMAT,
-                    depth_write_enabled: write_depth,
-                    depth_compare: wgpu::CompareFunction::LessEqual,
-                    stencil: wgpu::StencilState {
-                        front: stencil_state,
-                        back: stencil_state,
-                        read_mask: 0xff,
-                        write_mask: mask,
-                    },
-                    bias: wgpu::DepthBiasState::default(),
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                multiview: None,
-            })
-    }
 }
 
 #[derive(Debug)]
 pub struct PipelineBuilder<'a> {
-    pub bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
-    pub vertex_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
-    pub shader_path: String,
-    pub stencil_compare: wgpu::CompareFunction,
-    pub stencil_read_mask: u32,
-    pub stencil_write_mask: u32,
-    pub write_depth: bool,
+    bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
+    vertex_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
+    shader_path: String,
+    stencil_compare: wgpu::CompareFunction,
+    stencil_read_mask: u32,
+    stencil_write_mask: u32,
+    write_depth: bool,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {

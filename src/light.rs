@@ -5,8 +5,8 @@ use crate::renderer;
 
 #[derive(Debug)]
 pub struct RenderLight {
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderLight {
@@ -18,9 +18,9 @@ impl renderer::RenderResource for RenderLight {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DirectionalLightUniform {
-    pub direction: [f32; 3],
+    direction: [f32; 3],
     _pad1: u32,
-    pub color: [f32; 3],
+    color: [f32; 3],
     _pad2: u32,
 }
 
@@ -109,13 +109,13 @@ impl renderer::RenderAsset for DirectionalLight {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct PointLightUniform {
-    pub position: [f32; 3],
+    position: [f32; 3],
     _pad1: u32,
-    pub color: [f32; 3],
+    color: [f32; 3],
     _pad2: u32,
-    pub constant: f32,
-    pub linear: f32,
-    pub quadratic: f32,
+    constant: f32,
+    linear: f32,
+    quadratic: f32,
     _pad3: u32,
 }
 
@@ -219,11 +219,11 @@ impl renderer::RenderAsset for PointLight {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SpotLightUniform {
-    pub position: [f32; 3],
+    position: [f32; 3],
     _pad1: u32,
-    pub direction: [f32; 3],
+    direction: [f32; 3],
     _pad2: u32,
-    pub color: [f32; 3],
+    color: [f32; 3],
     _pad3: u32,
 }
 

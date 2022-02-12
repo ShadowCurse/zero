@@ -5,10 +5,10 @@ use crate::texture;
 
 #[derive(Debug)]
 pub struct RenderMaterial {
-    pub diffuse_texture: texture::GpuTexture,
-    pub normal_texture: texture::GpuTexture,
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
+    diffuse_texture: texture::GpuTexture,
+    normal_texture: texture::GpuTexture,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderMaterial {
@@ -19,8 +19,8 @@ impl renderer::RenderResource for RenderMaterial {
 
 #[derive(Debug)]
 pub struct RenderColorMaterial {
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderColorMaterial {
@@ -32,13 +32,13 @@ impl renderer::RenderResource for RenderColorMaterial {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct MaterialPropertiesUniform {
-    pub ambient: [f32; 3],
-    pub _pad1: f32,
-    pub diffuse: [f32; 3],
-    pub _pad2: f32,
-    pub specular: [f32; 3],
-    pub _pad3: f32,
-    pub shininess: f32,
+    ambient: [f32; 3],
+    _pad1: f32,
+    diffuse: [f32; 3],
+    _pad2: f32,
+    specular: [f32; 3],
+    _pad3: f32,
+    shininess: f32,
 }
 
 #[derive(Debug)]

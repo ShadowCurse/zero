@@ -21,9 +21,9 @@ pub enum TextureType {
 
 #[derive(Debug)]
 pub struct Texture {
-    pub texture_type: TextureType,
-    pub texture: image::RgbaImage,
-    pub dimensions: (u32, u32),
+    texture_type: TextureType,
+    texture: image::RgbaImage,
+    dimensions: (u32, u32),
 }
 
 #[derive(Debug)]
@@ -31,8 +31,13 @@ pub struct DepthTexture;
 
 #[derive(Debug)]
 pub struct CubeMap {
-    pub texture: Vec<u8>,
-    pub dimensions: (u32, u32),
+    texture: Vec<u8>,
+    dimensions: (u32, u32),
+}
+
+#[derive(Debug)]
+pub struct GBuffer {
+    format: wgpu::TextureFormat,
 }
 
 impl Texture {
@@ -110,8 +115,12 @@ impl renderer::GpuAsset for Texture {
 
 impl DepthTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24PlusStencil8;
+}
 
-    pub fn build(renderer: &renderer::Renderer) -> GpuTexture {
+impl renderer::GpuAsset for DepthTexture {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
         let size = wgpu::Extent3d {
             width: renderer.config.width,
             height: renderer.config.height,
@@ -142,7 +151,7 @@ impl DepthTexture {
             ..Default::default()
         });
 
-        GpuTexture {
+        Self::GpuType {
             texture,
             view,
             sampler,
@@ -167,8 +176,12 @@ impl CubeMap {
             dimensions,
         })
     }
+}
 
-    pub fn build(&self, renderer: &renderer::Renderer) -> GpuTexture {
+impl renderer::GpuAsset for CubeMap {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
         let texture_size = wgpu::Extent3d {
             width: self.dimensions.0,
             height: self.dimensions.1,
@@ -182,7 +195,7 @@ impl CubeMap {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            label: Some("texture"),
+            label: Some("cube_texture"),
         });
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
@@ -215,7 +228,49 @@ impl CubeMap {
             texture_size,
         );
 
-        GpuTexture {
+        Self::GpuType {
+            texture,
+            view,
+            sampler,
+        }
+    }
+}
+
+impl renderer::GpuAsset for GBuffer {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
+        let texture_size = wgpu::Extent3d {
+            width: renderer.config.width,
+            height: renderer.config.height,
+            depth_or_array_layers: 1,
+        };
+
+        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            label: Some("gbuffer_texture"),
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::Cube),
+            ..Default::default()
+        });
+        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        Self::GpuType {
             texture,
             view,
             sampler,

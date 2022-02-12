@@ -11,8 +11,8 @@ pub struct TransformUniform {
 
 #[derive(Debug)]
 pub struct RenderTransform {
-    pub buffer: wgpu::Buffer,
-    pub bind_group: wgpu::BindGroup,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
 }
 
 impl renderer::RenderResource for RenderTransform {

@@ -24,7 +24,7 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
-    let mut depth_texture = texture::DepthTexture::build(&renderer);
+    let mut depth_texture = texture::DepthTexture{}.build(&renderer);
 
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
     let light_builder = renderer::RenderAssetBuilder::<light::PointLight>::new(&renderer);
@@ -187,12 +187,12 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
-                    depth_texture = texture::DepthTexture::build(&renderer);
+                    depth_texture = texture::DepthTexture{}.build(&renderer);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
-                    depth_texture = texture::DepthTexture::build(&renderer);
+                    depth_texture = texture::DepthTexture{}.build(&renderer);
                 }
                 _ => {}
             },
