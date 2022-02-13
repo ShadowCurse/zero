@@ -9,6 +9,7 @@ mod camera;
 mod light;
 mod material;
 mod model;
+mod present_texture;
 mod renderer;
 mod shapes;
 mod skybox;
@@ -24,7 +25,7 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(renderer::Renderer::new(&window));
-    let mut depth_texture = texture::DepthTexture{}.build(&renderer);
+    // let mut depth_texture = texture::DepthTexture{}.build(&renderer);
 
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
     let light_builder = renderer::RenderAssetBuilder::<light::PointLight>::new(&renderer);
@@ -101,8 +102,6 @@ fn main() {
         vec![skybox::SkyboxVertex::desc()],
         "./shaders/skybox.wgsl",
     )
-    .stencil_compare(wgpu::CompareFunction::Always)
-    .stencil_write_mask(0x00)
     .write_depth(false)
     .build(&renderer);
 
@@ -116,7 +115,6 @@ fn main() {
         vec![model::ModelVertex::desc()],
         "./shaders/shader.wgsl",
     )
-    .stencil_compare(wgpu::CompareFunction::Always)
     .stencil_write_mask(0xff)
     .write_depth(true)
     .build(&renderer);
@@ -131,26 +129,26 @@ fn main() {
         vec![model::ModelVertex::desc()],
         "./shaders/color.wgsl",
     )
-    .stencil_compare(wgpu::CompareFunction::Always)
-    .stencil_write_mask(0x00)
     .write_depth(true)
     .build(&renderer);
 
-    let outline_pipeline = PipelineBuilder::new(
-        vec![
-            &transform_builder.bind_group_layout,
-            &camera_builder.bind_group_layout,
-        ],
-        vec![model::ModelVertex::desc()],
-        "./shaders/outline.wgsl",
+    let present_texture_builder = renderer::RenderAssetBuilder::<
+        present_texture::PresentTexture<texture::DepthTexture>,
+    >::new(&renderer);
+    let present_depth_texture = present_texture::PresentTexture {
+        texture: texture::DepthTexture,
+    };
+    let mut render_pdt = present_texture_builder.build(&renderer, &present_depth_texture);
+    let present_texture_pipeline = PipelineBuilder::new(
+        vec![&present_texture_builder.bind_group_layout],
+        vec![present_texture::Vertex::desc()],
+        "./shaders/present_texture.wgsl",
     )
-    .stencil_compare(wgpu::CompareFunction::NotEqual)
-    .stencil_write_mask(0x00)
-    .stencil_read_mask(0xff)
-    .write_depth(false)
+    .depth_enabled(false)
     .build(&renderer);
 
     let mut last_render_time = std::time::Instant::now();
+    let mut present_depth = false;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -161,6 +159,18 @@ fn main() {
                     ..
                 }) => {
                     camera_controller.process_key(*key_code, *state);
+
+                    let pressed = if *state == ElementState::Pressed {
+                        true
+                    } else {
+                        false
+                    };
+                    match key_code {
+                        VirtualKeyCode::T => {
+                            present_depth = pressed;
+                        }
+                        _ => {}
+                    };
                 }
                 DeviceEvent::Button { button: 1, state } => {
                     camera_controller.set_mouse_active(*state == ElementState::Pressed);
@@ -187,12 +197,14 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
-                    depth_texture = texture::DepthTexture{}.build(&renderer);
+                    // depth_texture = texture::DepthTexture.build(&renderer);
+                    render_pdt = present_texture_builder.build(&renderer, &present_depth_texture);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
-                    depth_texture = texture::DepthTexture{}.build(&renderer);
+                    // depth_texture = texture::DepthTexture.build(&renderer);
+                    render_pdt = present_texture_builder.build(&renderer, &present_depth_texture);
                 }
                 _ => {}
             },
@@ -247,16 +259,22 @@ fn main() {
                     camera: &render_camera,
                 };
 
-                let outline = model::ModelOutlineRenderCommand {
-                    pipeline: &outline_pipeline,
-                    models: vec![&render_cube],
-                    transforms: vec![&render_transform_1_scaled],
-                    camera: &render_camera,
+                let screen_quad = present_texture::PresentTextureRenderCommand {
+                    pipeline: &present_texture_pipeline,
+                    screen_quad: &render_pdt,
                 };
 
+                let post_commands: Vec<&dyn renderer::RenderCommand<'_>> = vec![&screen_quad];
+                let post_commands = if present_depth {
+                    Some(&post_commands)
+                } else {
+                    None
+                };
                 match renderer.render(
-                    &vec![&model_command, &color_command, &skybox_command, &outline],
-                    &depth_texture,
+                    &vec![&model_command, &color_command, &skybox_command],
+                    post_commands,
+                    // &depth_texture,
+                    &render_pdt.texture,
                 ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
