@@ -37,7 +37,7 @@ pub struct CubeMap {
 
 #[derive(Debug)]
 pub struct GBuffer {
-    format: wgpu::TextureFormat,
+    pub format: wgpu::TextureFormat,
 }
 
 impl Texture {
@@ -256,10 +256,7 @@ impl renderer::GpuAsset for GBuffer {
             label: Some("gbuffer_texture"),
         });
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::Cube),
-            ..Default::default()
-        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,

@@ -198,6 +198,87 @@ impl Renderer {
         output.present();
         Ok(())
     }
+
+    pub fn render_deferred(
+        &mut self,
+        commands: &Vec<&dyn RenderCommand>,
+        post_commands: Option<&Vec<&dyn RenderCommand>>,
+        g_buffer: &Vec<&texture::GpuTexture>,
+        depth_texture: &texture::GpuTexture,
+    ) -> Result<(), wgpu::SurfaceError> {
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("render_encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("render_pass"),
+                color_attachments: &g_buffer
+                    .iter()
+                    .map(|b| wgpu::RenderPassColorAttachment {
+                        view: &b.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    })
+                    .collect::<Vec<_>>(),
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            for command in commands {
+                command.execute(&mut render_pass);
+            }
+        }
+
+        let output = self.surface.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        if let Some(commands) = post_commands {
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("render_pass"),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.3,
+                                g: 0.3,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
+
+                for command in commands {
+                    command.execute(&mut render_pass);
+                }
+            }
+        }
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -212,6 +293,7 @@ pub struct PipelineBuilder<'a> {
     stencil_read_mask: u32,
     stencil_write_mask: u32,
     write_depth: bool,
+    color_targets: Option<Vec<wgpu::TextureFormat>>,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {
@@ -227,6 +309,7 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
             stencil_read_mask: 0x00,
             stencil_write_mask: 0x00,
             write_depth: true,
+            color_targets: None,
         }
     }
 }
@@ -281,6 +364,11 @@ impl<'a> PipelineBuilder<'a> {
         self
     }
 
+    pub fn color_targets(mut self, color_targets: Vec<wgpu::TextureFormat>) -> Self {
+        self.color_targets = Some(color_targets);
+        self
+    }
+
     pub fn build(self, renderer: &Renderer) -> wgpu::RenderPipeline {
         let layout = renderer
             .device
@@ -301,6 +389,29 @@ impl<'a> PipelineBuilder<'a> {
 
         let shader = renderer.device.create_shader_module(&shader);
 
+        let targets = if let Some(color_targets) = self.color_targets {
+            color_targets
+                .into_iter()
+                .map(|ct| wgpu::ColorTargetState {
+                    format: ct,
+                    blend: Some(wgpu::BlendState {
+                        alpha: wgpu::BlendComponent::REPLACE,
+                        color: wgpu::BlendComponent::REPLACE,
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+                .collect()
+        } else {
+            vec![wgpu::ColorTargetState {
+                format: renderer.config.format,
+                blend: Some(wgpu::BlendState {
+                    alpha: wgpu::BlendComponent::REPLACE,
+                    color: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }]
+        };
+
         renderer
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -314,14 +425,7 @@ impl<'a> PipelineBuilder<'a> {
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
                     entry_point: "fs_main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: renderer.config.format,
-                        blend: Some(wgpu::BlendState {
-                            alpha: wgpu::BlendComponent::REPLACE,
-                            color: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }],
+                    targets: &targets,
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: self.primitive_topology,
