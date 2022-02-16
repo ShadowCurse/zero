@@ -30,5 +30,6 @@ var s_buffer: sampler;
 [[stage(fragment)]]
 fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let color: vec4<f32> = textureSample(t_buffer, s_buffer, vertex.tex_coords);
-  return vec4<f32>(color.r,color.r,color.r, 1.0); 
+  //return vec4<f32>(color.r,color.r,color.r, 1.0); 
+  return color; 
 }

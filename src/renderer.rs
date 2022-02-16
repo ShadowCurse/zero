@@ -394,10 +394,7 @@ impl<'a> PipelineBuilder<'a> {
                 .into_iter()
                 .map(|ct| wgpu::ColorTargetState {
                     format: ct,
-                    blend: Some(wgpu::BlendState {
-                        alpha: wgpu::BlendComponent::REPLACE,
-                        color: wgpu::BlendComponent::REPLACE,
-                    }),
+                    blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })
                 .collect()

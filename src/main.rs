@@ -147,39 +147,18 @@ fn main() {
     // .depth_enabled(false)
     // .build(&renderer);
 
+    let g_buffer_format = wgpu::TextureFormat::Rgba32Float;
     let g_buffer_builder = renderer::RenderAssetBuilder::<
         present_texture::PresentTexture<texture::GBuffer>,
     >::new(&renderer);
     let present_texture = present_texture::PresentTexture {
         texture: texture::GBuffer {
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: g_buffer_format,
         },
     };
-    // let mut position_texture = texture::GBuffer {
-    //     format: wgpu::TextureFormat::Rgba8Unorm,
-    // }
-    // .build(&renderer);
     let mut position_texture = g_buffer_builder.build(&renderer, &present_texture);
-    // let normal_texture = present_texture::PresentTexture {
-    //     texture: texture::GBuffer {
-    //         format: wgpu::TextureFormat::Rgba8Unorm,
-    //     },
-    // };
-    let mut normal_texture = texture::GBuffer {
-        format: wgpu::TextureFormat::Rgba8Unorm,
-    }
-    .build(&renderer);
-    // let normal_texture = g_buffer_builder.build(&renderer, &normal_texture);
-    // let albedo_texture = present_texture::PresentTexture {
-    //     texture: texture::GBuffer {
-    //         format: wgpu::TextureFormat::Rgba8Unorm,
-    //     },
-    // };
+    let mut normal_texture = g_buffer_builder.build(&renderer, &present_texture);
     let mut albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
-    // let mut albedo_texture = texture::GBuffer {
-    //     format: wgpu::TextureFormat::Rgba8Unorm,
-    // }
-    // .build(&renderer);
     let g_pipeline = PipelineBuilder::new(
         vec![
             &material_builder.bind_group_layout,
@@ -191,11 +170,7 @@ fn main() {
         "./shaders/geometry_pass.wgsl",
     )
     .write_depth(true)
-    .color_targets(vec![
-        wgpu::TextureFormat::Rgba8Unorm,
-        wgpu::TextureFormat::Rgba8Unorm,
-        wgpu::TextureFormat::Rgba8Unorm,
-    ])
+    .color_targets(vec![g_buffer_format, g_buffer_format, g_buffer_format])
     .build(&renderer);
 
     let present_texture_pipeline = PipelineBuilder::new(
@@ -258,22 +233,16 @@ fn main() {
                     renderer.resize(Some(*physical_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
                     position_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    normal_texture = texture::GBuffer {
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                    }
-                    .build(&renderer);
-     albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    normal_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
                     position_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    normal_texture = texture::GBuffer {
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                    }
-                    .build(&renderer);
-     albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    normal_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
                 }
                 _ => {}
             },
@@ -338,15 +307,11 @@ fn main() {
 
                 let screen_quad = present_texture::PresentTextureRenderCommand {
                     pipeline: &present_texture_pipeline,
-                    screen_quad: &albedo_texture,
+                    screen_quad: &normal_texture,
                 };
 
                 let post_commands: Vec<&dyn renderer::RenderCommand<'_>> = vec![&screen_quad];
-                let post_commands = if true {
-                    Some(&post_commands)
-                } else {
-                    None
-                };
+                let post_commands = if true { Some(&post_commands) } else { None };
                 // match renderer.render(
                 //     &vec![&model_command, &color_command, &skybox_command],
                 //     post_commands,
@@ -361,7 +326,11 @@ fn main() {
                 match renderer.render_deferred(
                     &vec![&model_command],
                     post_commands,
-                    &vec![&position_texture.texture, &normal_texture, &albedo_texture.texture],
+                    &vec![
+                        &position_texture.texture,
+                        &normal_texture.texture,
+                        &albedo_texture.texture,
+                    ],
                     &depth_texture,
                 ) {
                     Ok(_) => {}
