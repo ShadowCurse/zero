@@ -31,8 +31,8 @@ fn main() {
     let light_builder = renderer::RenderAssetBuilder::<light::PointLight>::new(&renderer);
     let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
-    // let color_material_builder =
-    //     renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
+    let color_material_builder =
+        renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
     // let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
 
     let mut camera = camera::Camera::new(
@@ -65,8 +65,8 @@ fn main() {
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
 
-    // let plane: model::Mesh = shapes::Plane::new(10.0).into();
-    // let gpu_plane = plane.build(&renderer);
+    let plane: model::Mesh = shapes::Plane::new(10.0).into();
+    let gpu_plane = plane.build(&renderer);
 
     let mut transform_1 = transform::Transform {
         translation: (0.0, 5.0, 0.0).into(),
@@ -79,20 +79,20 @@ fn main() {
     // transform_1_scaled.scale = (1.1, 1.1, 1.1).into();
     // let render_transform_1_scaled = transform_builder.build(&renderer, &transform_1_scaled);
 
-    // let transform_2 = transform::Transform {
-    //     translation: (0.0, 0.0, 0.0).into(),
-    //     rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-    //     scale: (1.0, 1.0, 1.0).into(),
-    // };
-    // let render_transform_2 = transform_builder.build(&renderer, &transform_2);
+    let transform_2 = transform::Transform {
+        translation: (0.0, 0.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let render_transform_2 = transform_builder.build(&renderer, &transform_2);
 
-    // let color_material = material::ColorMaterial {
-    //     ambient: [0.4, 0.4, 0.4],
-    //     diffuse: [0.6, 0.6, 0.6],
-    //     specular: [1.0, 1.0, 1.0],
-    //     shininess: 32.0,
-    // };
-    // let color_render_material = color_material_builder.build(&renderer, &color_material);
+    let color_material = material::ColorMaterial {
+        ambient: [0.4, 0.4, 0.4],
+        diffuse: [0.6, 0.6, 0.6],
+        specular: [1.0, 1.0, 1.0],
+        shininess: 32.0,
+    };
+    let color_render_material = color_material_builder.build(&renderer, &color_material);
 
     // let skybox_pipeline = PipelineBuilder::new(
     //     vec![
@@ -168,6 +168,20 @@ fn main() {
         ],
         vec![model::ModelVertex::desc()],
         "./shaders/geometry_pass.wgsl",
+    )
+    .write_depth(true)
+    .color_targets(vec![g_buffer_format, g_buffer_format, g_buffer_format])
+    .build(&renderer);
+
+    let g_color_pipeline = PipelineBuilder::new(
+        vec![
+            &color_material_builder.bind_group_layout,
+            &transform_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+            &light_builder.bind_group_layout,
+        ],
+        vec![model::ModelVertex::desc()],
+        "./shaders/geometry_color_pass.wgsl",
     )
     .write_depth(true)
     .color_targets(vec![g_buffer_format, g_buffer_format, g_buffer_format])
@@ -290,14 +304,14 @@ fn main() {
                     light: &render_light,
                 };
 
-                // let color_command = model::MeshRenderCommand {
-                //     pipeline: &color_pipeline,
-                //     mesh: &gpu_plane,
-                //     material: &color_render_material,
-                //     transform: &render_transform_2,
-                //     camera: &render_camera,
-                //     light: &render_light,
-                // };
+                let color_command = model::MeshRenderCommand {
+                    pipeline: &g_color_pipeline,
+                    mesh: &gpu_plane,
+                    material: &color_render_material,
+                    transform: &render_transform_2,
+                    camera: &render_camera,
+                    light: &render_light,
+                };
 
                 // let skybox_command = skybox::SkyboxRenderCommand {
                 //     pipeline: &skybox_pipeline,
@@ -305,27 +319,13 @@ fn main() {
                 //     camera: &render_camera,
                 // };
 
-                let screen_quad = present_texture::PresentTextureRenderCommand {
+                let present_texture_command = present_texture::PresentTextureRenderCommand {
                     pipeline: &present_texture_pipeline,
-                    screen_quad: &normal_texture,
+                    screen_quad: &position_texture,
                 };
-
-                let post_commands: Vec<&dyn renderer::RenderCommand<'_>> = vec![&screen_quad];
-                let post_commands = if true { Some(&post_commands) } else { None };
-                // match renderer.render(
-                //     &vec![&model_command, &color_command, &skybox_command],
-                //     post_commands,
-                //     // &depth_texture,
-                //     &render_pdt.texture,
-                // ) {
-                //     Ok(_) => {}
-                //     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
-                //     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                //     Err(e) => eprintln!("{:?}", e),
-                // }
                 match renderer.render_deferred(
-                    &vec![&model_command],
-                    post_commands,
+                    &vec![&model_command, &color_command],
+                    &vec![&present_texture_command],
                     &vec![
                         &position_texture.texture,
                         &normal_texture.texture,

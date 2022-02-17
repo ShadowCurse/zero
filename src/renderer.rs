@@ -202,7 +202,7 @@ impl Renderer {
     pub fn render_deferred(
         &mut self,
         commands: &Vec<&dyn RenderCommand>,
-        post_commands: Option<&Vec<&dyn RenderCommand>>,
+        post_commands: &Vec<&dyn RenderCommand>,
         g_buffer: &Vec<&texture::GpuTexture>,
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
@@ -250,7 +250,6 @@ impl Renderer {
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        if let Some(commands) = post_commands {
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("render_pass"),
@@ -270,11 +269,10 @@ impl Renderer {
                     depth_stencil_attachment: None,
                 });
 
-                for command in commands {
+                for command in post_commands {
                     command.execute(&mut render_pass);
                 }
             }
-        }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())

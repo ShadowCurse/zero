@@ -36,9 +36,10 @@ struct VertexInput {
 struct VertexOutput {
   [[builtin(position)]] clip_position: vec4<f32>;
   [[location(0)]] tex_coords: vec2<f32>;
-  [[location(1)]] world_normal: vec3<f32>;
-  [[location(2)]] world_tangent: vec3<f32>;
-  [[location(3)]] world_bitangent: vec3<f32>;
+  [[location(1)]] world_position: vec4<f32>;
+  [[location(2)]] world_normal: vec3<f32>;
+  [[location(3)]] world_tangent: vec3<f32>;
+  [[location(4)]] world_bitangent: vec3<f32>;
 };
 
 [[stage(vertex)]]
@@ -54,6 +55,7 @@ fn vs_main(
   var out: VertexOutput;
   out.clip_position = camera.view_projection * world_position;
   out.tex_coords = vertex.tex_coords;
+  out.world_position = world_position;
   out.world_tangent = world_tangent.xyz;
   out.world_bitangent = world_bitangent.xyz;
   out.world_normal = world_normal.xyz;
@@ -102,7 +104,7 @@ fn fs_main(vertex: VertexOutput) -> FragmentOut {
   let world_object_normal = tangent_to_world_matrix * object_normal.xyz;
 
   var out: FragmentOut;
-  out.position = vertex.clip_position;
+  out.position = vertex.world_position;
   out.normal = vec4<f32>(world_object_normal, 1.0);
   out.albedo = object_color;
 
