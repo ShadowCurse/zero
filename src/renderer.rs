@@ -368,6 +368,7 @@ impl<'a> PipelineBuilder<'a> {
     }
 
     pub fn build(self, renderer: &Renderer) -> wgpu::RenderPipeline {
+        println!("building pipilene: {}", self.shader_path);
         let layout = renderer
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

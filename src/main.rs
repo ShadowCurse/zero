@@ -33,7 +33,6 @@ fn main() {
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
     let color_material_builder =
         renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
-    // let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
 
     let mut camera = camera::Camera::new(
         (-10.0, 2.0, 0.0),
@@ -51,16 +50,8 @@ fn main() {
     let mut light = light::PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
     let render_light = light_builder.build(&renderer, &light);
 
-    // let skybox = skybox::Skybox::load([
-    //     "./res/skybox/right.jpg",
-    //     "./res/skybox/left.jpg",
-    //     "./res/skybox/top.jpg",
-    //     "./res/skybox/bottom.jpg",
-    //     "./res/skybox/front.jpg",
-    //     "./res/skybox/back.jpg",
-    // ])
-    // .unwrap();
-    // let render_skybox = skybox_builder.build(&renderer, &skybox);
+    let light_2 = light::PointLight::new((-2.0, 0.2, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
+    // let render_light_2 = light_builder.build(&renderer, &light_2);
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
@@ -74,10 +65,6 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let render_transform_1 = transform_builder.build(&renderer, &transform_1);
-
-    // let mut transform_1_scaled = transform_1.clone();
-    // transform_1_scaled.scale = (1.1, 1.1, 1.1).into();
-    // let render_transform_1_scaled = transform_builder.build(&renderer, &transform_1_scaled);
 
     let transform_2 = transform::Transform {
         translation: (0.0, 0.0, 0.0).into(),
@@ -94,71 +81,31 @@ fn main() {
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
 
-    // let skybox_pipeline = PipelineBuilder::new(
-    //     vec![
-    //         &skybox_builder.bind_group_layout,
-    //         &camera_builder.bind_group_layout,
-    //     ],
-    //     vec![skybox::SkyboxVertex::desc()],
-    //     "./shaders/skybox.wgsl",
-    // )
-    // .write_depth(false)
-    // .build(&renderer);
-
-    // let model_pipeline = PipelineBuilder::new(
-    //     vec![
-    //         &material_builder.bind_group_layout,
-    //         &transform_builder.bind_group_layout,
-    //         &camera_builder.bind_group_layout,
-    //         &light_builder.bind_group_layout,
-    //     ],
-    //     vec![model::ModelVertex::desc()],
-    //     "./shaders/shader.wgsl",
-    // )
-    // .stencil_write_mask(0xff)
-    // .write_depth(true)
-    // .build(&renderer);
-
-    // let color_pipeline = PipelineBuilder::new(
-    //     vec![
-    //         &color_material_builder.bind_group_layout,
-    //         &transform_builder.bind_group_layout,
-    //         &camera_builder.bind_group_layout,
-    //         &light_builder.bind_group_layout,
-    //     ],
-    //     vec![model::ModelVertex::desc()],
-    //     "./shaders/color.wgsl",
-    // )
-    // .write_depth(true)
-    // .build(&renderer);
-
-    // let present_texture_builder = renderer::RenderAssetBuilder::<
-    //     present_texture::PresentTexture<texture::DepthTexture>,
-    // >::new(&renderer);
-    // let present_depth_texture = present_texture::PresentTexture {
-    //     texture: texture::DepthTexture,
-    // };
-    // let mut render_pdt = present_texture_builder.build(&renderer, &present_depth_texture);
-    // let present_texture_pipeline = PipelineBuilder::new(
-    //     vec![&present_texture_builder.bind_group_layout],
-    //     vec![present_texture::Vertex::desc()],
-    //     "./shaders/present_texture.wgsl",
-    // )
-    // .depth_enabled(false)
-    // .build(&renderer);
-
     let g_buffer_format = wgpu::TextureFormat::Rgba32Float;
-    let g_buffer_builder = renderer::RenderAssetBuilder::<
-        present_texture::PresentTexture<texture::GBuffer>,
+
+    let lights_builder = renderer::RenderAssetBuilder::<light::PointLights>::new(&renderer);
+    let lights = light::PointLights {
+        lights: vec![light.clone(), light_2],
+    };
+    let render_lights = lights_builder.build(&renderer, &lights);
+
+    let deffered_pass_builder = renderer::RenderAssetBuilder::<
+        present_texture::DefferedPassTextures<texture::GBuffer>,
     >::new(&renderer);
-    let present_texture = present_texture::PresentTexture {
-        texture: texture::GBuffer {
+    let deffered_pass_textures = present_texture::DefferedPassTextures {
+        position_texture: texture::GBuffer {
+            format: g_buffer_format,
+        },
+        normal_texture: texture::GBuffer {
+            format: g_buffer_format,
+        },
+        albedo_texture: texture::GBuffer {
             format: g_buffer_format,
         },
     };
-    let mut position_texture = g_buffer_builder.build(&renderer, &present_texture);
-    let mut normal_texture = g_buffer_builder.build(&renderer, &present_texture);
-    let mut albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
+    let mut render_deffered_pass_textures =
+        deffered_pass_builder.build(&renderer, &deffered_pass_textures);
+
     let g_pipeline = PipelineBuilder::new(
         vec![
             &material_builder.bind_group_layout,
@@ -187,16 +134,19 @@ fn main() {
     .color_targets(vec![g_buffer_format, g_buffer_format, g_buffer_format])
     .build(&renderer);
 
-    let present_texture_pipeline = PipelineBuilder::new(
-        vec![&g_buffer_builder.bind_group_layout],
+    let lighting_pass_pipeline = PipelineBuilder::new(
+        vec![
+            &deffered_pass_builder.bind_group_layout,
+            &lights_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+        ],
         vec![present_texture::Vertex::desc()],
-        "./shaders/present_texture.wgsl",
+        "./shaders/lighting_pass.wgsl",
     )
     .depth_enabled(false)
     .build(&renderer);
 
     let mut last_render_time = std::time::Instant::now();
-    let mut present_depth = false;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -207,18 +157,6 @@ fn main() {
                     ..
                 }) => {
                     camera_controller.process_key(*key_code, *state);
-
-                    let pressed = if *state == ElementState::Pressed {
-                        true
-                    } else {
-                        false
-                    };
-                    match key_code {
-                        VirtualKeyCode::T => {
-                            present_depth = pressed;
-                        }
-                        _ => {}
-                    };
                 }
                 DeviceEvent::Button { button: 1, state } => {
                     camera_controller.set_mouse_active(*state == ElementState::Pressed);
@@ -246,17 +184,15 @@ fn main() {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
-                    position_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    normal_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    render_deffered_pass_textures =
+                        deffered_pass_builder.build(&renderer, &deffered_pass_textures);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
-                    position_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    normal_texture = g_buffer_builder.build(&renderer, &present_texture);
-                    albedo_texture = g_buffer_builder.build(&renderer, &present_texture);
+                    render_deffered_pass_textures =
+                        deffered_pass_builder.build(&renderer, &deffered_pass_textures);
                 }
                 _ => {}
             },
@@ -269,7 +205,7 @@ fn main() {
                 light.position =
                     cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                         * light.position;
-                light.update(&renderer, &render_light);
+                // light.update(&renderer, &render_light);
 
                 camera_controller.update_camera(&mut camera, dt);
                 camera.update(&renderer, &render_camera);
@@ -280,21 +216,6 @@ fn main() {
                         cgmath::Deg(-dt.as_secs_f32() * 120.0),
                     );
                 transform_1.update(&renderer, &render_transform_1);
-
-                // transform_1_scaled.rotation = transform_1_scaled.rotation
-                //     * cgmath::Quaternion::from_axis_angle(
-                //         cgmath::Vector3::unit_z(),
-                //         cgmath::Deg(-dt.as_secs_f32() * 120.0),
-                //     );
-                // transform_1_scaled.update(&renderer, &render_transform_1_scaled);
-
-                // let model_command = model::ModelRenderCommand {
-                //     pipeline: &model_pipeline,
-                //     models: vec![&render_cube],
-                //     transforms: vec![&render_transform_1],
-                //     camera: &render_camera,
-                //     light: &render_light,
-                // };
 
                 let model_command = model::ModelRenderCommand {
                     pipeline: &g_pipeline,
@@ -313,23 +234,20 @@ fn main() {
                     light: &render_light,
                 };
 
-                // let skybox_command = skybox::SkyboxRenderCommand {
-                //     pipeline: &skybox_pipeline,
-                //     skybox: &render_skybox,
-                //     camera: &render_camera,
-                // };
-
-                let present_texture_command = present_texture::PresentTextureRenderCommand {
-                    pipeline: &present_texture_pipeline,
-                    screen_quad: &position_texture,
+                let deffered_pass_command = present_texture::DefferedPassRenderCommand {
+                    pipeline: &lighting_pass_pipeline,
+                    deffered_pass: &render_deffered_pass_textures,
+                    lights: &render_lights,
+                    camera: &render_camera,
                 };
+
                 match renderer.render_deferred(
                     &vec![&model_command, &color_command],
-                    &vec![&present_texture_command],
+                    &vec![&deffered_pass_command],
                     &vec![
-                        &position_texture.texture,
-                        &normal_texture.texture,
-                        &albedo_texture.texture,
+                        &render_deffered_pass_textures.position_texture,
+                        &render_deffered_pass_textures.normal_texture,
+                        &render_deffered_pass_textures.albedo_texture,
                     ],
                     &depth_texture,
                 ) {
