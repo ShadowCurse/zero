@@ -79,7 +79,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
     let view_dir = normalize(camera.position - vertex_position.xyz);
     let half_dir = normalize(view_dir + light_dir);
 
-    let diffuse_strength = max(dot(normal, light_dir), 0.0);
+    let diffuse_strength = max(dot(vertex_normal.xyz, light_dir), 0.0);
     let diffuse_color = vertex_albedo.xyz * lights.lights[i].color * diffuse_strength;
 
     //let specular_strength = pow(max(dot(tangent_normal, half_dir), 0.0), properties.shininess);
