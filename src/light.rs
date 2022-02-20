@@ -3,6 +3,71 @@ use wgpu::util::DeviceExt;
 
 use crate::renderer;
 
+#[macro_export]
+macro_rules! impl_light_render_asset {
+    ($type:ty) => {
+        impl renderer::RenderAsset for $type {
+            type RenderType = RenderLight;
+
+            fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
+                renderer
+                    .device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                        entries: &[wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        }],
+                        label: Some("binding_group_layout"),
+                    })
+            }
+
+            fn build(
+                &self,
+                renderer: &renderer::Renderer,
+                layout: &wgpu::BindGroupLayout,
+            ) -> Self::RenderType {
+                let uniform = self.to_uniform();
+
+                let buffer =
+                    renderer
+                        .device
+                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("light_uniform"),
+                            contents: bytemuck::cast_slice(&[uniform]),
+                            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                        });
+
+                let bind_group = renderer
+                    .device
+                    .create_bind_group(&wgpu::BindGroupDescriptor {
+                        layout,
+                        entries: &[wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: buffer.as_entire_binding(),
+                        }],
+                        label: Some("bind_group"),
+                    });
+
+                Self::RenderType { buffer, bind_group }
+            }
+
+            fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+                renderer.queue.write_buffer(
+                    &render_type.buffer,
+                    0,
+                    bytemuck::cast_slice(&[self.to_uniform()]),
+                );
+            }
+        }
+    };
+}
+
 #[derive(Debug)]
 pub struct RenderLights {
     buffer: wgpu::Buffer,
@@ -59,64 +124,7 @@ impl DirectionalLight {
     }
 }
 
-impl renderer::RenderAsset for DirectionalLight {
-    type RenderType = RenderLight;
-
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
-        renderer
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("directional_light_binding_group_layout"),
-            })
-    }
-
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("directional_light_uniform"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
-
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
-                label: Some("directional_light_bind_group"),
-            });
-
-        Self::RenderType { buffer, bind_group }
-    }
-
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
-        renderer.queue.write_buffer(
-            &render_type.buffer,
-            0,
-            bytemuck::cast_slice(&[self.to_uniform()]),
-        );
-    }
-}
+impl_light_render_asset!(DirectionalLight);
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -169,64 +177,7 @@ impl PointLight {
     }
 }
 
-impl renderer::RenderAsset for PointLight {
-    type RenderType = RenderLight;
-
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
-        renderer
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("point_light_binding_group_layout"),
-            })
-    }
-
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("point_light_uniform"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
-
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
-                label: Some("point_light_bind_group"),
-            });
-
-        Self::RenderType { buffer, bind_group }
-    }
-
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
-        renderer.queue.write_buffer(
-            &render_type.buffer,
-            0,
-            bytemuck::cast_slice(&[self.to_uniform()]),
-        );
-    }
-}
+impl_light_render_asset!(PointLight);
 
 #[derive(Debug, Clone)]
 pub struct PointLights {
@@ -298,7 +249,6 @@ impl renderer::RenderAsset for PointLights {
     }
 }
 
-
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct SpotLightUniform {
@@ -340,61 +290,4 @@ impl SpotLight {
     }
 }
 
-impl renderer::RenderAsset for SpotLight {
-    type RenderType = RenderLight;
-
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
-        renderer
-            .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("spot_light_binding_group_layout"),
-            })
-    }
-
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("spot_light_uniform"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
-
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
-                label: Some("spot_light_bind_group"),
-            });
-
-        Self::RenderType { buffer, bind_group }
-    }
-
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
-        renderer.queue.write_buffer(
-            &render_type.buffer,
-            0,
-            bytemuck::cast_slice(&[self.to_uniform()]),
-        );
-    }
-}
+impl_light_render_asset!(SpotLight);

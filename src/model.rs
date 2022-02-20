@@ -31,7 +31,7 @@ impl From<([f32; 3], [f32; 2], [f32; 3])> for ModelVertex {
 }
 
 impl ModelVertex {
-    pub fn calc_tangents_and_bitangents(vertices: &mut Vec<ModelVertex>, indices: &Vec<u32>) {
+    pub fn calc_tangents_and_bitangents(vertices: &mut Vec<ModelVertex>, indices: &[u32]) {
         for c in indices.chunks(3) {
             let v0 = vertices[c[0] as usize];
             let v1 = vertices[c[1] as usize];

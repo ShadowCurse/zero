@@ -77,9 +77,9 @@ impl Camera {
     fn view_without_translation(&self) -> Matrix4<f32> {
         let view = self.view();
         Matrix4::from(Matrix3::from_cols(
-            Vector3::from(view[0].truncate()),
-            Vector3::from(view[1].truncate()),
-            Vector3::from(view[2].truncate()),
+            view[0].truncate(),
+            view[1].truncate(),
+            view[2].truncate(),
         ))
     }
 

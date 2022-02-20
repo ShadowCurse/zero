@@ -56,7 +56,8 @@ fn main() {
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
 
-    let plane: model::Mesh = shapes::Plane::new(10.0).into();
+    // let plane: model::Mesh = shapes::Plane::new(10.0).into();
+    let plane: model::Mesh = shapes::Box::new(9.0, 1.0, 5.0).into();
     let gpu_plane = plane.build(&renderer);
 
     let mut transform_1 = transform::Transform {

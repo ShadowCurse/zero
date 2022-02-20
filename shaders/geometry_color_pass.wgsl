@@ -35,7 +35,7 @@ struct VertexInput {
 
 struct VertexOutput {
   [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] world_position: vec3<f32>;
+  [[location(0)]] world_position: vec4<f32>;
   [[location(1)]] world_normal: vec3<f32>;
 };
 
@@ -48,7 +48,7 @@ fn vs_main(
 
   var out: VertexOutput;
   out.clip_position = camera.view_projection * world_position;
-  out.world_position = world_position.xyz;
+  out.world_position = world_position;
   out.world_normal = world_normal.xyz;
 
   return out;
@@ -74,7 +74,7 @@ struct FragmentOut {
 [[stage(fragment)]]
 fn fs_main(vertex: VertexOutput) -> FragmentOut {
   var out: FragmentOut;
-  out.position = vec4<f32>(vertex.world_position, 1.0);
+  out.position = vertex.world_position;
   out.normal = vec4<f32>(vertex.world_normal, 1.0);
   out.albedo = vec4<f32>(properties.ambient, 1.0);
 
