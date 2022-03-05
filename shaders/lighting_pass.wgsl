@@ -74,7 +74,6 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
     //let ambient_strength = 0.1;
     //let ambient_color = properties.ambient * light.color * ambient_strength;
 
-    let normal = vertex_normal.xyz * 2.0 - 1.0;
     let light_dir = normalize(lights.lights[i].position - vertex_position.xyz);
     let view_dir = normalize(camera.position - vertex_position.xyz);
     let half_dir = normalize(view_dir + light_dir);
