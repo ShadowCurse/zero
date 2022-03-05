@@ -243,9 +243,9 @@ fn main() {
                 };
 
                 match renderer.render_deferred(
-                    &vec![&model_command, &color_command],
-                    &vec![&deffered_pass_command],
-                    &vec![
+                    &[&model_command, &color_command],
+                    &[&deffered_pass_command],
+                    &[
                         &render_deffered_pass_textures.position_texture,
                         &render_deffered_pass_textures.normal_texture,
                         &render_deffered_pass_textures.albedo_texture,

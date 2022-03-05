@@ -201,9 +201,9 @@ impl Renderer {
 
     pub fn render_deferred(
         &mut self,
-        commands: &Vec<&dyn RenderCommand>,
-        post_commands: &Vec<&dyn RenderCommand>,
-        g_buffer: &Vec<&texture::GpuTexture>,
+        geometry_pass_commands: &[&dyn RenderCommand],
+        lighting_pass_commands: &[&dyn RenderCommand],
+        g_buffer: &[&texture::GpuTexture],
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let mut encoder = self
@@ -212,6 +212,7 @@ impl Renderer {
                 label: Some("render_encoder"),
             });
 
+        // geometry_pass
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_pass"),
@@ -241,11 +242,12 @@ impl Renderer {
                 }),
             });
 
-            for command in commands {
+            for command in geometry_pass_commands {
                 command.execute(&mut render_pass);
             }
         }
 
+        // lighting pass
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -269,7 +271,7 @@ impl Renderer {
                     depth_stencil_attachment: None,
                 });
 
-                for command in post_commands {
+                for command in lighting_pass_commands {
                     command.execute(&mut render_pass);
                 }
             }
