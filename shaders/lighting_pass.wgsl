@@ -39,6 +39,7 @@ struct LightUniform {
 };
 
 struct Lights {
+  lights_num: i32;
   lights: array<LightUniform>;
 };
 
@@ -65,7 +66,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let vertex_albedo: vec4<f32> = textureSample(t_albedo, s_albedo, vertex.tex_coords);
 
   var result: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0); 
-  for(var i: i32 = 0; i < 2; i = i + 1) {
+  for(var i: i32 = 0; i < lights.lights_num; i = i + 1) {
     
     let distance = distance(lights.lights[i].position, vertex_position.xyz);
     let attenuation = 1.0 / (lights.lights[i].constant + lights.lights[i].linear * distance + 

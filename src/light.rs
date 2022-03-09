@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use cgmath::Vector3;
 use wgpu::util::DeviceExt;
 
@@ -179,14 +181,40 @@ impl PointLight {
 
 impl_light_render_asset!(PointLight);
 
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PointLightsUniform {
+    // using i32 because of the wgsl
+    lights_num: i32,
+    _pad1: u32,
+    _pad2: u32,
+    _pad3: u32,
+    lights: [PointLightUniform; 10],
+}
+
 #[derive(Debug, Clone)]
 pub struct PointLights {
     pub lights: Vec<PointLight>,
 }
 
 impl PointLights {
-    fn to_uniform(&self) -> Vec<PointLightUniform> {
-        self.lights.iter().map(|light| light.to_uniform()).collect()
+    fn to_uniform(&self) -> PointLightsUniform {
+        let mut lights = [PointLightUniform::default(); 10];
+        for (i, u) in self
+            .lights
+            .iter()
+            .map(|light| light.to_uniform())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .enumerate()
+        {
+            lights[i] = u;
+        }
+        PointLightsUniform {
+            lights_num: self.lights.len() as i32,
+            lights,
+            ..Default::default()
+        }
     }
 }
 
@@ -222,7 +250,7 @@ impl renderer::RenderAsset for PointLights {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("point_lights_uniform"),
-                contents: bytemuck::cast_slice(&uniforms),
+                contents: bytemuck::cast_slice(&[uniforms]),
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             });
 
@@ -244,7 +272,7 @@ impl renderer::RenderAsset for PointLights {
         renderer.queue.write_buffer(
             &render_type.buffer,
             0,
-            bytemuck::cast_slice(&self.to_uniform()),
+            bytemuck::cast_slice(&[self.to_uniform()]),
         );
     }
 }
