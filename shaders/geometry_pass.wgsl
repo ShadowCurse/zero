@@ -15,16 +15,6 @@ struct CameraUniform {
 [[group(2), binding(0)]]
 var<uniform> camera: CameraUniform;
 
-struct LightUniform {
-  position: vec3<f32>;
-  color: vec3<f32>;
-  constant: f32;
-  linear: f32;
-  quadratic: f32;
-};
-[[group(3), binding(0)]]
-var<uniform> light: LightUniform;
-
 struct VertexInput {
   [[location(0)]] position: vec3<f32>;
   [[location(1)]] tex_coords: vec2<f32>;

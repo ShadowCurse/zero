@@ -3,7 +3,6 @@ use cgmath::InnerSpace;
 use wgpu::util::DeviceExt;
 
 use crate::camera;
-use crate::light;
 use crate::material;
 use crate::renderer::{self, GpuAsset, RenderResource};
 use crate::texture;
@@ -267,7 +266,6 @@ pub struct ModelRenderCommand<'a> {
     pub models: Vec<&'a RenderModel>,
     pub transforms: Vec<&'a transform::RenderTransform>,
     pub camera: &'a camera::RenderCamera,
-    pub light: &'a light::RenderLight,
 }
 
 impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
@@ -277,7 +275,7 @@ impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
     {
         render_pass.set_pipeline(self.pipeline);
         for (i, model) in self.models.iter().enumerate() {
-            render_pass.draw_model(model, self.transforms[i], self.camera, self.light);
+            render_pass.draw_model(model, self.transforms[i], self.camera);
         }
     }
 }
@@ -298,8 +296,8 @@ impl<'a> renderer::RenderCommand<'a> for ModelOutlineRenderCommand<'a> {
         render_pass.set_stencil_reference(1);
         render_pass.set_pipeline(self.pipeline);
         for (i, model) in self.models.iter().enumerate() {
-            render_pass.set_bind_group(0, &self.transforms[i].bind_group(), &[]);
-            render_pass.set_bind_group(1, &self.camera.bind_group(), &[]);
+            render_pass.set_bind_group(0, self.transforms[i].bind_group(), &[]);
+            render_pass.set_bind_group(1, self.camera.bind_group(), &[]);
             for mesh in &model.meshes {
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
                 render_pass
@@ -317,7 +315,6 @@ pub struct MeshRenderCommand<'a> {
     pub material: &'a material::RenderColorMaterial,
     pub transform: &'a transform::RenderTransform,
     pub camera: &'a camera::RenderCamera,
-    pub light: &'a light::RenderLight,
 }
 
 impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
@@ -326,10 +323,9 @@ impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
         'a: 'b,
     {
         render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, &self.material.bind_group(), &[]);
-        render_pass.set_bind_group(1, &self.transform.bind_group(), &[]);
-        render_pass.set_bind_group(2, &self.camera.bind_group(), &[]);
-        render_pass.set_bind_group(3, &self.light.bind_group(), &[]);
+        render_pass.set_bind_group(0, self.material.bind_group(), &[]);
+        render_pass.set_bind_group(1, self.transform.bind_group(), &[]);
+        render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
@@ -342,7 +338,6 @@ pub trait DrawModel<'a> {
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
     );
 
     fn draw_model_instanced(
@@ -350,7 +345,6 @@ pub trait DrawModel<'a> {
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
     );
 
@@ -360,7 +354,6 @@ pub trait DrawModel<'a> {
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
     );
 
     fn draw_mesh_instanced(
@@ -369,7 +362,6 @@ pub trait DrawModel<'a> {
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
     );
 }
@@ -383,9 +375,8 @@ where
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
     ) {
-        self.draw_model_instanced(model, transform, camera, light, 0..1);
+        self.draw_model_instanced(model, transform, camera, 0..1);
     }
 
     fn draw_model_instanced(
@@ -393,12 +384,11 @@ where
         model: &'a RenderModel,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
     ) {
         for mesh in &model.meshes {
             let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, transform, camera, light, instances.clone());
+            self.draw_mesh_instanced(mesh, material, transform, camera, instances.clone());
         }
     }
 
@@ -408,9 +398,8 @@ where
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
     ) {
-        self.draw_mesh_instanced(mesh, material, transform, camera, light, 0..1);
+        self.draw_mesh_instanced(mesh, material, transform, camera, 0..1);
     }
 
     fn draw_mesh_instanced(
@@ -419,13 +408,11 @@ where
         material: &'a material::RenderMaterial,
         transform: &'a transform::RenderTransform,
         camera: &'a camera::RenderCamera,
-        light: &'a light::RenderLight,
         instances: std::ops::Range<u32>,
     ) {
-        self.set_bind_group(0, &material.bind_group(), &[]);
-        self.set_bind_group(1, &transform.bind_group(), &[]);
-        self.set_bind_group(2, &camera.bind_group(), &[]);
-        self.set_bind_group(3, &light.bind_group(), &[]);
+        self.set_bind_group(0, material.bind_group(), &[]);
+        self.set_bind_group(1, transform.bind_group(), &[]);
+        self.set_bind_group(2, camera.bind_group(), &[]);
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.draw_indexed(0..mesh.num_elements, 0, instances);

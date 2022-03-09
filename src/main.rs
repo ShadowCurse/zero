@@ -51,7 +51,7 @@ fn main() {
     let render_light = light_builder.build(&renderer, &light);
 
     let light_2 = light::PointLight::new((-2.0, 0.2, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
-    // let render_light_2 = light_builder.build(&renderer, &light_2);
+    let light_3 = light::PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
@@ -86,7 +86,7 @@ fn main() {
 
     let lights_builder = renderer::RenderAssetBuilder::<light::PointLights>::new(&renderer);
     let lights = light::PointLights {
-        lights: vec![light.clone(), light_2],
+        lights: vec![light.clone(), light_2, light_3],
     };
     let render_lights = lights_builder.build(&renderer, &lights);
 
@@ -112,7 +112,6 @@ fn main() {
             &material_builder.bind_group_layout,
             &transform_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
-            &light_builder.bind_group_layout,
         ],
         vec![model::ModelVertex::desc()],
         "./shaders/geometry_pass.wgsl",
@@ -126,7 +125,6 @@ fn main() {
             &color_material_builder.bind_group_layout,
             &transform_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
-            &light_builder.bind_group_layout,
         ],
         vec![model::ModelVertex::desc()],
         "./shaders/geometry_color_pass.wgsl",
@@ -223,7 +221,6 @@ fn main() {
                     models: vec![&render_cube],
                     transforms: vec![&render_transform_1],
                     camera: &render_camera,
-                    light: &render_light,
                 };
 
                 let color_command = model::MeshRenderCommand {
@@ -232,7 +229,6 @@ fn main() {
                     material: &color_render_material,
                     transform: &render_transform_2,
                     camera: &render_camera,
-                    light: &render_light,
                 };
 
                 let deffered_pass_command = present_texture::DefferedPassRenderCommand {
