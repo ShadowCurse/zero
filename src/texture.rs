@@ -35,11 +35,6 @@ pub struct CubeMap {
     dimensions: (u32, u32),
 }
 
-#[derive(Debug)]
-pub struct GBuffer {
-    pub format: wgpu::TextureFormat,
-}
-
 impl Texture {
     pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
         let path_copy = path.as_ref().to_path_buf();
@@ -227,45 +222,6 @@ impl renderer::GpuAsset for CubeMap {
             },
             texture_size,
         );
-
-        Self::GpuType {
-            texture,
-            view,
-            sampler,
-        }
-    }
-}
-
-impl renderer::GpuAsset for GBuffer {
-    type GpuType = GpuTexture;
-
-    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
-        let texture_size = wgpu::Extent3d {
-            width: renderer.config.width,
-            height: renderer.config.height,
-            depth_or_array_layers: 1,
-        };
-
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: Some("gbuffer_texture"),
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            // mag_filter: wgpu::FilterMode::Linear,
-            // min_filter: wgpu::FilterMode::Nearest,
-            // mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
 
         Self::GpuType {
             texture,
