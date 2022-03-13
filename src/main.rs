@@ -10,7 +10,6 @@ mod deffered_rendering;
 mod light;
 mod material;
 mod model;
-mod present_texture;
 mod renderer;
 mod shapes;
 mod skybox;
@@ -29,7 +28,6 @@ fn main() {
     let mut depth_texture = texture::DepthTexture.build(&renderer);
 
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
-    // let light_builder = renderer::RenderAssetBuilder::<light::PointLight>::new(&renderer);
     let lights_builder = renderer::RenderAssetBuilder::<light::PointLights>::new(&renderer);
     let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
@@ -53,7 +51,7 @@ fn main() {
     let light_2 = light::PointLight::new((-2.0, 0.2, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
     let light_3 = light::PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
     let mut lights = light::PointLights {
-        lights: vec![light.clone(), light_2, light_3],
+        lights: vec![light, light_2, light_3],
     };
     let render_lights = lights_builder.build(&renderer, &lights);
 
@@ -85,21 +83,10 @@ fn main() {
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
 
-    let g_buffer_builder = renderer::RenderAssetBuilder::<
-        deffered_rendering::GBuffer<deffered_rendering::GBufferTexture>,
-    >::new(&renderer);
+    let g_buffer_builder =
+        renderer::RenderAssetBuilder::<deffered_rendering::GBuffer>::new(&renderer);
     let g_buffer_format = wgpu::TextureFormat::Rgba32Float;
-    let g_buffer = deffered_rendering::GBuffer {
-        position: deffered_rendering::GBufferTexture {
-            format: g_buffer_format,
-        },
-        normal: deffered_rendering::GBufferTexture {
-            format: g_buffer_format,
-        },
-        albedo: deffered_rendering::GBufferTexture {
-            format: g_buffer_format,
-        },
-    };
+    let g_buffer = deffered_rendering::GBuffer::new(g_buffer_format);
     let mut render_g_buffer = g_buffer_builder.build(&renderer, &g_buffer);
 
     let g_pipeline = PipelineBuilder::new(
@@ -134,7 +121,7 @@ fn main() {
             &lights_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
         ],
-        vec![present_texture::Vertex::desc()],
+        vec![texture::TextureVertex::desc()],
         "./shaders/lighting_pass.wgsl",
     )
     .depth_enabled(false)
@@ -192,9 +179,8 @@ fn main() {
                 let now = std::time::Instant::now();
                 let dt = now - last_render_time;
                 last_render_time = now;
-                // println!("frame time: {}ms", dt.as_millis());
 
-                lights.lights[0].position = 
+                lights.lights[0].position =
                     cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                         * lights.lights[0].position;
                 lights.update(&renderer, &render_lights);
@@ -232,7 +218,7 @@ fn main() {
                 };
 
                 match renderer.render_deferred(
-                    &[&model_command, &color_command],
+                    &[&color_command, &model_command],
                     &[&deffered_pass_command],
                     &[
                         &render_g_buffer.position,

@@ -165,8 +165,8 @@ where
 {
     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera) {
         self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-        self.set_bind_group(0, &skybox.bind_group(), &[]);
-        self.set_bind_group(1, &camera.bind_group(), &[]);
+        self.set_bind_group(0, skybox.bind_group(), &[]);
+        self.set_bind_group(1, camera.bind_group(), &[]);
         self.draw(0..skybox.num_elements, 0..1);
     }
 }

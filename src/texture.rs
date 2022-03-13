@@ -4,6 +4,43 @@ use std::path::Path;
 
 use crate::renderer;
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TextureVertex {
+    position: [f32; 3],
+    tex_coords: [f32; 2],
+}
+
+impl From<([f32; 3], [f32; 2])> for TextureVertex {
+    fn from(data: ([f32; 3], [f32; 2])) -> Self {
+        Self {
+            position: data.0,
+            tex_coords: data.1,
+        }
+    }
+}
+
+impl renderer::Vertex for TextureVertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+            ],
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct GpuTexture {
     pub texture: wgpu::Texture,

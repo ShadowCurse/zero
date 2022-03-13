@@ -1,8 +1,7 @@
 use crate::camera;
 use crate::light;
-use crate::present_texture::Vertex;
 use crate::renderer::{GpuAsset, RenderAsset, RenderCommand, RenderResource, Renderer};
-use crate::texture::GpuTexture;
+use crate::texture::{TextureVertex, GpuTexture};
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
@@ -22,18 +21,72 @@ impl RenderResource for RenderDefferedPass {
 }
 
 #[derive(Debug)]
-pub struct GBuffer<T>
-where
-    T: GpuAsset<GpuType = GpuTexture>,
-{
-    pub position: T,
-    pub normal: T,
-    pub albedo: T,
+pub struct GBufferTexture {
+    pub format: wgpu::TextureFormat,
 }
 
-impl<T> RenderAsset for GBuffer<T>
-where
-    T: GpuAsset<GpuType = GpuTexture>,
+impl GBufferTexture {
+    pub fn new(format: wgpu::TextureFormat) -> Self {
+        Self { format }
+    }
+}
+
+impl GpuAsset for GBufferTexture {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+        let texture_size = wgpu::Extent3d {
+            width: renderer.config.width,
+            height: renderer.config.height,
+            depth_or_array_layers: 1,
+        };
+
+        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+            size: texture_size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            label: Some("gbuffer_texture"),
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            ..Default::default()
+        });
+
+        Self::GpuType {
+            texture,
+            view,
+            sampler,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GBuffer
+{
+    pub position: GBufferTexture,
+    pub normal: GBufferTexture,
+    pub albedo: GBufferTexture,
+}
+
+impl GBuffer
+{
+    pub fn new(format: wgpu::TextureFormat) -> Self {
+        Self {
+            position: GBufferTexture::new(format),
+            normal: GBufferTexture::new(format),
+            albedo: GBufferTexture::new(format),
+        }
+    }
+}
+
+impl RenderAsset for GBuffer
 {
     type RenderType = RenderDefferedPass;
 
@@ -96,7 +149,7 @@ where
     }
 
     fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType {
-        let vertices: Vec<Vertex> = vec![
+        let vertices: Vec<TextureVertex> = vec![
             ([-1.0, 1.0, 0.0], [0.0, 0.0]),
             ([-1.0, -1.0, 0.0], [0.0, 1.0]),
             ([1.0, 1.0, 0.0], [1.0, 0.0]),
@@ -168,47 +221,6 @@ where
             vertex_buffer,
             index_buffer,
             bind_group,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct GBufferTexture {
-    pub format: wgpu::TextureFormat,
-}
-
-impl GpuAsset for GBufferTexture {
-    type GpuType = GpuTexture;
-
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let texture_size = wgpu::Extent3d {
-            width: renderer.config.width,
-            height: renderer.config.height,
-            depth_or_array_layers: 1,
-        };
-
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: Some("gbuffer_texture"),
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            ..Default::default()
-        });
-
-        Self::GpuType {
-            texture,
-            view,
-            sampler,
         }
     }
 }
