@@ -124,8 +124,8 @@ impl Renderer {
 
     pub fn render(
         &mut self,
-        commands: &Vec<&dyn RenderCommand>,
-        post_commands: Option<&Vec<&dyn RenderCommand>>,
+        commands: &[&dyn RenderCommand],
+        post_commands: Option<&[&dyn RenderCommand]>,
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
@@ -145,12 +145,7 @@ impl Renderer {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: true,
                     },
                 }],
