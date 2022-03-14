@@ -220,11 +220,12 @@ fn main() {
                 match renderer.render_deferred(
                     &[&color_command, &model_command],
                     &[&deffered_pass_command],
-                    &[
-                        &render_g_buffer.position,
-                        &render_g_buffer.normal,
-                        &render_g_buffer.albedo,
-                    ],
+                    &render_g_buffer,
+                    // &[
+                    //     &render_g_buffer.position,
+                    //     &render_g_buffer.normal,
+                    //     &render_g_buffer.albedo,
+                    // ],
                     &depth_texture,
                 ) {
                     Ok(_) => {}

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use winit::window::Window;
 
-use crate::texture;
+use crate::{texture, deffered_rendering};
 
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
@@ -198,7 +198,7 @@ impl Renderer {
         &mut self,
         geometry_pass_commands: &[&dyn RenderCommand],
         lighting_pass_commands: &[&dyn RenderCommand],
-        g_buffer: &[&texture::GpuTexture],
+        g_buffer: &deffered_rendering::RenderGBuffer,
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let mut encoder = self
@@ -211,22 +211,7 @@ impl Renderer {
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_pass"),
-                color_attachments: &g_buffer
-                    .iter()
-                    .map(|b| wgpu::RenderPassColorAttachment {
-                        view: &b.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    })
-                    .collect::<Vec<_>>(),
+                color_attachments: &g_buffer.color_attachments(),
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &depth_texture.view,
                     depth_ops: Some(wgpu::Operations {

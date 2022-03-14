@@ -1,11 +1,11 @@
 use crate::camera;
 use crate::light;
 use crate::renderer::{GpuAsset, RenderAsset, RenderCommand, RenderResource, Renderer};
-use crate::texture::{TextureVertex, GpuTexture};
+use crate::texture::{GpuTexture, TextureVertex};
 use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
-pub struct RenderDefferedPass {
+pub struct RenderGBuffer {
     pub position: GpuTexture,
     pub normal: GpuTexture,
     pub albedo: GpuTexture,
@@ -14,7 +14,17 @@ pub struct RenderDefferedPass {
     bind_group: wgpu::BindGroup,
 }
 
-impl RenderResource for RenderDefferedPass {
+impl RenderGBuffer {
+    pub fn color_attachments(&self) -> Vec<wgpu::RenderPassColorAttachment> {
+        vec![
+            self.position.color_attachment(),
+            self.normal.color_attachment(),
+            self.albedo.color_attachment(),
+        ]
+    }
+}
+
+impl RenderResource for RenderGBuffer {
     fn bind_group(&self) -> &wgpu::BindGroup {
         &self.bind_group
     }
@@ -68,15 +78,13 @@ impl GpuAsset for GBufferTexture {
 }
 
 #[derive(Debug)]
-pub struct GBuffer
-{
+pub struct GBuffer {
     pub position: GBufferTexture,
     pub normal: GBufferTexture,
     pub albedo: GBufferTexture,
 }
 
-impl GBuffer
-{
+impl GBuffer {
     pub fn new(format: wgpu::TextureFormat) -> Self {
         Self {
             position: GBufferTexture::new(format),
@@ -86,9 +94,8 @@ impl GBuffer
     }
 }
 
-impl RenderAsset for GBuffer
-{
-    type RenderType = RenderDefferedPass;
+impl RenderAsset for GBuffer {
+    type RenderType = RenderGBuffer;
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -228,7 +235,7 @@ impl RenderAsset for GBuffer
 #[derive(Debug)]
 pub struct DefferedPassRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
-    pub deffered_pass: &'a RenderDefferedPass,
+    pub g_buffer: &'a RenderGBuffer,
     pub lights: &'a light::RenderLights,
     pub camera: &'a camera::RenderCamera,
 }
@@ -239,12 +246,12 @@ impl<'a> RenderCommand<'a> for DefferedPassRenderCommand<'a> {
         'a: 'b,
     {
         render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, self.deffered_pass.bind_group(), &[]);
+        render_pass.set_bind_group(0, self.g_buffer.bind_group(), &[]);
         render_pass.set_bind_group(1, self.lights.bind_group(), &[]);
         render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
-        render_pass.set_vertex_buffer(0, self.deffered_pass.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, self.g_buffer.vertex_buffer.slice(..));
         render_pass.set_index_buffer(
-            self.deffered_pass.index_buffer.slice(..),
+            self.g_buffer.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
         );
         render_pass.draw_indexed(0..6, 0, 0..1);

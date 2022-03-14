@@ -48,6 +48,19 @@ pub struct GpuTexture {
     pub sampler: wgpu::Sampler,
 }
 
+impl GpuTexture {
+    pub fn color_attachment(&self) -> wgpu::RenderPassColorAttachment {
+        wgpu::RenderPassColorAttachment {
+            view: &self.view,
+            resolve_target: None,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                store: true,
+            },
+        }
+    }
+}
+
 impl renderer::GpuResource for GpuTexture {}
 
 #[derive(Debug, Clone, Copy)]
