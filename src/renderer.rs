@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use winit::window::Window;
 
-use crate::{texture, deffered_rendering};
+use crate::{deffered_rendering, texture};
 
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
@@ -122,7 +122,7 @@ impl Renderer {
         }
     }
 
-    pub fn render(
+    pub fn forward_render(
         &mut self,
         commands: &[&dyn RenderCommand],
         post_commands: Option<&[&dyn RenderCommand]>,
@@ -194,10 +194,11 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn render_deferred(
+    pub fn deferred_render(
         &mut self,
         geometry_pass_commands: &[&dyn RenderCommand],
         lighting_pass_commands: &[&dyn RenderCommand],
+        forward_pass_commands: Option<&[&dyn RenderCommand]>,
         g_buffer: &deffered_rendering::RenderGBuffer,
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
@@ -210,7 +211,7 @@ impl Renderer {
         // geometry_pass
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_pass"),
+                label: Some("geometry_render_pass"),
                 color_attachments: &g_buffer.color_attachments(),
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &depth_texture.view,
@@ -232,29 +233,53 @@ impl Renderer {
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("render_pass"),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.3,
-                                g: 0.3,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    }],
-                    depth_stencil_attachment: None,
-                });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("lighting_render_pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.3,
+                            g: 0.3,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: None,
+            });
 
-                for command in lighting_pass_commands {
-                    command.execute(&mut render_pass);
-                }
+            for command in lighting_pass_commands {
+                command.execute(&mut render_pass);
             }
+        }
+
+        // forward pass
+        if let Some(commands) = forward_pass_commands {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("forward_render_pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_texture.view,
+                    depth_ops: None,
+                    stencil_ops: None,
+                }),
+            });
+
+            for command in commands {
+                command.execute(&mut render_pass);
+            }
+        }
         self.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())
