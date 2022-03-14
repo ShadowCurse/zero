@@ -30,6 +30,7 @@ fn main() {
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
     let lights_builder = renderer::RenderAssetBuilder::<light::PointLights>::new(&renderer);
     let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
+    let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
     let color_material_builder =
         renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
@@ -75,6 +76,17 @@ fn main() {
     };
     let render_box_transform = transform_builder.build(&renderer, &box_transform);
 
+    let skybox = skybox::Skybox::load([
+        "./res/skybox/right.jpg",
+        "./res/skybox/left.jpg",
+        "./res/skybox/top.jpg",
+        "./res/skybox/bottom.jpg",
+        "./res/skybox/front.jpg",
+        "./res/skybox/back.jpg",
+    ])
+    .unwrap();
+    let render_skybox = skybox_builder.build(&renderer, &skybox);
+
     let color_material = material::ColorMaterial {
         ambient: [0.4, 0.4, 0.4],
         diffuse: [0.6, 0.6, 0.6],
@@ -113,6 +125,17 @@ fn main() {
     )
     .write_depth(true)
     .color_targets(vec![g_buffer_format; 3])
+    .build(&renderer);
+
+    let skybox_pipeline = PipelineBuilder::new(
+        vec![
+            &skybox_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+        ],
+        vec![skybox::SkyboxVertex::desc()],
+        "./shaders/skybox.wgsl",
+    )
+    .write_depth(false)
     .build(&renderer);
 
     let lighting_pass_pipeline = PipelineBuilder::new(
@@ -210,22 +233,24 @@ fn main() {
                     camera: &render_camera,
                 };
 
+                let skybox_command = skybox::SkyboxRenderCommand {
+                    pipeline: &skybox_pipeline,
+                    skybox: &render_skybox,
+                    camera: &render_camera,
+                };
+
                 let deffered_pass_command = deffered_rendering::DefferedPassRenderCommand {
                     pipeline: &lighting_pass_pipeline,
-                    deffered_pass: &render_g_buffer,
+                    g_buffer: &render_g_buffer,
                     lights: &render_lights,
                     camera: &render_camera,
                 };
 
-                match renderer.render_deferred(
+                match renderer.deferred_render(
                     &[&color_command, &model_command],
                     &[&deffered_pass_command],
+                    Some(&[&skybox_command]),
                     &render_g_buffer,
-                    // &[
-                    //     &render_g_buffer.position,
-                    //     &render_g_buffer.normal,
-                    //     &render_g_buffer.albedo,
-                    // ],
                     &depth_texture,
                 ) {
                     Ok(_) => {}
