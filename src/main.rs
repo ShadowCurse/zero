@@ -62,6 +62,9 @@ fn main() {
     let box_shape: model::Mesh = shapes::Box::new(9.0, 1.0, 5.0).into();
     let render_box = box_shape.build(&renderer);
 
+    let shpere_shape: model::Mesh = shapes::Icoshphere::new(0.1, 5).into();
+    let render_sphere = shpere_shape.build(&renderer);
+
     let mut cube_transform = transform::Transform {
         translation: (0.0, 5.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -75,6 +78,13 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let render_box_transform = transform_builder.build(&renderer, &box_transform);
+
+    let mut sphere_transform = transform::Transform {
+        translation: (2.0, 1.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let render_sphere_transform = transform_builder.build(&renderer, &sphere_transform);
 
     let skybox = skybox::Skybox::load([
         "./res/skybox/right.jpg",
@@ -203,13 +213,18 @@ fn main() {
                 let dt = now - last_render_time;
                 last_render_time = now;
 
+                camera_controller.update_camera(&mut camera, dt);
+                camera.update(&renderer, &render_camera);
+
                 lights.lights[0].position =
                     cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                         * lights.lights[0].position;
                 lights.update(&renderer, &render_lights);
 
-                camera_controller.update_camera(&mut camera, dt);
-                camera.update(&renderer, &render_camera);
+                sphere_transform.translation =
+                    cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+                        * sphere_transform.translation;
+                sphere_transform.update(&renderer, &render_sphere_transform);
 
                 cube_transform.rotation = cube_transform.rotation
                     * cgmath::Quaternion::from_axis_angle(
@@ -225,11 +240,19 @@ fn main() {
                     camera: &render_camera,
                 };
 
-                let color_command = model::MeshRenderCommand {
+                let box_command = model::MeshRenderCommand {
                     pipeline: &g_color_pipeline,
                     mesh: &render_box,
                     material: &color_render_material,
                     transform: &render_box_transform,
+                    camera: &render_camera,
+                };
+
+                let sphere_command = model::MeshRenderCommand {
+                    pipeline: &g_color_pipeline,
+                    mesh: &render_sphere,
+                    material: &color_render_material,
+                    transform: &render_sphere_transform,
                     camera: &render_camera,
                 };
 
@@ -247,7 +270,7 @@ fn main() {
                 };
 
                 match renderer.deferred_render(
-                    &[&color_command, &model_command],
+                    &[&box_command, &sphere_command, &model_command],
                     &[&deffered_pass_command],
                     Some(&[&skybox_command]),
                     &render_g_buffer,

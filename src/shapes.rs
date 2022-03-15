@@ -1,4 +1,5 @@
 use crate::model;
+use hexasphere::shapes::IcoSphere;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Box {
@@ -169,6 +170,61 @@ impl From<Plane> for model::Mesh {
 
         Self {
             name: "plane".to_string(),
+            vertices,
+            indices,
+            material: 0,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Icoshphere {
+    pub radius: f32,
+    pub subdivisions: usize,
+}
+
+impl Icoshphere {
+    pub fn new(radius: f32, subdivisions: usize) -> Self {
+        Self {
+            radius,
+            subdivisions,
+        }
+    }
+}
+
+impl From<Icoshphere> for model::Mesh {
+    fn from(sphere: Icoshphere) -> Self {
+        let gen_sphere = IcoSphere::new(sphere.subdivisions, |point| {
+            let inclination = point.y.acos();
+            let azimuth = point.z.atan2(point.x);
+
+            let norm_inclination = inclination / std::f32::consts::PI;
+            let norm_azimuth = 0.5 - (azimuth / std::f32::consts::TAU);
+
+            [norm_azimuth, norm_inclination]
+        });
+
+        let raw_points = gen_sphere.raw_points();
+        let points = raw_points.iter().map(|p| (*p * sphere.radius).into());
+        let noramls = raw_points.iter().copied().map(Into::into);
+        let uvs = gen_sphere.raw_data();
+
+        let mut vertices: Vec<model::ModelVertex> = points
+            .zip(uvs.iter().copied().zip(noramls))
+            .map(|(p, (uv, n))| (p, uv, n))
+            .map(Into::into)
+            .collect();
+
+        let mut indices = Vec::with_capacity(gen_sphere.indices_per_main_triangle() * 20);
+
+        for i in 0..20 {
+            gen_sphere.get_indices(i, &mut indices);
+        }
+
+        model::ModelVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+
+        Self {
+            name: "icosphere".to_string(),
             vertices,
             indices,
             material: 0,
