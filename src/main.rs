@@ -137,6 +137,18 @@ fn main() {
     .color_targets(vec![g_buffer_format; 3])
     .build(&renderer);
 
+    let color_pipeline = PipelineBuilder::new(
+        vec![
+            &color_material_builder.bind_group_layout,
+            &transform_builder.bind_group_layout,
+            &camera_builder.bind_group_layout,
+        ],
+        vec![model::ModelVertex::desc()],
+        "./shaders/color.wgsl",
+    )
+    .write_depth(true)
+    .build(&renderer);
+
     let skybox_pipeline = PipelineBuilder::new(
         vec![
             &skybox_builder.bind_group_layout,
@@ -249,7 +261,7 @@ fn main() {
                 };
 
                 let sphere_command = model::MeshRenderCommand {
-                    pipeline: &g_color_pipeline,
+                    pipeline: &color_pipeline,
                     mesh: &render_sphere,
                     material: &color_render_material,
                     transform: &render_sphere_transform,
@@ -270,9 +282,9 @@ fn main() {
                 };
 
                 match renderer.deferred_render(
-                    &[&box_command, &sphere_command, &model_command],
+                    &[&box_command, &model_command],
                     &[&deffered_pass_command],
-                    Some(&[&skybox_command]),
+                    Some(&[&sphere_command, &skybox_command]),
                     &render_g_buffer,
                     &depth_texture,
                 ) {

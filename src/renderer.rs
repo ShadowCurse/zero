@@ -271,7 +271,10 @@ impl Renderer {
                 }],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &depth_texture.view,
-                    depth_ops: None,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    }),
                     stencil_ops: None,
                 }),
             });
