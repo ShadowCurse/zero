@@ -7,6 +7,7 @@ use winit::{
 
 mod camera;
 mod deffered_rendering;
+mod depth_map;
 mod light;
 mod material;
 mod model;
