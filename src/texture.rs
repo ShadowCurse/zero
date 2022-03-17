@@ -76,15 +76,6 @@ pub struct Texture {
     dimensions: (u32, u32),
 }
 
-#[derive(Debug)]
-pub struct DepthTexture;
-
-#[derive(Debug)]
-pub struct CubeMap {
-    texture: Vec<u8>,
-    dimensions: (u32, u32),
-}
-
 impl Texture {
     pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
         let path_copy = path.as_ref().to_path_buf();
@@ -158,6 +149,9 @@ impl renderer::GpuAsset for Texture {
     }
 }
 
+#[derive(Debug)]
+pub struct DepthTexture;
+
 impl DepthTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 }
@@ -202,6 +196,12 @@ impl renderer::GpuAsset for DepthTexture {
             sampler,
         }
     }
+}
+
+#[derive(Debug)]
+pub struct CubeMap {
+    texture: Vec<u8>,
+    dimensions: (u32, u32),
 }
 
 impl CubeMap {
