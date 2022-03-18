@@ -1,0 +1,219 @@
+use crate::camera;
+use crate::model;
+use crate::renderer::{self, RenderResource};
+use crate::texture::GpuTexture;
+use crate::transform;
+use cgmath::{ortho, EuclideanSpace, InnerSpace, Matrix4, Point3, Vector3};
+use wgpu::util::DeviceExt;
+
+#[derive(Debug)]
+pub struct ShadowMapTexture;
+
+impl ShadowMapTexture {
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+}
+
+impl renderer::GpuAsset for ShadowMapTexture {
+    type GpuType = GpuTexture;
+
+    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
+        let size = wgpu::Extent3d {
+            width: renderer.config.width,
+            height: renderer.config.height,
+            depth_or_array_layers: 1,
+        };
+        let desc = wgpu::TextureDescriptor {
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: Self::DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            label: Some("depth_map_texture"),
+        };
+        let texture = renderer.device.create_texture(&desc);
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            lod_min_clamp: -100.0,
+            lod_max_clamp: 100.0,
+            ..Default::default()
+        });
+
+        Self::GpuType {
+            texture,
+            view,
+            sampler,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ShadowMapDLightUniform {
+    view_projection: [[f32; 4]; 4],
+}
+
+#[derive(Debug)]
+pub struct RenderShadowMapDLight {
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+}
+
+impl renderer::RenderResource for RenderShadowMapDLight {
+    fn bind_group(&self) -> &wgpu::BindGroup {
+        &self.bind_group
+    }
+}
+
+#[derive(Debug)]
+pub struct ShadowMapDLight {
+    pub position: Point3<f32>,
+    pub direction: Vector3<f32>,
+    pub left: f32,
+    pub right: f32,
+    pub bottom: f32,
+    pub top: f32,
+    pub near: f32,
+    pub far: f32,
+}
+
+impl ShadowMapDLight {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new<P: Into<Point3<f32>>, D: Into<Vector3<f32>>>(
+        position: P,
+        direction: D,
+        left: f32,
+        right: f32,
+        bottom: f32,
+        top: f32,
+        near: f32,
+        far: f32,
+    ) -> Self {
+        Self {
+            position: position.into(),
+            direction: direction.into(),
+            left,
+            right,
+            bottom,
+            top,
+            near,
+            far,
+        }
+    }
+
+    fn view(&self) -> Matrix4<f32> {
+        camera::OPENGL_TO_WGPU_MATRIX
+            * Matrix4::look_to_rh(
+                self.position,
+                (self.position.to_vec() + self.direction).normalize(),
+                Vector3::unit_y(),
+            )
+    }
+
+    fn projection(&self) -> Matrix4<f32> {
+        camera::OPENGL_TO_WGPU_MATRIX
+            * ortho(
+                self.left,
+                self.right,
+                self.bottom,
+                self.top,
+                self.near,
+                self.far,
+            )
+    }
+
+    fn to_uniform(&self) -> ShadowMapDLightUniform {
+        ShadowMapDLightUniform {
+            view_projection: (self.projection() * self.view()).into(),
+        }
+    }
+}
+
+impl renderer::RenderAsset for ShadowMapDLight {
+    type RenderType = RenderShadowMapDLight;
+
+    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
+        renderer
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("shadow_map_binding_group_layout"),
+            })
+    }
+
+    fn build(
+        &self,
+        renderer: &renderer::Renderer,
+        layout: &wgpu::BindGroupLayout,
+    ) -> Self::RenderType {
+        let uniform = self.to_uniform();
+
+        let buffer = renderer
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("shadow_map_dlight_buffer"),
+                contents: bytemuck::cast_slice(&[uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let bind_group = renderer
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+                label: Some("comera_bind_group"),
+            });
+
+        Self::RenderType { buffer, bind_group }
+    }
+
+    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+        renderer.queue.write_buffer(
+            &render_type.buffer,
+            0,
+            bytemuck::cast_slice(&[self.to_uniform()]),
+        );
+    }
+}
+
+#[derive(Debug)]
+pub struct ShadowMapRenderCommand<'a> {
+    pub pipeline: &'a wgpu::RenderPipeline,
+    pub mesh: &'a model::GpuMesh,
+    pub transform: &'a transform::RenderTransform,
+    pub dlight: &'a RenderShadowMapDLight,
+}
+
+impl<'a> renderer::RenderCommand<'a> for ShadowMapRenderCommand<'a> {
+    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+    where
+        'a: 'b,
+    {
+        render_pass.set_pipeline(self.pipeline);
+        render_pass.set_bind_group(0, self.transform.bind_group(), &[]);
+        render_pass.set_bind_group(1, self.dlight.bind_group(), &[]);
+        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
+    }
+}
