@@ -113,10 +113,10 @@ impl renderer::Vertex for ModelVertex {
 
 #[derive(Debug)]
 pub struct GpuMesh {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_elements: u32,
-    material: usize,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub num_elements: u32,
+    pub material: usize,
 }
 
 impl renderer::GpuResource for GpuMesh {}
