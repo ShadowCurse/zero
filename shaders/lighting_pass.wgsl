@@ -65,6 +65,9 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let vertex_normal: vec4<f32> = textureSample(t_normal, s_normal, vertex.tex_coords);
   let vertex_albedo: vec4<f32> = textureSample(t_albedo, s_albedo, vertex.tex_coords);
 
+  let albedo_color = vertex_albedo.rgb;
+  let shininess = vertex_albedo.a;
+
   var result: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0); 
   for(var i: i32 = 0; i < lights.lights_num; i = i + 1) {
     
@@ -72,21 +75,18 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
     let attenuation = 1.0 / (lights.lights[i].constant + lights.lights[i].linear * distance + 
                       lights.lights[i].quadratic * (distance * distance));  
 
-    //let ambient_strength = 0.1;
-    //let ambient_color = properties.ambient * light.color * ambient_strength;
-
     let light_dir = normalize(lights.lights[i].position - vertex_position.xyz);
     let view_dir = normalize(camera.position - vertex_position.xyz);
     let half_dir = normalize(view_dir + light_dir);
 
     let diffuse_strength = max(dot(vertex_normal.xyz, light_dir), 0.0);
-    let diffuse_color = vertex_albedo.xyz * lights.lights[i].color * diffuse_strength;
+    let diffuse_color = albedo_color * lights.lights[i].color * diffuse_strength;
 
-    //let specular_strength = pow(max(dot(tangent_normal, half_dir), 0.0), properties.shininess);
-    //let specular_color = properties.specular * lights.lights[i].color * specular_strength;
+    let specular_strength = pow(max(dot(vertex_normal.xyz, half_dir), 0.0), shininess);
+    let specular_color = lights.lights[i].color * specular_strength;
 
-    result = result + diffuse_color * attenuation;
+    result = result + (diffuse_color + specular_color) * attenuation;
   }
 
-  return vec4<f32>(result, vertex_albedo.a); 
+  return vec4<f32>(result, 1.0); 
 }

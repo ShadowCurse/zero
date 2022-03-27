@@ -50,7 +50,7 @@ fn main() {
     let mut camera_controller = camera::CameraController::new(5.0, 0.7);
 
     let light = light::PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
-    let light_2 = light::PointLight::new((-2.0, 0.2, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
+    let light_2 = light::PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
     let light_3 = light::PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
     let mut lights = light::PointLights {
         lights: vec![light, light_2, light_3],
@@ -149,7 +149,7 @@ fn main() {
     )
     .write_depth(true)
     .build(&renderer);
-
+    
     let skybox_pipeline = PipelineBuilder::new(
         vec![
             &skybox_builder.bind_group_layout,
@@ -242,10 +242,10 @@ fn main() {
                 cube_transform.rotation = cube_transform.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
-                        cgmath::Deg(-dt.as_secs_f32() * 120.0),
+                        cgmath::Deg(-dt.as_secs_f32() * 30.0),
                     );
                 cube_transform.update(&renderer, &render_cube_transform);
-
+                
                 let model_command = model::ModelRenderCommand {
                     pipeline: &g_pipeline,
                     models: vec![&render_cube],

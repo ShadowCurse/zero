@@ -59,7 +59,8 @@ struct MaterialProperties {
     ambient: vec3<f32>;
     diffuse: vec3<f32>;
     specular: vec3<f32>;
-    shininess: f32;
+    // for now  r - shininess, else is empty
+    shininess: vec4<f32>;
 };
 [[group(0), binding(4)]]
 var<uniform> properties: MaterialProperties;
@@ -90,13 +91,15 @@ fn fs_main(vertex: VertexOutput) -> FragmentOut {
   );
 
   let object_normal: vec4<f32> = textureSample(t_normal, s_normal, vertex.tex_coords);
-
   let world_object_normal = tangent_to_world_matrix * object_normal.xyz;
+  let normal = vec4<f32>(world_object_normal, 1.0);
+  
+  let albedo = vec4<f32>(object_color.rgb, properties.shininess.r);
 
   var out: FragmentOut;
   out.position = vertex.world_position;
-  out.normal = vec4<f32>(world_object_normal, 1.0);
-  out.albedo = object_color;
+  out.normal = normal;
+  out.albedo = albedo;
 
   return out; 
 }

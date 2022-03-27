@@ -39,6 +39,9 @@ pub struct MaterialPropertiesUniform {
     specular: [f32; 3],
     _pad3: f32,
     shininess: f32,
+    _pad4: f32,
+    _pad5: f32,
+    _pad6: f32,
 }
 
 #[derive(Debug)]
