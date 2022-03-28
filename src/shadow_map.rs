@@ -1,19 +1,19 @@
 use crate::camera;
 use crate::model;
-use crate::renderer::{self, RenderResource};
+use crate::renderer::{self, Renderer, RenderAsset, GpuAsset, RenderResource};
 use crate::texture::GpuTexture;
 use crate::transform;
 use cgmath::{ortho, EuclideanSpace, InnerSpace, Matrix4, Point3, Vector3};
 use wgpu::util::DeviceExt;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ShadowMapTexture;
 
 impl ShadowMapTexture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 }
 
-impl renderer::GpuAsset for ShadowMapTexture {
+impl GpuAsset for ShadowMapTexture {
     type GpuType = GpuTexture;
 
     fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
@@ -41,7 +41,7 @@ impl renderer::GpuAsset for ShadowMapTexture {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
+            compare: None, //Some(wgpu::CompareFunction::LessEqual),
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
             ..Default::default()
@@ -54,6 +54,80 @@ impl renderer::GpuAsset for ShadowMapTexture {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct RenderShadowMap {
+    pub shadow_map: GpuTexture,
+    bind_group: wgpu::BindGroup,
+}
+
+impl RenderResource for RenderShadowMap {
+    fn bind_group(&self) -> &wgpu::BindGroup {
+        &self.bind_group
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ShadowMap {
+    pub shadow_map: ShadowMapTexture,
+}
+
+impl RenderAsset for ShadowMap {
+    type RenderType = RenderShadowMap;
+
+    fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
+        renderer
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("shadow_map_bind_group_layout"),
+            })
+    }
+
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType {
+        let shadow_map = self.shadow_map.build(renderer);
+
+        let bind_group = renderer
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&shadow_map.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&shadow_map.sampler),
+                    },
+                ],
+                label: None,
+            });
+
+        Self::RenderType {
+            shadow_map,
+            bind_group,
+        }
+    }
+}
+
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

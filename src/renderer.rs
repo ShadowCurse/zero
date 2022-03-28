@@ -197,10 +197,12 @@ impl Renderer {
     pub fn deferred_render(
         &mut self,
         geometry_pass_commands: &[&dyn RenderCommand],
+        shadow_map_commands: &[&dyn RenderCommand],
         lighting_pass_commands: &[&dyn RenderCommand],
         forward_pass_commands: Option<&[&dyn RenderCommand]>,
         g_buffer: &deffered_rendering::RenderGBuffer,
         depth_texture: &texture::GpuTexture,
+        shadow_map_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
         let mut encoder = self
             .device
@@ -224,6 +226,26 @@ impl Renderer {
             });
 
             for command in geometry_pass_commands {
+                command.execute(&mut render_pass);
+            }
+        }
+
+        // shadow map pass
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("forward_render_pass"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &shadow_map_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            });
+
+            for command in shadow_map_commands {
                 command.execute(&mut render_pass);
             }
         }

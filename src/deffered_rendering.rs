@@ -1,6 +1,7 @@
 use crate::camera;
 use crate::light;
 use crate::renderer::{GpuAsset, RenderAsset, RenderCommand, RenderResource, Renderer};
+use crate::shadow_map;
 use crate::texture::{GpuTexture, TextureVertex};
 use wgpu::util::DeviceExt;
 
@@ -236,6 +237,7 @@ impl RenderAsset for GBuffer {
 pub struct DefferedPassRenderCommand<'a> {
     pub pipeline: &'a wgpu::RenderPipeline,
     pub g_buffer: &'a RenderGBuffer,
+    pub shadow_map: &'a shadow_map::RenderShadowMap,
     pub lights: &'a light::RenderLights,
     pub camera: &'a camera::RenderCamera,
 }
@@ -249,6 +251,7 @@ impl<'a> RenderCommand<'a> for DefferedPassRenderCommand<'a> {
         render_pass.set_bind_group(0, self.g_buffer.bind_group(), &[]);
         render_pass.set_bind_group(1, self.lights.bind_group(), &[]);
         render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
+        render_pass.set_bind_group(3, self.shadow_map.bind_group(), &[]);
         render_pass.set_vertex_buffer(0, self.g_buffer.vertex_buffer.slice(..));
         render_pass.set_index_buffer(
             self.g_buffer.index_buffer.slice(..),

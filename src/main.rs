@@ -7,11 +7,11 @@ use winit::{
 
 mod camera;
 mod deffered_rendering;
-mod shadow_map;
 mod light;
 mod material;
 mod model;
 mod renderer;
+mod shadow_map;
 mod shapes;
 mod skybox;
 mod texture;
@@ -30,11 +30,16 @@ fn main() {
 
     let camera_builder = renderer::RenderAssetBuilder::<camera::Camera>::new(&renderer);
     let lights_builder = renderer::RenderAssetBuilder::<light::PointLights>::new(&renderer);
+    let shadow_map_d_light_builder =
+        renderer::RenderAssetBuilder::<shadow_map::ShadowMapDLight>::new(&renderer);
+    let shadow_map_builder = renderer::RenderAssetBuilder::<shadow_map::ShadowMap>::new(&renderer);
     let transform_builder = renderer::RenderAssetBuilder::<transform::Transform>::new(&renderer);
     let skybox_builder = renderer::RenderAssetBuilder::<skybox::Skybox>::new(&renderer);
     let material_builder = renderer::RenderAssetBuilder::<material::Material>::new(&renderer);
     let color_material_builder =
         renderer::RenderAssetBuilder::<material::ColorMaterial>::new(&renderer);
+    let g_buffer_builder =
+        renderer::RenderAssetBuilder::<deffered_rendering::GBuffer>::new(&renderer);
 
     let mut camera = camera::Camera::new(
         (-10.0, 2.0, 0.0),
@@ -56,6 +61,21 @@ fn main() {
         lights: vec![light, light_2, light_3],
     };
     let render_lights = lights_builder.build(&renderer, &lights);
+
+    let shadow_d_light = shadow_map::ShadowMapDLight::new(
+        (0.0, 9.0, 0.0),
+        (0.0, 0.0, 0.0),
+        -50.0,
+        50.0,
+        -50.0,
+        50.0,
+        0.1,
+        1000.0,
+    );
+    let render_shadow_d_light = shadow_map_d_light_builder.build(&renderer, &shadow_d_light);
+
+    let mut shadow_map =
+        shadow_map_builder.build(&renderer, &shadow_map::ShadowMap::default());
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
@@ -106,8 +126,6 @@ fn main() {
     };
     let color_render_material = color_material_builder.build(&renderer, &color_material);
 
-    let g_buffer_builder =
-        renderer::RenderAssetBuilder::<deffered_rendering::GBuffer>::new(&renderer);
     let g_buffer_format = wgpu::TextureFormat::Rgba32Float;
     let g_buffer = deffered_rendering::GBuffer::new(g_buffer_format);
     let mut render_g_buffer = g_buffer_builder.build(&renderer, &g_buffer);
@@ -149,7 +167,19 @@ fn main() {
     )
     .write_depth(true)
     .build(&renderer);
-    
+
+    let shadow_map_pipeline = PipelineBuilder::new(
+        vec![
+            &transform_builder.bind_group_layout,
+            &shadow_map_d_light_builder.bind_group_layout,
+        ],
+        vec![model::ModelVertex::desc()],
+        "./shaders/shadow_map.wgsl",
+    )
+    .write_depth(true)
+    .color_targets(vec![])
+    .build(&renderer);
+
     let skybox_pipeline = PipelineBuilder::new(
         vec![
             &skybox_builder.bind_group_layout,
@@ -166,6 +196,7 @@ fn main() {
             &g_buffer_builder.bind_group_layout,
             &lights_builder.bind_group_layout,
             &camera_builder.bind_group_layout,
+            &shadow_map_builder.bind_group_layout,
         ],
         vec![texture::TextureVertex::desc()],
         "./shaders/lighting_pass.wgsl",
@@ -212,12 +243,16 @@ fn main() {
                     renderer.resize(Some(*physical_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
                     render_g_buffer = g_buffer_builder.build(&renderer, &g_buffer);
+                    shadow_map =
+                        shadow_map_builder.build(&renderer, &shadow_map::ShadowMap::default());
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
                     depth_texture = texture::DepthTexture.build(&renderer);
                     render_g_buffer = g_buffer_builder.build(&renderer, &g_buffer);
+                    shadow_map =
+                        shadow_map_builder.build(&renderer, &shadow_map::ShadowMap::default());
                 }
                 _ => {}
             },
@@ -245,7 +280,7 @@ fn main() {
                         cgmath::Deg(-dt.as_secs_f32() * 30.0),
                     );
                 cube_transform.update(&renderer, &render_cube_transform);
-                
+
                 let model_command = model::ModelRenderCommand {
                     pipeline: &g_pipeline,
                     models: vec![&render_cube],
@@ -275,19 +310,36 @@ fn main() {
                     camera: &render_camera,
                 };
 
+                let shadow_map_sphere_pass_command = shadow_map::ShadowMapRenderCommand {
+                    pipeline: &shadow_map_pipeline,
+                    mesh: &render_sphere,
+                    transform: &render_sphere_transform,
+                    dlight: &render_shadow_d_light,
+                };
+
+                let shadow_map_box_pass_command = shadow_map::ShadowMapRenderCommand {
+                    pipeline: &shadow_map_pipeline,
+                    mesh: &render_box,
+                    transform: &render_box_transform,
+                    dlight: &render_shadow_d_light,
+                };
+
                 let deffered_pass_command = deffered_rendering::DefferedPassRenderCommand {
                     pipeline: &lighting_pass_pipeline,
                     g_buffer: &render_g_buffer,
+                    shadow_map: &shadow_map,
                     lights: &render_lights,
                     camera: &render_camera,
                 };
 
                 match renderer.deferred_render(
                     &[&box_command, &model_command],
+                    &[&shadow_map_sphere_pass_command, &shadow_map_box_pass_command],
                     &[&deffered_pass_command],
                     Some(&[&sphere_command, &skybox_command]),
                     &render_g_buffer,
                     &depth_texture,
+                    &shadow_map.shadow_map,
                 ) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
