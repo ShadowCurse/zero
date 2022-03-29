@@ -1,13 +1,19 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
+use wgpu::{CommandEncoder, SurfaceTexture, TextureView};
 use winit::window::Window;
 
+use crate::render_phase::{execute_phase, RenderPhase};
 use crate::{deffered_rendering, texture};
 
+/// Trait for render vertices
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 
+/// Commands that are responsible for rendering objects
 pub trait RenderCommand<'a> {
     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
     where
@@ -56,6 +62,47 @@ impl<T: RenderAsset> RenderAssetBuilder<T> {
     pub fn build(&self, renderer: &Renderer, resource: &T) -> T::RenderType {
         resource.build(renderer, &self.bind_group_layout)
     }
+}
+
+#[derive(Default)]
+pub struct RenderSystem {
+    pub contexes: HashMap<Cow<'static, str>, Box<dyn RenderPhase>>,
+    pub order: Vec<Cow<'static, str>>,
+}
+
+impl RenderSystem {
+    /// every frame phases should be set
+    pub fn add_phase<C: 'static + RenderPhase>(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        context: C,
+    ) {
+        let name = name.into();
+        self.order.push(name.clone());
+        self.contexes.insert(name, Box::new(context));
+    }
+
+    pub fn run(&mut self, renderer: &Renderer) -> Result<(), wgpu::SurfaceError> {
+        let current_frame = renderer.current_frame()?;
+        let mut encoder = renderer.create_encoder();
+
+        for p in self.order.iter() {
+            let context = self.contexes.get(p).unwrap();
+            execute_phase(Some(p), &mut encoder, context.as_ref(), &current_frame)
+        }
+
+        self.contexes.clear();
+
+        renderer.submit(std::iter::once(encoder.finish()));
+        current_frame.output.present();
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct CurrentFrameContext {
+    pub output: SurfaceTexture,
+    pub view: TextureView,
 }
 
 #[derive(Debug)]
@@ -122,27 +169,39 @@ impl Renderer {
         }
     }
 
+    pub fn current_frame(&self) -> Result<CurrentFrameContext, wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        Ok(CurrentFrameContext { output, view })
+    }
+
+    pub fn create_encoder(&self) -> CommandEncoder {
+        self.device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("render_encoder"),
+            })
+    }
+
+    pub fn submit<I: IntoIterator<Item = wgpu::CommandBuffer>>(&self, command_buffers: I) {
+        self.queue.submit(command_buffers);
+    }
+
     pub fn forward_render(
         &mut self,
         commands: &[&dyn RenderCommand],
         post_commands: Option<&[&dyn RenderCommand]>,
         depth_texture: &texture::GpuTexture,
     ) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("render_encoder"),
-            });
+        let current_frame = self.current_frame()?;
+        let mut encoder = self.create_encoder();
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render_pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view: &current_frame.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
@@ -169,7 +228,7 @@ impl Renderer {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("render_pass"),
                     color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &view,
+                        view: &current_frame.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -189,8 +248,8 @@ impl Renderer {
                 }
             }
         }
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
+        self.submit(std::iter::once(encoder.finish()));
+        current_frame.output.present();
         Ok(())
     }
 

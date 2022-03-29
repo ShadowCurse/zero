@@ -10,6 +10,7 @@ mod deffered_rendering;
 mod light;
 mod material;
 mod model;
+mod render_phase;
 mod renderer;
 mod shadow_map;
 mod shapes;
@@ -74,8 +75,7 @@ fn main() {
     );
     let render_shadow_d_light = shadow_map_d_light_builder.build(&renderer, &shadow_d_light);
 
-    let mut shadow_map =
-        shadow_map_builder.build(&renderer, &shadow_map::ShadowMap::default());
+    let mut shadow_map = shadow_map_builder.build(&renderer, &shadow_map::ShadowMap::default());
 
     let cube = model::Model::load("./res/cube/cube.obj").unwrap();
     let render_cube = cube.build(&renderer, &material_builder);
@@ -331,10 +331,12 @@ fn main() {
                     lights: &render_lights,
                     camera: &render_camera,
                 };
-
                 match renderer.deferred_render(
                     &[&box_command, &model_command],
-                    &[&shadow_map_sphere_pass_command, &shadow_map_box_pass_command],
+                    &[
+                        &shadow_map_sphere_pass_command,
+                        &shadow_map_box_pass_command,
+                    ],
                     &[&deffered_pass_command],
                     Some(&[&sphere_command, &skybox_command]),
                     &render_g_buffer,
