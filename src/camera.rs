@@ -4,7 +4,7 @@ use std::time::Duration;
 use wgpu::util::DeviceExt;
 use winit::event::{ElementState, VirtualKeyCode};
 
-use crate::renderer;
+use crate::{render_phase::{RenderResources, ResourceId, RenderStorage}, renderer};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -14,18 +14,18 @@ pub struct CameraUniform {
     view_projection: [[f32; 4]; 4],
     vp_without_translation: [[f32; 4]; 4],
 }
-
-#[derive(Debug)]
-pub struct RenderCamera {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderCamera {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+//
+// #[derive(Debug)]
+// pub struct RenderCamera {
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderCamera {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -108,7 +108,7 @@ impl Camera {
 }
 
 impl renderer::RenderAsset for Camera {
-    type RenderType = RenderCamera;
+    const ASSET_NAME: &'static str = "Camera";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -132,7 +132,7 @@ impl renderer::RenderAsset for Camera {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let uniform = self.to_uniform();
 
         let buffer = renderer
@@ -154,12 +154,16 @@ impl renderer::RenderAsset for Camera {
                 label: Some("comera_bind_group"),
             });
 
-        Self::RenderType { buffer, bind_group }
+        RenderResources {
+            buffers: vec![buffer],
+            bind_group: Some(bind_group),
+            ..Default::default()
+        }
     }
 
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+    fn update(&self, renderer: &renderer::Renderer, id: ResourceId, storage: &RenderStorage) {
         renderer.queue.write_buffer(
-            &render_type.buffer,
+            &storage.get_buffers(id)[0],
             0,
             bytemuck::cast_slice(&[self.to_uniform()]),
         );

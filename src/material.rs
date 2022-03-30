@@ -1,33 +1,34 @@
 use wgpu::util::DeviceExt;
 
+use crate::render_phase::RenderResources;
 use crate::renderer::{self, GpuAsset};
 use crate::texture;
 
-#[derive(Debug)]
-pub struct RenderMaterial {
-    diffuse_texture: texture::GpuTexture,
-    normal_texture: texture::GpuTexture,
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
+// #[derive(Debug)]
+// pub struct RenderMaterial {
+//     diffuse_texture: texture::GpuTexture,
+//     normal_texture: texture::GpuTexture,
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderMaterial {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
-impl renderer::RenderResource for RenderMaterial {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
-
-#[derive(Debug)]
-pub struct RenderColorMaterial {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderColorMaterial {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderColorMaterial {
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderColorMaterial {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -68,7 +69,8 @@ impl Material {
 }
 
 impl renderer::RenderAsset for Material {
-    type RenderType = RenderMaterial;
+    // type RenderType = RenderMaterial;
+    const ASSET_NAME: &'static str = "Material";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -126,7 +128,7 @@ impl renderer::RenderAsset for Material {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let diffuse_texture = self.diffuse_texture.build(renderer);
         let normal_texture = self.normal_texture.build(renderer);
 
@@ -169,11 +171,11 @@ impl renderer::RenderAsset for Material {
                 label: None,
             });
 
-        Self::RenderType {
-            diffuse_texture,
-            normal_texture,
-            buffer,
-            bind_group,
+        RenderResources {
+            buffers: vec![buffer],
+            textures: vec![diffuse_texture, normal_texture],
+            bind_group: Some(bind_group),
+            ..Default::default()
         }
     }
 }
@@ -199,7 +201,8 @@ impl ColorMaterial {
 }
 
 impl renderer::RenderAsset for ColorMaterial {
-    type RenderType = RenderColorMaterial;
+    // type RenderType = RenderColorMaterial;
+    const ASSET_NAME: &'static str = "ColorMaterial";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -223,7 +226,7 @@ impl renderer::RenderAsset for ColorMaterial {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let uniform = self.to_uniform();
 
         let buffer = renderer
@@ -244,6 +247,11 @@ impl renderer::RenderAsset for ColorMaterial {
                 }],
                 label: None,
             });
-        Self::RenderType { buffer, bind_group }
+
+        RenderResources {
+            buffers: vec![buffer],
+            bind_group: Some(bind_group),
+            ..Default::default()
+        }
     }
 }

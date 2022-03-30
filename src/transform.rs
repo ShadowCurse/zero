@@ -1,24 +1,13 @@
 use wgpu::util::DeviceExt;
 
-use crate::renderer;
+use crate::render_phase::{RenderResources, RenderStorage, ResourceId};
+use crate::renderer::{RenderAsset, Renderer};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TransformUniform {
     transform: [[f32; 4]; 4],
     rotate: [[f32; 4]; 4],
-}
-
-#[derive(Debug)]
-pub struct RenderTransform {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderTransform {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -42,10 +31,10 @@ impl Transform {
     }
 }
 
-impl renderer::RenderAsset for Transform {
-    type RenderType = RenderTransform;
+impl RenderAsset for Transform {
+    const ASSET_NAME: &'static str = "Transform";
 
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
+    fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
         renderer
             .device
             .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -63,11 +52,7 @@ impl renderer::RenderAsset for Transform {
             })
     }
 
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources {
         let uniform = self.to_uniform();
         let buffer = renderer
             .device
@@ -88,14 +73,18 @@ impl renderer::RenderAsset for Transform {
                 label: Some("transform_bind_group"),
             });
 
-        Self::RenderType { buffer, bind_group }
+        RenderResources {
+            buffers: vec![buffer],
+            bind_group: Some(bind_group),
+            ..Default::default()
+        }
     }
 
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+    fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
         renderer.queue.write_buffer(
-            &render_type.buffer,
+            &storage.get_buffers(id)[0],
             0,
             bytemuck::cast_slice(&[self.to_uniform()]),
-        );
+        )
     }
 }

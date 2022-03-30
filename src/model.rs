@@ -1,12 +1,15 @@
 use anyhow::{Context, Ok, Result};
-use cgmath::InnerSpace;
+use cgmath::{InnerSpace, Vector2, Vector3};
+use wgpu::util::BufferInitDescriptor;
 use wgpu::util::DeviceExt;
+use wgpu::{
+    Buffer, BufferAddress, BufferUsages, VertexAttribute, VertexBufferLayout, VertexFormat,
+    VertexStepMode,
+};
 
-use crate::camera;
 use crate::material;
-use crate::renderer::{self, GpuAsset, RenderResource};
+use crate::renderer::{GpuAsset, GpuResource, Renderer, Vertex};
 use crate::texture;
-use crate::transform;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -36,13 +39,13 @@ impl ModelVertex {
             let v1 = vertices[c[1] as usize];
             let v2 = vertices[c[2] as usize];
 
-            let pos0: cgmath::Vector3<_> = v0.position.into();
-            let pos1: cgmath::Vector3<_> = v1.position.into();
-            let pos2: cgmath::Vector3<_> = v2.position.into();
+            let pos0: Vector3<_> = v0.position.into();
+            let pos1: Vector3<_> = v1.position.into();
+            let pos2: Vector3<_> = v2.position.into();
 
-            let uv0: cgmath::Vector2<_> = v0.tex_coords.into();
-            let uv1: cgmath::Vector2<_> = v1.tex_coords.into();
-            let uv2: cgmath::Vector2<_> = v2.tex_coords.into();
+            let uv0: Vector2<_> = v0.tex_coords.into();
+            let uv1: Vector2<_> = v1.tex_coords.into();
+            let uv2: Vector2<_> = v2.tex_coords.into();
 
             let delta_pos1 = pos1 - pos0;
             let delta_pos2 = pos2 - pos0;
@@ -55,56 +58,56 @@ impl ModelVertex {
             let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
 
             vertices[c[0] as usize].tangent =
-                (tangent + cgmath::Vector3::from(vertices[c[0] as usize].tangent)).into();
+                (tangent + Vector3::from(vertices[c[0] as usize].tangent)).into();
             vertices[c[1] as usize].tangent =
-                (tangent + cgmath::Vector3::from(vertices[c[1] as usize].tangent)).into();
+                (tangent + Vector3::from(vertices[c[1] as usize].tangent)).into();
             vertices[c[2] as usize].tangent =
-                (tangent + cgmath::Vector3::from(vertices[c[2] as usize].tangent)).into();
+                (tangent + Vector3::from(vertices[c[2] as usize].tangent)).into();
             vertices[c[0] as usize].bitangent =
-                (bitangent + cgmath::Vector3::from(vertices[c[0] as usize].bitangent)).into();
+                (bitangent + Vector3::from(vertices[c[0] as usize].bitangent)).into();
             vertices[c[1] as usize].bitangent =
-                (bitangent + cgmath::Vector3::from(vertices[c[1] as usize].bitangent)).into();
+                (bitangent + Vector3::from(vertices[c[1] as usize].bitangent)).into();
             vertices[c[2] as usize].bitangent =
-                (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
+                (bitangent + Vector3::from(vertices[c[2] as usize].bitangent)).into();
         }
 
         for v in vertices.iter_mut() {
-            v.tangent = cgmath::Vector3::from(v.tangent).normalize().into();
-            v.bitangent = cgmath::Vector3::from(v.bitangent).normalize().into();
+            v.tangent = Vector3::from(v.tangent).normalize().into();
+            v.bitangent = Vector3::from(v.bitangent).normalize().into();
         }
     }
 }
 
-impl renderer::Vertex for ModelVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+impl Vertex for ModelVertex {
+    fn desc<'a>() -> VertexBufferLayout<'a> {
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as BufferAddress,
+            step_mode: VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x3,
                 },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: VertexFormat::Float32x2,
                 },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 5]>() as BufferAddress,
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x3,
                 },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 8]>() as BufferAddress,
                     shader_location: 3,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x3,
                 },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 11]>() as BufferAddress,
                     shader_location: 4,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x3,
                 },
             ],
         }
@@ -113,13 +116,13 @@ impl renderer::Vertex for ModelVertex {
 
 #[derive(Debug)]
 pub struct GpuMesh {
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
     pub num_elements: u32,
     pub material: usize,
 }
 
-impl renderer::GpuResource for GpuMesh {}
+impl GpuResource for GpuMesh {}
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -129,25 +132,21 @@ pub struct Mesh {
     pub material: usize,
 }
 
-impl renderer::GpuAsset for Mesh {
+impl GpuAsset for Mesh {
     type GpuType = GpuMesh;
 
-    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
-        let vertex_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("vertex_buffer"),
-                contents: bytemuck::cast_slice(&self.vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("vertex_buffer"),
+            contents: bytemuck::cast_slice(&self.vertices),
+            usage: BufferUsages::VERTEX,
+        });
 
-        let index_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("index_buffer"),
-                contents: bytemuck::cast_slice(&self.indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("index_buffer"),
+            contents: bytemuck::cast_slice(&self.indices),
+            usage: BufferUsages::INDEX,
+        });
 
         Self::GpuType {
             vertex_buffer,
@@ -158,11 +157,11 @@ impl renderer::GpuAsset for Mesh {
     }
 }
 
-#[derive(Debug)]
-pub struct RenderModel {
-    meshes: Vec<GpuMesh>,
-    materials: Vec<material::RenderMaterial>,
-}
+// #[derive(Debug)]
+// pub struct RenderModel {
+//     meshes: Vec<GpuMesh>,
+//     materials: Vec<material::RenderMaterial>,
+// }
 
 #[derive(Debug)]
 pub struct Model {
@@ -239,182 +238,183 @@ impl Model {
         Ok(Self { meshes, materials })
     }
 
-    pub fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        material_builder: &renderer::RenderAssetBuilder<material::Material>,
-    ) -> RenderModel {
-        let meshes = self
-            .meshes
-            .iter()
-            .map(|mesh| mesh.build(renderer))
-            .collect();
-
-        let materials = self
-            .materials
-            .iter()
-            .map(|material| material_builder.build(renderer, material))
-            .collect();
-
-        RenderModel { meshes, materials }
-    }
+    // TODO
+    // pub fn build(
+    //     &self,
+    //     renderer: &Renderer,
+    //     material_builder: &RenderAssetBuilder<material::Material>,
+    // ) -> RenderModel {
+    //     let meshes = self
+    //         .meshes
+    //         .iter()
+    //         .map(|mesh| mesh.build(renderer))
+    //         .collect();
+    //
+    //     let materials = self
+    //         .materials
+    //         .iter()
+    //         .map(|material| material_builder.build(renderer, material))
+    //         .collect();
+    //
+    //     RenderModel { meshes, materials }
+    // }
 }
 
-#[derive(Debug)]
-pub struct ModelRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub models: Vec<&'a RenderModel>,
-    pub transforms: Vec<&'a transform::RenderTransform>,
-    pub camera: &'a camera::RenderCamera,
-}
-
-impl<'a> renderer::RenderCommand<'a> for ModelRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_pipeline(self.pipeline);
-        for (i, model) in self.models.iter().enumerate() {
-            render_pass.draw_model(model, self.transforms[i], self.camera);
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ModelOutlineRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub models: Vec<&'a RenderModel>,
-    pub transforms: Vec<&'a transform::RenderTransform>,
-    pub camera: &'a camera::RenderCamera,
-}
-
-impl<'a> renderer::RenderCommand<'a> for ModelOutlineRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_stencil_reference(1);
-        render_pass.set_pipeline(self.pipeline);
-        for (i, model) in self.models.iter().enumerate() {
-            render_pass.set_bind_group(0, self.transforms[i].bind_group(), &[]);
-            render_pass.set_bind_group(1, self.camera.bind_group(), &[]);
-            for mesh in &model.meshes {
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct MeshRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub mesh: &'a GpuMesh,
-    pub material: &'a material::RenderColorMaterial,
-    pub transform: &'a transform::RenderTransform,
-    pub camera: &'a camera::RenderCamera,
-}
-
-impl<'a> renderer::RenderCommand<'a> for MeshRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, self.material.bind_group(), &[]);
-        render_pass.set_bind_group(1, self.transform.bind_group(), &[]);
-        render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
-        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
-    }
-}
-
-pub trait DrawModel<'a> {
-    fn draw_model(
-        &mut self,
-        model: &'a RenderModel,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-    );
-
-    fn draw_model_instanced(
-        &mut self,
-        model: &'a RenderModel,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-        instances: std::ops::Range<u32>,
-    );
-
-    fn draw_mesh(
-        &mut self,
-        mesh: &'a GpuMesh,
-        material: &'a material::RenderMaterial,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-    );
-
-    fn draw_mesh_instanced(
-        &mut self,
-        mesh: &'a GpuMesh,
-        material: &'a material::RenderMaterial,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-        instances: std::ops::Range<u32>,
-    );
-}
-
-impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn draw_model(
-        &mut self,
-        model: &'a RenderModel,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-    ) {
-        self.draw_model_instanced(model, transform, camera, 0..1);
-    }
-
-    fn draw_model_instanced(
-        &mut self,
-        model: &'a RenderModel,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-        instances: std::ops::Range<u32>,
-    ) {
-        for mesh in &model.meshes {
-            let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, transform, camera, instances.clone());
-        }
-    }
-
-    fn draw_mesh(
-        &mut self,
-        mesh: &'a GpuMesh,
-        material: &'a material::RenderMaterial,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-    ) {
-        self.draw_mesh_instanced(mesh, material, transform, camera, 0..1);
-    }
-
-    fn draw_mesh_instanced(
-        &mut self,
-        mesh: &'a GpuMesh,
-        material: &'a material::RenderMaterial,
-        transform: &'a transform::RenderTransform,
-        camera: &'a camera::RenderCamera,
-        instances: std::ops::Range<u32>,
-    ) {
-        self.set_bind_group(0, material.bind_group(), &[]);
-        self.set_bind_group(1, transform.bind_group(), &[]);
-        self.set_bind_group(2, camera.bind_group(), &[]);
-        self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        self.draw_indexed(0..mesh.num_elements, 0, instances);
-    }
-}
+// #[derive(Debug)]
+// pub struct ModelRenderCommand<'a> {
+//     pub pipeline: &'a RenderPipeline,
+//     pub models: Vec<&'a RenderModel>,
+//     pub transforms: Vec<&'a transform::RenderTransform>,
+//     pub camera: &'a camera::RenderCamera,
+// }
+//
+// impl<'a> RenderCommand<'a> for ModelRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_pipeline(self.pipeline);
+//         for (i, model) in self.models.iter().enumerate() {
+//             render_pass.draw_model(model, self.transforms[i], self.camera);
+//         }
+//     }
+// }
+//
+// #[derive(Debug)]
+// pub struct ModelOutlineRenderCommand<'a> {
+//     pub pipeline: &'a RenderPipeline,
+//     pub models: Vec<&'a RenderModel>,
+//     pub transforms: Vec<&'a transform::RenderTransform>,
+//     pub camera: &'a camera::RenderCamera,
+// }
+//
+// impl<'a> RenderCommand<'a> for ModelOutlineRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_stencil_reference(1);
+//         render_pass.set_pipeline(self.pipeline);
+//         for (i, model) in self.models.iter().enumerate() {
+//             render_pass.set_bind_group(0, self.transforms[i].bind_group(), &[]);
+//             render_pass.set_bind_group(1, self.camera.bind_group(), &[]);
+//             for mesh in &model.meshes {
+//                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+//                 render_pass
+//                     .set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
+//                 render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+//             }
+//         }
+//     }
+// }
+//
+// #[derive(Debug)]
+// pub struct MeshRenderCommand<'a> {
+//     pub pipeline: &'a RenderPipeline,
+//     pub mesh: &'a GpuMesh,
+//     pub material: &'a material::RenderColorMaterial,
+//     pub transform: &'a transform::RenderTransform,
+//     pub camera: &'a camera::RenderCamera,
+// }
+//
+// impl<'a> RenderCommand<'a> for MeshRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_pipeline(self.pipeline);
+//         render_pass.set_bind_group(0, self.material.bind_group(), &[]);
+//         render_pass.set_bind_group(1, self.transform.bind_group(), &[]);
+//         render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
+//         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
+//         render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), IndexFormat::Uint32);
+//         render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
+//     }
+// }
+//
+// pub trait DrawModel<'a> {
+//     fn draw_model(
+//         &mut self,
+//         model: &'a RenderModel,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//     );
+//
+//     fn draw_model_instanced(
+//         &mut self,
+//         model: &'a RenderModel,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//         instances: std::ops::Range<u32>,
+//     );
+//
+//     fn draw_mesh(
+//         &mut self,
+//         mesh: &'a GpuMesh,
+//         material: &'a material::RenderMaterial,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//     );
+//
+//     fn draw_mesh_instanced(
+//         &mut self,
+//         mesh: &'a GpuMesh,
+//         material: &'a material::RenderMaterial,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//         instances: std::ops::Range<u32>,
+//     );
+// }
+//
+// impl<'a, 'b> DrawModel<'b> for RenderPass<'a>
+// where
+//     'b: 'a,
+// {
+//     fn draw_model(
+//         &mut self,
+//         model: &'a RenderModel,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//     ) {
+//         self.draw_model_instanced(model, transform, camera, 0..1);
+//     }
+//
+//     fn draw_model_instanced(
+//         &mut self,
+//         model: &'a RenderModel,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//         instances: std::ops::Range<u32>,
+//     ) {
+//         for mesh in &model.meshes {
+//             let material = &model.materials[mesh.material];
+//             self.draw_mesh_instanced(mesh, material, transform, camera, instances.clone());
+//         }
+//     }
+//
+//     fn draw_mesh(
+//         &mut self,
+//         mesh: &'a GpuMesh,
+//         material: &'a material::RenderMaterial,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//     ) {
+//         self.draw_mesh_instanced(mesh, material, transform, camera, 0..1);
+//     }
+//
+//     fn draw_mesh_instanced(
+//         &mut self,
+//         mesh: &'a GpuMesh,
+//         material: &'a material::RenderMaterial,
+//         transform: &'a transform::RenderTransform,
+//         camera: &'a camera::RenderCamera,
+//         instances: std::ops::Range<u32>,
+//     ) {
+//         self.set_bind_group(0, material.bind_group(), &[]);
+//         self.set_bind_group(1, transform.bind_group(), &[]);
+//         self.set_bind_group(2, camera.bind_group(), &[]);
+//         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+//         self.set_index_buffer(mesh.index_buffer.slice(..), IndexFormat::Uint32);
+//         self.draw_indexed(0..mesh.num_elements, 0, instances);
+//     }
+// }

@@ -1,12 +1,15 @@
+use crate::{
+    render_phase::{RenderResources, RenderStorage, ResourceId},
+    renderer,
+};
 use cgmath::Vector3;
 use wgpu::util::DeviceExt;
-use crate::renderer;
 
 #[macro_export]
 macro_rules! impl_light_render_asset {
     ($type:ty) => {
         impl renderer::RenderAsset for $type {
-            type RenderType = RenderLight;
+            const ASSET_NAME: &'static str = "$type";
 
             fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
                 renderer
@@ -30,7 +33,7 @@ macro_rules! impl_light_render_asset {
                 &self,
                 renderer: &renderer::Renderer,
                 layout: &wgpu::BindGroupLayout,
-            ) -> Self::RenderType {
+            ) -> RenderResources {
                 let uniform = self.to_uniform();
 
                 let buffer =
@@ -53,12 +56,21 @@ macro_rules! impl_light_render_asset {
                         label: Some("bind_group"),
                     });
 
-                Self::RenderType { buffer, bind_group }
+                RenderResources {
+                    buffers: vec![buffer],
+                    bind_group: Some(bind_group),
+                    ..Default::default()
+                }
             }
 
-            fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+            fn update(
+                &self,
+                renderer: &renderer::Renderer,
+                id: ResourceId,
+                storage: &RenderStorage,
+            ) {
                 renderer.queue.write_buffer(
-                    &render_type.buffer,
+                    &storage.get_buffers(id)[0],
                     0,
                     bytemuck::cast_slice(&[self.to_uniform()]),
                 );
@@ -67,29 +79,29 @@ macro_rules! impl_light_render_asset {
     };
 }
 
-#[derive(Debug)]
-pub struct RenderLights {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
+// #[derive(Debug)]
+// pub struct RenderLights {
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderLights {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
-impl renderer::RenderResource for RenderLights {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
-
-#[derive(Debug)]
-pub struct RenderLight {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderLight {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderLight {
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderLight {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -178,7 +190,6 @@ impl PointLight {
 
 impl_light_render_asset!(PointLight);
 
-
 const MAX_LIGHTS: usize = 10;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -219,7 +230,7 @@ impl PointLights {
 }
 
 impl renderer::RenderAsset for PointLights {
-    type RenderType = RenderLights;
+    const ASSET_NAME: &'static str = "PointLights";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -243,7 +254,7 @@ impl renderer::RenderAsset for PointLights {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let uniforms = self.to_uniform();
 
         let buffer = renderer
@@ -265,12 +276,16 @@ impl renderer::RenderAsset for PointLights {
                 label: Some("point_lights_bind_group"),
             });
 
-        Self::RenderType { buffer, bind_group }
+        RenderResources {
+            buffers: vec![buffer],
+            bind_group: Some(bind_group),
+            ..Default::default()
+        }
     }
 
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+    fn update(&self, renderer: &renderer::Renderer, id: ResourceId, storage: &RenderStorage) {
         renderer.queue.write_buffer(
-            &render_type.buffer,
+            &storage.get_buffers(id)[0],
             0,
             bytemuck::cast_slice(&[self.to_uniform()]),
         );

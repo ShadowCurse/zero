@@ -1,8 +1,9 @@
 use crate::camera;
-use crate::model;
-use crate::renderer::{self, Renderer, RenderAsset, GpuAsset, RenderResource};
+use crate::render_phase::RenderResources;
+use crate::render_phase::RenderStorage;
+use crate::render_phase::ResourceId;
+use crate::renderer::{self, GpuAsset, RenderAsset, Renderer};
 use crate::texture::GpuTexture;
-use crate::transform;
 use cgmath::{ortho, EuclideanSpace, InnerSpace, Matrix4, Point3, Vector3};
 use wgpu::util::DeviceExt;
 
@@ -55,17 +56,17 @@ impl GpuAsset for ShadowMapTexture {
     }
 }
 
-#[derive(Debug)]
-pub struct RenderShadowMap {
-    pub shadow_map: GpuTexture,
-    bind_group: wgpu::BindGroup,
-}
-
-impl RenderResource for RenderShadowMap {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderShadowMap {
+//     pub shadow_map: GpuTexture,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl RenderResource for RenderShadowMap {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct ShadowMap {
@@ -73,7 +74,8 @@ pub struct ShadowMap {
 }
 
 impl RenderAsset for ShadowMap {
-    type RenderType = RenderShadowMap;
+    // type RenderType = RenderShadowMap;
+    const ASSET_NAME: &'static str = "ShadowMap";
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -101,7 +103,7 @@ impl RenderAsset for ShadowMap {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType {
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources {
         let shadow_map = self.shadow_map.build(renderer);
 
         let bind_group = renderer
@@ -120,14 +122,13 @@ impl RenderAsset for ShadowMap {
                 ],
                 label: None,
             });
-
-        Self::RenderType {
-            shadow_map,
-            bind_group,
+        RenderResources {
+            textures: vec![shadow_map],
+            bind_group: Some(bind_group),
+            ..Default::default()
         }
     }
 }
-
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -135,17 +136,17 @@ pub struct ShadowMapDLightUniform {
     view_projection: [[f32; 4]; 4],
 }
 
-#[derive(Debug)]
-pub struct RenderShadowMapDLight {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderShadowMapDLight {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderShadowMapDLight {
+//     buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderShadowMapDLight {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[derive(Debug)]
 pub struct ShadowMapDLight {
@@ -212,7 +213,8 @@ impl ShadowMapDLight {
 }
 
 impl renderer::RenderAsset for ShadowMapDLight {
-    type RenderType = RenderShadowMapDLight;
+    // type RenderType = RenderShadowMapDLight;
+    const ASSET_NAME: &'static str = "ShadowMapDLight";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -236,7 +238,7 @@ impl renderer::RenderAsset for ShadowMapDLight {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let uniform = self.to_uniform();
 
         let buffer = renderer
@@ -258,36 +260,47 @@ impl renderer::RenderAsset for ShadowMapDLight {
                 label: Some("comera_bind_group"),
             });
 
-        Self::RenderType { buffer, bind_group }
+        RenderResources {
+            buffers: vec![buffer],
+            bind_group: Some(bind_group),
+            ..Default::default()
+        }
     }
 
-    fn update(&self, renderer: &renderer::Renderer, render_type: &Self::RenderType) {
+    fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
         renderer.queue.write_buffer(
-            &render_type.buffer,
+            &storage.get_buffers(id)[0],
             0,
             bytemuck::cast_slice(&[self.to_uniform()]),
         );
     }
+    // fn update(&self, renderer: &renderer::Renderer, : &Self::RenderType) {
+    //     renderer.queue.write_buffer(
+    //         &render_type.buffer,
+    //         0,
+    //         bytemuck::cast_slice(&[self.to_uniform()]),
+    //     );
+    // }
 }
 
-#[derive(Debug)]
-pub struct ShadowMapRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub mesh: &'a model::GpuMesh,
-    pub transform: &'a transform::RenderTransform,
-    pub dlight: &'a RenderShadowMapDLight,
-}
-
-impl<'a> renderer::RenderCommand<'a> for ShadowMapRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, self.transform.bind_group(), &[]);
-        render_pass.set_bind_group(1, self.dlight.bind_group(), &[]);
-        render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
-    }
-}
+// #[derive(Debug)]
+// pub struct ShadowMapRenderCommand<'a> {
+//     pub pipeline: &'a wgpu::RenderPipeline,
+//     pub mesh: &'a model::GpuMesh,
+//     pub transform: &'a transform::RenderTransform,
+//     pub dlight: &'a RenderShadowMapDLight,
+// }
+//
+// impl<'a> renderer::RenderCommand<'a> for ShadowMapRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_pipeline(self.pipeline);
+//         render_pass.set_bind_group(0, self.transform.bind_group(), &[]);
+//         render_pass.set_bind_group(1, self.dlight.bind_group(), &[]);
+//         render_pass.set_vertex_buffer(0, self.mesh.vertex_buffer.slice(..));
+//         render_pass.set_index_buffer(self.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+//         render_pass.draw_indexed(0..self.mesh.num_elements, 0, 0..1);
+//     }
+// }

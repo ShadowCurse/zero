@@ -1,35 +1,34 @@
-use crate::camera;
-use crate::light;
-use crate::renderer::{GpuAsset, RenderAsset, RenderCommand, RenderResource, Renderer};
-use crate::shadow_map;
+use crate::render_phase::IndexType;
+use crate::render_phase::RenderResources;
+use crate::renderer::{GpuAsset, RenderAsset, Renderer};
 use crate::texture::{GpuTexture, TextureVertex};
 use wgpu::util::DeviceExt;
 
-#[derive(Debug)]
-pub struct RenderGBuffer {
-    pub position: GpuTexture,
-    pub normal: GpuTexture,
-    pub albedo: GpuTexture,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl RenderGBuffer {
-    pub fn color_attachments(&self) -> Vec<wgpu::RenderPassColorAttachment> {
-        vec![
-            self.position.color_attachment(),
-            self.normal.color_attachment(),
-            self.albedo.color_attachment(),
-        ]
-    }
-}
-
-impl RenderResource for RenderGBuffer {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderGBuffer {
+//     pub position: GpuTexture,
+//     pub normal: GpuTexture,
+//     pub albedo: GpuTexture,
+//     vertex_buffer: wgpu::Buffer,
+//     index_buffer: wgpu::Buffer,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl RenderGBuffer {
+//     pub fn color_attachments(&self) -> Vec<wgpu::RenderPassColorAttachment> {
+//         vec![
+//             self.position.color_attachment(),
+//             self.normal.color_attachment(),
+//             self.albedo.color_attachment(),
+//         ]
+//     }
+// }
+//
+// impl RenderResource for RenderGBuffer {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[derive(Debug)]
 pub struct GBufferTexture {
@@ -96,7 +95,7 @@ impl GBuffer {
 }
 
 impl RenderAsset for GBuffer {
-    type RenderType = RenderGBuffer;
+    const ASSET_NAME: &'static str = "GBuffer";
 
     fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -156,7 +155,7 @@ impl RenderAsset for GBuffer {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> Self::RenderType {
+    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources {
         let vertices: Vec<TextureVertex> = vec![
             ([-1.0, 1.0, 0.0], [0.0, 0.0]),
             ([-1.0, -1.0, 0.0], [0.0, 1.0]),
@@ -222,41 +221,40 @@ impl RenderAsset for GBuffer {
                 label: None,
             });
 
-        Self::RenderType {
-            position,
-            normal,
-            albedo,
-            vertex_buffer,
-            index_buffer,
-            bind_group,
+        RenderResources {
+            textures: vec![position, normal, albedo],
+            vertex_buffer: Some(vertex_buffer),
+            index_type: Some(IndexType::Buffer(index_buffer)),
+            bind_group: Some(bind_group),
+            ..Default::default()
         }
     }
 }
 
-#[derive(Debug)]
-pub struct DefferedPassRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub g_buffer: &'a RenderGBuffer,
-    pub shadow_map: &'a shadow_map::RenderShadowMap,
-    pub lights: &'a light::RenderLights,
-    pub camera: &'a camera::RenderCamera,
-}
-
-impl<'a> RenderCommand<'a> for DefferedPassRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_pipeline(self.pipeline);
-        render_pass.set_bind_group(0, self.g_buffer.bind_group(), &[]);
-        render_pass.set_bind_group(1, self.lights.bind_group(), &[]);
-        render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
-        render_pass.set_bind_group(3, self.shadow_map.bind_group(), &[]);
-        render_pass.set_vertex_buffer(0, self.g_buffer.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(
-            self.g_buffer.index_buffer.slice(..),
-            wgpu::IndexFormat::Uint32,
-        );
-        render_pass.draw_indexed(0..6, 0, 0..1);
-    }
-}
+// #[derive(Debug)]
+// pub struct DefferedPassRenderCommand<'a> {
+//     pub pipeline: &'a wgpu::RenderPipeline,
+//     pub g_buffer: &'a RenderGBuffer,
+//     pub shadow_map: &'a shadow_map::RenderShadowMap,
+//     pub lights: &'a light::RenderLights,
+//     pub camera: &'a camera::RenderCamera,
+// }
+//
+// impl<'a> RenderCommand<'a> for DefferedPassRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_pipeline(self.pipeline);
+//         render_pass.set_bind_group(0, self.g_buffer.bind_group(), &[]);
+//         render_pass.set_bind_group(1, self.lights.bind_group(), &[]);
+//         render_pass.set_bind_group(2, self.camera.bind_group(), &[]);
+//         render_pass.set_bind_group(3, self.shadow_map.bind_group(), &[]);
+//         render_pass.set_vertex_buffer(0, self.g_buffer.vertex_buffer.slice(..));
+//         render_pass.set_index_buffer(
+//             self.g_buffer.index_buffer.slice(..),
+//             wgpu::IndexFormat::Uint32,
+//         );
+//         render_pass.draw_indexed(0..6, 0, 0..1);
+//     }
+// }

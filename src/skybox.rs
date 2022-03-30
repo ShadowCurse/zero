@@ -1,8 +1,8 @@
 use anyhow::{Ok, Result};
 use wgpu::util::DeviceExt;
 
-use crate::camera;
-use crate::renderer::{self, GpuAsset, RenderResource};
+use crate::render_phase::{RenderResources, IndexType};
+use crate::renderer::{self, GpuAsset};
 use crate::texture;
 
 #[repr(C)]
@@ -25,19 +25,19 @@ impl renderer::Vertex for SkyboxVertex {
     }
 }
 
-#[derive(Debug)]
-pub struct RenderSkybox {
-    vertex_buffer: wgpu::Buffer,
-    num_elements: u32,
-    cube_map: texture::GpuTexture,
-    bind_group: wgpu::BindGroup,
-}
-
-impl renderer::RenderResource for RenderSkybox {
-    fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
-    }
-}
+// #[derive(Debug)]
+// pub struct RenderSkybox {
+//     vertex_buffer: wgpu::Buffer,
+//     num_elements: u32,
+//     cube_map: texture::GpuTexture,
+//     bind_group: wgpu::BindGroup,
+// }
+//
+// impl renderer::RenderResource for RenderSkybox {
+//     fn bind_group(&self) -> &wgpu::BindGroup {
+//         &self.bind_group
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Skybox {
@@ -69,7 +69,7 @@ impl Skybox {
 }
 
 impl renderer::RenderAsset for Skybox {
-    type RenderType = RenderSkybox;
+    const ASSET_NAME: &'static str = "Skybox";
 
     fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
         renderer
@@ -101,7 +101,7 @@ impl renderer::RenderAsset for Skybox {
         &self,
         renderer: &renderer::Renderer,
         layout: &wgpu::BindGroupLayout,
-    ) -> Self::RenderType {
+    ) -> RenderResources {
         let cube_map = self.cube_map.build(renderer);
 
         let bind_group = renderer
@@ -129,44 +129,45 @@ impl renderer::RenderAsset for Skybox {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        Self::RenderType {
-            vertex_buffer,
-            num_elements: self.num_elements,
-            cube_map,
-            bind_group,
+        RenderResources {
+            textures: vec![cube_map],
+            vertex_buffer: Some(vertex_buffer),
+            index_type: Some(IndexType::NumElements(self.num_elements)),
+            bind_group: Some(bind_group),
+            ..Default::default()
         }
     }
 }
 
-#[derive(Debug)]
-pub struct SkyboxRenderCommand<'a> {
-    pub pipeline: &'a wgpu::RenderPipeline,
-    pub skybox: &'a RenderSkybox,
-    pub camera: &'a camera::RenderCamera,
-}
-
-impl<'a> renderer::RenderCommand<'a> for SkyboxRenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b,
-    {
-        render_pass.set_pipeline(self.pipeline);
-        render_pass.draw_skybox(self.skybox, self.camera);
-    }
-}
-
-pub trait DrawSkybox<'a> {
-    fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera);
-}
-
-impl<'a, 'b> DrawSkybox<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera) {
-        self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-        self.set_bind_group(0, skybox.bind_group(), &[]);
-        self.set_bind_group(1, camera.bind_group(), &[]);
-        self.draw(0..skybox.num_elements, 0..1);
-    }
-}
+// #[derive(Debug)]
+// pub struct SkyboxRenderCommand<'a> {
+//     pub pipeline: &'a wgpu::RenderPipeline,
+//     pub skybox: &'a RenderSkybox,
+//     pub camera: &'a camera::RenderCamera,
+// }
+//
+// impl<'a> renderer::RenderCommand<'a> for SkyboxRenderCommand<'a> {
+//     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
+//     where
+//         'a: 'b,
+//     {
+//         render_pass.set_pipeline(self.pipeline);
+//         render_pass.draw_skybox(self.skybox, self.camera);
+//     }
+// }
+//
+// pub trait DrawSkybox<'a> {
+//     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera);
+// }
+//
+// impl<'a, 'b> DrawSkybox<'b> for wgpu::RenderPass<'a>
+// where
+//     'b: 'a,
+// {
+//     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera) {
+//         self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
+//         self.set_bind_group(0, skybox.bind_group(), &[]);
+//         self.set_bind_group(1, camera.bind_group(), &[]);
+//         self.draw(0..skybox.num_elements, 0..1);
+//     }
+// }
