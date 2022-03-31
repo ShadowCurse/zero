@@ -1,7 +1,8 @@
 use anyhow::{Ok, Result};
 use wgpu::util::DeviceExt;
 
-use crate::render_phase::{RenderResources, IndexType};
+use crate::model::GpuMesh;
+use crate::render_phase::{IndexBuffer, RenderResources};
 use crate::renderer::{self, GpuAsset};
 use crate::texture;
 
@@ -129,10 +130,15 @@ impl renderer::RenderAsset for Skybox {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
+        let mesh = GpuMesh {
+            vertex_buffer,
+            index_buffer: None,
+            num_elements: self.num_elements,
+        };
+
         RenderResources {
             textures: vec![cube_map],
-            vertex_buffer: Some(vertex_buffer),
-            index_type: Some(IndexType::NumElements(self.num_elements)),
+            meshes: vec![mesh],
             bind_group: Some(bind_group),
             ..Default::default()
         }

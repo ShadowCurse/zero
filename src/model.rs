@@ -117,9 +117,9 @@ impl Vertex for ModelVertex {
 #[derive(Debug)]
 pub struct GpuMesh {
     pub vertex_buffer: Buffer,
-    pub index_buffer: Buffer,
+    pub index_buffer: Option<Buffer>,
     pub num_elements: u32,
-    pub material: usize,
+    // pub material: usize,
 }
 
 impl GpuResource for GpuMesh {}
@@ -150,9 +150,9 @@ impl GpuAsset for Mesh {
 
         Self::GpuType {
             vertex_buffer,
-            index_buffer,
+            index_buffer: Some(index_buffer),
             num_elements: self.indices.len() as u32,
-            material: self.material,
+            // material: self.material,
         }
     }
 }

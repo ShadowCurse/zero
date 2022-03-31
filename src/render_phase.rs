@@ -1,10 +1,12 @@
-use crate::renderer::{RenderAsset, Renderer};
+use crate::model::GpuMesh;
+use crate::renderer::{GpuAsset, PipelineBuilder, RenderAsset, Renderer};
 use crate::texture::GpuTexture;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 use wgpu::{
-    BindGroup, Buffer, Color, CommandEncoder, Operations, RenderPassColorAttachment,
-    RenderPassDepthStencilAttachment, TextureView,
+    BindGroup, BindGroupLayout, Buffer, Color, CommandEncoder, IndexFormat, Operations,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPipeline, TextureView,
 };
 
 pub fn execute_phase(
@@ -20,15 +22,57 @@ pub fn execute_phase(
     });
 
     for command in phase.commands() {
-        command.execute(&mut render_pass);
+        command.execute(&mut render_pass, storage);
     }
 }
 
-pub struct RenderCommand;
+#[derive(Debug)]
+pub struct BindGroupMeta {
+    pub index: u32,
+    pub bind_group_id: ResourceId,
+}
+
+#[derive(Debug)]
+pub struct RenderCommand {
+    pub pipeline_id: ResourceId,
+    pub mesh_id: ResourceId,
+    pub bind_groups: Vec<BindGroupMeta>,
+}
 
 impl RenderCommand {
-    fn execute<'a>(&self, render_pass: &mut wgpu::RenderPass<'a>) {
-        todo!()
+    fn execute<'a>(
+        &self,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        storage: &'a CurrentFrameStorage,
+    ) {
+        let meshes = storage.get_meshes(self.mesh_id);
+        let bind_groups: Vec<_> = self
+            .bind_groups
+            .iter()
+            .map(|meta| {
+                (
+                    meta.index,
+                    storage.get_bind_group(meta.bind_group_id).unwrap(),
+                )
+            })
+            .collect();
+        let pipeline = storage.get_pipeline(self.pipeline_id);
+        render_pass.set_pipeline(pipeline);
+        for m in meshes.iter() {
+            for bg in bind_groups.iter() {
+                render_pass.set_bind_group(bg.0, bg.1, &[]);
+            }
+            render_pass.set_vertex_buffer(0, m.vertex_buffer.slice(..));
+            if m.index_buffer.is_some() {
+                render_pass.set_index_buffer(
+                    m.index_buffer.as_ref().unwrap().slice(..),
+                    IndexFormat::Uint32,
+                );
+                render_pass.draw_indexed(0..m.num_elements, 0, 0..1);
+            } else {
+                render_pass.draw(0..m.num_elements, 0..1);
+            }
+        }
     }
 }
 
@@ -36,20 +80,23 @@ impl RenderCommand {
 pub struct ResourceId(pub usize);
 
 impl ResourceId {
-    const WINDOW_VIEW_ID: ResourceId = ResourceId(0);
+    pub const WINDOW_VIEW_ID: ResourceId = ResourceId(usize::MAX);
 }
 
+#[derive(Debug)]
 pub struct ColorAttachment {
-    view_id: ResourceId,
-    ops: Operations<Color>,
+    pub view_id: ResourceId,
+    pub ops: Operations<Color>,
 }
 
+#[derive(Debug)]
 pub struct DepthStencil {
-    view_id: ResourceId,
-    depth_ops: Option<Operations<f32>>,
-    stencil_ops: Option<Operations<u32>>,
+    pub view_id: ResourceId,
+    pub depth_ops: Option<Operations<f32>>,
+    pub stencil_ops: Option<Operations<u32>>,
 }
 
+#[derive(Debug)]
 pub struct RenderPhase {
     color_attachments: Vec<ColorAttachment>,
     depth_stencil: Option<DepthStencil>,
@@ -119,29 +166,29 @@ impl RenderPhase {
 pub struct RenderResources {
     pub buffers: Vec<Buffer>,
     pub textures: Vec<GpuTexture>,
-    pub vertex_buffer: Option<Buffer>,
-    pub index_type: Option<IndexType>,
+    pub meshes: Vec<GpuMesh>,
     pub bind_group: Option<BindGroup>,
 }
 
 #[derive(Debug)]
-pub enum IndexType {
-    Buffer(Buffer),
-    NumElements(u32),
+pub struct IndexBuffer {
+    pub buffer: Option<Buffer>,
+    pub num_elements: u32,
 }
 
+#[derive(Debug, Default)]
 pub struct RenderStorage {
     pub buffers: Vec<Vec<Buffer>>,
     pub textures: Vec<Vec<GpuTexture>>,
-    pub vertex_buffers: Vec<Option<Buffer>>,
-    pub index_type: Vec<Option<IndexType>>,
+    pub meshes: Vec<Vec<GpuMesh>>,
     pub bind_groups: Vec<Option<BindGroup>>,
     // ....
+    pub pipelines: Vec<RenderPipeline>,
     pub layouts: HashMap<&'static str, wgpu::BindGroupLayout>,
 }
 
 impl RenderStorage {
-    pub fn build<A: RenderAsset>(&mut self, renderer: &Renderer, item: A) -> ResourceId {
+    pub fn build_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A) -> ResourceId {
         let t_name = std::any::type_name::<A>();
         if !self.layouts.contains_key(t_name) {
             self.layouts.insert(t_name, A::bind_group_layout(renderer));
@@ -151,14 +198,100 @@ impl RenderStorage {
         self.insert_resources(resources)
     }
 
+    pub fn build_texture<A: GpuAsset<GpuType = GpuTexture>>(
+        &mut self,
+        renderer: &Renderer,
+        texture: &A,
+    ) -> ResourceId {
+        let texture = texture.build(renderer);
+        self.insert_resources(RenderResources {
+            textures: vec![texture],
+            ..Default::default()
+        })
+    }
+
+    pub fn build_mesh<A: GpuAsset<GpuType = GpuMesh>>(
+        &mut self,
+        renderer: &Renderer,
+        mesh: &A,
+    ) -> ResourceId {
+        let mesh = mesh.build(renderer);
+        self.insert_resources(RenderResources {
+            meshes: vec![mesh],
+            ..Default::default()
+        })
+    }
+
+    pub fn add_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
+        let id = self.pipelines.len();
+        self.pipelines.push(pipeline);
+        ResourceId(id)
+    }
+
     fn insert_resources(&mut self, resources: RenderResources) -> ResourceId {
         let id = self.buffers.len();
         self.buffers.push(resources.buffers);
         self.textures.push(resources.textures);
-        self.vertex_buffers.push(resources.vertex_buffer);
-        self.index_type.push(resources.index_type);
+        self.meshes.push(resources.meshes);
         self.bind_groups.push(resources.bind_group);
         ResourceId(id)
+    }
+
+    pub fn rebuild_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A, id: ResourceId) {
+        let t_name = std::any::type_name::<A>();
+        if !self.layouts.contains_key(t_name) {
+            panic!("Rebuilding asset that was never built");
+        }
+        let layout = self.layouts.get(t_name).unwrap();
+        let resources = item.build(renderer, layout);
+        self.insert_resources_at(resources, id);
+    }
+
+    pub fn rebuild_texture<A: GpuAsset<GpuType = GpuTexture>>(
+        &mut self,
+        renderer: &Renderer,
+        texture: &A,
+        id: ResourceId,
+    ) {
+        let texture = texture.build(renderer);
+        self.insert_resources_at(
+            RenderResources {
+                textures: vec![texture],
+                ..Default::default()
+            },
+            id,
+        );
+    }
+
+    pub fn rebuild_mesh<A: GpuAsset<GpuType = GpuMesh>>(
+        &mut self,
+        renderer: &Renderer,
+        mesh: &A,
+        id: ResourceId,
+    ) {
+        let mesh = mesh.build(renderer);
+        self.insert_resources_at(
+            RenderResources {
+                meshes: vec![mesh],
+                ..Default::default()
+            },
+            id,
+        );
+    }
+
+    fn insert_resources_at(&mut self, resources: RenderResources, id: ResourceId) {
+        self.buffers[id.0] = resources.buffers;
+        self.textures[id.0] = resources.textures;
+        self.meshes[id.0] = resources.meshes;
+        self.bind_groups[id.0] = resources.bind_group;
+    }
+
+    pub fn get_bind_group_layout<A: RenderAsset>(&self) -> &BindGroupLayout {
+        let t_name = std::any::type_name::<A>();
+        if !self.layouts.contains_key(t_name) {
+            panic!("Trying to get a layout of an asset that was never built");
+        }
+        self.layouts.get(t_name).unwrap()
     }
 
     pub fn get_buffers(&self, id: ResourceId) -> &[Buffer] {
@@ -167,6 +300,18 @@ impl RenderStorage {
 
     pub fn get_textures(&self, id: ResourceId) -> &[GpuTexture] {
         self.textures.get(id.0).unwrap()
+    }
+
+    pub fn get_meshes(&self, id: ResourceId) -> &[GpuMesh] {
+        self.meshes.get(id.0).unwrap()
+    }
+
+    pub fn get_bind_group(&self, id: ResourceId) -> Option<&BindGroup> {
+        self.bind_groups.get(id.0).unwrap().as_ref()
+    }
+
+    pub fn get_pipeline(&self, id: ResourceId) -> &RenderPipeline {
+        self.pipelines.get(id.0).unwrap()
     }
 }
 
@@ -189,7 +334,14 @@ impl<'a> CurrentFrameStorage<'a> {
     }
 }
 
-#[derive(Default)]
+impl<'a> Deref for CurrentFrameStorage<'a> {
+    type Target = RenderStorage;
+    fn deref(&self) -> &Self::Target {
+        self.storage
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct RenderSystem {
     pub phases: HashMap<Cow<'static, str>, RenderPhase>,
     pub order: Vec<Cow<'static, str>>,
@@ -231,7 +383,8 @@ impl RenderSystem {
         for p in self.order.iter() {
             let phase = self.phases.get_mut(p).unwrap();
             execute_phase(Some(p), &mut encoder, phase, &frame_storage);
-            phase.commands.clear();
+            // TODO enable clear later
+            // phase.commands.clear();
         }
 
         renderer.submit(std::iter::once(encoder.finish()));

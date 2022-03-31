@@ -1,4 +1,5 @@
-use crate::render_phase::IndexType;
+use crate::model::GpuMesh;
+use crate::render_phase::IndexBuffer;
 use crate::render_phase::RenderResources;
 use crate::renderer::{GpuAsset, RenderAsset, Renderer};
 use crate::texture::{GpuTexture, TextureVertex};
@@ -221,10 +222,15 @@ impl RenderAsset for GBuffer {
                 label: None,
             });
 
+        let mesh = GpuMesh {
+            vertex_buffer,
+            index_buffer: Some(index_buffer),
+            num_elements: 6,
+        };
+
         RenderResources {
             textures: vec![position, normal, albedo],
-            vertex_buffer: Some(vertex_buffer),
-            index_type: Some(IndexType::Buffer(index_buffer)),
+            meshes: vec![mesh], 
             bind_group: Some(bind_group),
             ..Default::default()
         }
