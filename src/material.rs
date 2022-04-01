@@ -1,7 +1,5 @@
-use crate::render_phase::RenderResources;
-use crate::renderer::{self, GpuAsset};
+use crate::renderer::*;
 use crate::texture;
-use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -21,8 +19,8 @@ pub struct MaterialPropertiesUniform {
 #[derive(Debug)]
 pub struct Material {
     pub name: String,
-    pub diffuse_texture: texture::Texture,
-    pub normal_texture: texture::Texture,
+    pub diffuse_texture: texture::ImageTexture,
+    pub normal_texture: texture::ImageTexture,
     pub ambient: [f32; 3],
     pub diffuse: [f32; 3],
     pub specular: [f32; 3],
@@ -41,51 +39,51 @@ impl Material {
     }
 }
 
-impl renderer::RenderAsset for Material {
+impl RenderAsset for Material {
     const ASSET_NAME: &'static str = "Material";
 
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
+    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Float { filterable: true },
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Float { filterable: true },
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 4,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
                             has_dynamic_offset: false,
                             min_binding_size: None,
                         },
@@ -96,52 +94,44 @@ impl renderer::RenderAsset for Material {
             })
     }
 
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> RenderResources {
+    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
         let diffuse_texture = self.diffuse_texture.build(renderer);
         let normal_texture = self.normal_texture.build(renderer);
 
         let properties = self.to_uniform();
 
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("material_params_buffer"),
-                contents: bytemuck::cast_slice(&[properties]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
+        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("material_params_buffer"),
+            contents: bytemuck::cast_slice(&[properties]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
 
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::TextureView(&normal_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 3,
-                        resource: wgpu::BindingResource::Sampler(&normal_texture.sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 4,
-                        resource: buffer.as_entire_binding(),
-                    },
-                ],
-                label: None,
-            });
+        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&diffuse_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&normal_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&normal_texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: buffer.as_entire_binding(),
+                },
+            ],
+            label: None,
+        });
 
         RenderResources {
             buffers: vec![buffer],
@@ -172,18 +162,18 @@ impl ColorMaterial {
     }
 }
 
-impl renderer::RenderAsset for ColorMaterial {
+impl RenderAsset for ColorMaterial {
     const ASSET_NAME: &'static str = "ColorMaterial";
 
-    fn bind_group_layout(renderer: &renderer::Renderer) -> wgpu::BindGroupLayout {
+    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -193,31 +183,23 @@ impl renderer::RenderAsset for ColorMaterial {
             })
     }
 
-    fn build(
-        &self,
-        renderer: &renderer::Renderer,
-        layout: &wgpu::BindGroupLayout,
-    ) -> RenderResources {
+    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
         let uniform = self.to_uniform();
 
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("color_material_params_buffer"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
+        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("color_material_params_buffer"),
+            contents: bytemuck::cast_slice(&[uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
 
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
-                label: None,
-            });
+        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
 
         RenderResources {
             buffers: vec![buffer],

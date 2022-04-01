@@ -1,4 +1,4 @@
-use crate::renderer;
+use crate::renderer::*;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
 use std::path::Path;
@@ -19,21 +19,21 @@ impl From<([f32; 3], [f32; 2])> for TextureVertex {
     }
 }
 
-impl renderer::Vertex for TextureVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
+impl Vertex for TextureVertex {
+    fn desc<'a>() -> VertexBufferLayout<'a> {
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as BufferAddress,
+            step_mode: VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttribute {
+                VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: VertexFormat::Float32x3,
                 },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: VertexFormat::Float32x2,
                 },
             ],
         }
@@ -42,25 +42,25 @@ impl renderer::Vertex for TextureVertex {
 
 #[derive(Debug)]
 pub struct GpuTexture {
-    pub texture: wgpu::Texture,
-    pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
+    pub texture: Texture,
+    pub view: TextureView,
+    pub sampler: Sampler,
 }
 
 impl GpuTexture {
-    pub fn color_attachment(&self) -> wgpu::RenderPassColorAttachment {
-        wgpu::RenderPassColorAttachment {
+    pub fn color_attachment(&self) -> RenderPassColorAttachment {
+        RenderPassColorAttachment {
             view: &self.view,
             resolve_target: None,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+            ops: Operations {
+                load: LoadOp::Clear(Color::TRANSPARENT),
                 store: true,
             },
         }
     }
 }
 
-impl renderer::GpuResource for GpuTexture {}
+impl GpuResource for GpuTexture {}
 
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
@@ -69,13 +69,13 @@ pub enum TextureType {
 }
 
 #[derive(Debug)]
-pub struct Texture {
+pub struct ImageTexture {
     texture_type: TextureType,
     texture: image::RgbaImage,
     dimensions: (u32, u32),
 }
 
-impl Texture {
+impl ImageTexture {
     pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
         let path_copy = path.as_ref().to_path_buf();
 
@@ -90,49 +90,49 @@ impl Texture {
     }
 }
 
-impl renderer::GpuAsset for Texture {
+impl GpuAsset for ImageTexture {
     type GpuType = GpuTexture;
 
-    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
-        let texture_size = wgpu::Extent3d {
+    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+        let texture_size = Extent3d {
             width: self.dimensions.0,
             height: self.dimensions.1,
             depth_or_array_layers: 1,
         };
 
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = renderer.device.create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: TextureDimension::D2,
             format: match self.texture_type {
-                TextureType::Diffuse => wgpu::TextureFormat::Rgba8UnormSrgb,
-                TextureType::Normal => wgpu::TextureFormat::Rgba8Unorm,
+                TextureType::Diffuse => TextureFormat::Rgba8UnormSrgb,
+                TextureType::Normal => TextureFormat::Rgba8Unorm,
             },
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             label: Some("texture"),
         });
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
 
         renderer.queue.write_texture(
-            wgpu::ImageCopyTexture {
+            ImageCopyTexture {
                 texture: &texture,
                 mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
             },
             &self.texture,
-            wgpu::ImageDataLayout {
+            ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(4 * self.dimensions.0),
                 rows_per_image: std::num::NonZeroU32::new(self.dimensions.1),
@@ -152,38 +152,38 @@ impl renderer::GpuAsset for Texture {
 pub struct DepthTexture;
 
 impl DepthTexture {
-    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 }
 
-impl renderer::GpuAsset for DepthTexture {
+impl GpuAsset for DepthTexture {
     type GpuType = GpuTexture;
 
-    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
-        let size = wgpu::Extent3d {
+    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+        let size = Extent3d {
             width: renderer.config.width,
             height: renderer.config.height,
             depth_or_array_layers: 1,
         };
-        let desc = wgpu::TextureDescriptor {
+        let desc = TextureDescriptor {
             size,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             label: Some("depth_texture"),
         };
         let texture = renderer.device.create_texture(&desc);
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: None, //Some(wgpu::CompareFunction::LessEqual),
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
+            compare: None, //Some(CompareFunction::LessEqual),
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
             ..Default::default()
@@ -222,49 +222,49 @@ impl CubeMap {
     }
 }
 
-impl renderer::GpuAsset for CubeMap {
+impl GpuAsset for CubeMap {
     type GpuType = GpuTexture;
 
-    fn build(&self, renderer: &renderer::Renderer) -> Self::GpuType {
-        let texture_size = wgpu::Extent3d {
+    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+        let texture_size = Extent3d {
             width: self.dimensions.0,
             height: self.dimensions.1,
             depth_or_array_layers: 6,
         };
 
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = renderer.device.create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             label: Some("cube_texture"),
         });
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::Cube),
+        let view = texture.create_view(&TextureViewDescriptor {
+            dimension: Some(TextureViewDimension::Cube),
             ..Default::default()
         });
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
 
         renderer.queue.write_texture(
-            wgpu::ImageCopyTexture {
+            ImageCopyTexture {
                 texture: &texture,
                 mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
             },
             &self.texture,
-            wgpu::ImageDataLayout {
+            ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(4 * self.dimensions.0),
                 rows_per_image: std::num::NonZeroU32::new(self.dimensions.1),

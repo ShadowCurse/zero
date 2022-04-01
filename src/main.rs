@@ -4,7 +4,7 @@ use deffered_rendering::GBuffer;
 use light::{PointLight, PointLights};
 use material::ColorMaterial;
 use model::{Mesh, ModelVertex};
-use render_phase::{
+use renderer::{
     BindGroupMeta, ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage,
     RenderSystem, ResourceId,
 };
@@ -26,7 +26,6 @@ mod deffered_rendering;
 mod light;
 mod material;
 mod model;
-mod render_phase;
 mod renderer;
 mod shadow_map;
 mod shapes;

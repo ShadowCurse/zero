@@ -1,16 +1,14 @@
 use crate::model::GpuMesh;
-use crate::render_phase::RenderResources;
-use crate::renderer::{GpuAsset, RenderAsset, Renderer};
+use crate::renderer::*;
 use crate::texture::{GpuTexture, TextureVertex};
-use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 pub struct GBufferTexture {
-    pub format: wgpu::TextureFormat,
+    pub format: TextureFormat,
 }
 
 impl GBufferTexture {
-    pub fn new(format: wgpu::TextureFormat) -> Self {
+    pub fn new(format: TextureFormat) -> Self {
         Self { format }
     }
 }
@@ -19,27 +17,27 @@ impl GpuAsset for GBufferTexture {
     type GpuType = GpuTexture;
 
     fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let texture_size = wgpu::Extent3d {
+        let texture_size = Extent3d {
             width: renderer.config.width,
             height: renderer.config.height,
             depth_or_array_layers: 1,
         };
 
-        let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = renderer.device.create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: TextureDimension::D2,
             format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             label: Some("gbuffer_texture"),
         });
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
+        let view = texture.create_view(&TextureViewDescriptor::default());
+        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
             ..Default::default()
         });
 
@@ -59,7 +57,7 @@ pub struct GBuffer {
 }
 
 impl GBuffer {
-    pub fn new(format: wgpu::TextureFormat) -> Self {
+    pub fn new(format: TextureFormat) -> Self {
         Self {
             position: GBufferTexture::new(format),
             normal: GBufferTexture::new(format),
@@ -71,57 +69,57 @@ impl GBuffer {
 impl RenderAsset for GBuffer {
     const ASSET_NAME: &'static str = "GBuffer";
 
-    fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
+    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Float { filterable: false },
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Float { filterable: false },
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 4,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
                             multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Float { filterable: false },
                         },
                         count: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
+                    BindGroupLayoutEntry {
                         binding: 5,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
                     },
                 ],
@@ -129,7 +127,7 @@ impl RenderAsset for GBuffer {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources {
+    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
         let vertices: Vec<TextureVertex> = vec![
             ([-1.0, 1.0, 0.0], [0.0, 0.0]),
             ([-1.0, -1.0, 0.0], [0.0, 1.0]),
@@ -140,60 +138,54 @@ impl RenderAsset for GBuffer {
         .map(Into::into)
         .collect();
 
-        let vertex_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("vertex_buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("vertex_buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: BufferUsages::VERTEX,
+        });
 
         let indices = vec![0, 1, 2, 2, 1, 3];
 
-        let index_buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("index_buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("index_buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: BufferUsages::INDEX,
+        });
 
         let position = self.position.build(renderer);
         let normal = self.normal.build(renderer);
         let albedo = self.albedo.build(renderer);
 
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&position.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&position.sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::TextureView(&normal.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 3,
-                        resource: wgpu::BindingResource::Sampler(&normal.sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 4,
-                        resource: wgpu::BindingResource::TextureView(&albedo.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 5,
-                        resource: wgpu::BindingResource::Sampler(&albedo.sampler),
-                    },
-                ],
-                label: None,
-            });
+        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&position.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&position.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&normal.view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&normal.sampler),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: BindingResource::TextureView(&albedo.view),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: BindingResource::Sampler(&albedo.sampler),
+                },
+            ],
+            label: None,
+        });
 
         let mesh = GpuMesh {
             vertex_buffer,

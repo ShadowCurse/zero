@@ -1,6 +1,5 @@
-use crate::render_phase::{RenderResources, RenderStorage, ResourceId};
-use crate::renderer::{RenderAsset, Renderer};
-use wgpu::util::DeviceExt;
+use crate::renderer::*;
+use cgmath::{Matrix4, Quaternion, Vector3};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -11,18 +10,18 @@ pub struct TransformUniform {
 
 #[derive(Debug, Clone)]
 pub struct Transform {
-    pub translation: cgmath::Vector3<f32>,
-    pub rotation: cgmath::Quaternion<f32>,
-    pub scale: cgmath::Vector3<f32>,
+    pub translation: Vector3<f32>,
+    pub rotation: Quaternion<f32>,
+    pub scale: Vector3<f32>,
 }
 
 impl Transform {
     fn to_uniform(&self) -> TransformUniform {
-        let rotate = cgmath::Matrix4::from(self.rotation);
+        let rotate = Matrix4::from(self.rotation);
         TransformUniform {
-            transform: (cgmath::Matrix4::from_translation(self.translation)
+            transform: (Matrix4::from_translation(self.translation)
                 * rotate
-                * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
+                * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
             rotate: rotate.into(),
         }
@@ -32,15 +31,15 @@ impl Transform {
 impl RenderAsset for Transform {
     const ASSET_NAME: &'static str = "Transform";
 
-    fn bind_group_layout(renderer: &Renderer) -> wgpu::BindGroupLayout {
+    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -50,26 +49,22 @@ impl RenderAsset for Transform {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources {
+    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
         let uniform = self.to_uniform();
-        let buffer = renderer
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("transform_buffer"),
-                contents: bytemuck::cast_slice(&[uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
+        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("transform_buffer"),
+            contents: bytemuck::cast_slice(&[uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
 
-        let bind_group = renderer
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
-                label: Some("transform_bind_group"),
-            });
+        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("transform_bind_group"),
+        });
 
         RenderResources {
             buffers: vec![buffer],
@@ -83,6 +78,6 @@ impl RenderAsset for Transform {
             &storage.get_buffers(id)[0],
             0,
             bytemuck::cast_slice(&[self.to_uniform()]),
-        )
+        );
     }
 }

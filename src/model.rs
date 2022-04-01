@@ -1,14 +1,8 @@
 use crate::material;
-use crate::renderer::{GpuAsset, GpuResource, Renderer, Vertex};
+use crate::renderer::*;
 use crate::texture;
 use anyhow::{Context, Ok, Result};
 use cgmath::{InnerSpace, Vector2, Vector3};
-use wgpu::util::BufferInitDescriptor;
-use wgpu::util::DeviceExt;
-use wgpu::{
-    Buffer, BufferAddress, BufferUsages, VertexAttribute, VertexBufferLayout, VertexFormat,
-    VertexStepMode,
-};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -178,10 +172,11 @@ impl Model {
         for mat in obj_materials {
             let diffuse_path = containing_folder.join(mat.diffuse_texture);
             let diffuse_texture =
-                texture::Texture::load(diffuse_path, texture::TextureType::Diffuse)?;
+                texture::ImageTexture::load(diffuse_path, texture::TextureType::Diffuse)?;
 
             let normal_path = containing_folder.join(mat.normal_texture);
-            let normal_texture = texture::Texture::load(normal_path, texture::TextureType::Normal)?;
+            let normal_texture =
+                texture::ImageTexture::load(normal_path, texture::TextureType::Normal)?;
 
             materials.push(material::Material {
                 name: mat.name,
