@@ -1,10 +1,9 @@
-use anyhow::{Ok, Result};
-use wgpu::util::DeviceExt;
-
 use crate::model::GpuMesh;
-use crate::render_phase::{IndexBuffer, RenderResources};
+use crate::render_phase::RenderResources;
 use crate::renderer::{self, GpuAsset};
 use crate::texture;
+use anyhow::{Ok, Result};
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -25,20 +24,6 @@ impl renderer::Vertex for SkyboxVertex {
         }
     }
 }
-
-// #[derive(Debug)]
-// pub struct RenderSkybox {
-//     vertex_buffer: wgpu::Buffer,
-//     num_elements: u32,
-//     cube_map: texture::GpuTexture,
-//     bind_group: wgpu::BindGroup,
-// }
-//
-// impl renderer::RenderResource for RenderSkybox {
-//     fn bind_group(&self) -> &wgpu::BindGroup {
-//         &self.bind_group
-//     }
-// }
 
 #[derive(Debug)]
 pub struct Skybox {
@@ -144,36 +129,3 @@ impl renderer::RenderAsset for Skybox {
         }
     }
 }
-
-// #[derive(Debug)]
-// pub struct SkyboxRenderCommand<'a> {
-//     pub pipeline: &'a wgpu::RenderPipeline,
-//     pub skybox: &'a RenderSkybox,
-//     pub camera: &'a camera::RenderCamera,
-// }
-//
-// impl<'a> renderer::RenderCommand<'a> for SkyboxRenderCommand<'a> {
-//     fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-//     where
-//         'a: 'b,
-//     {
-//         render_pass.set_pipeline(self.pipeline);
-//         render_pass.draw_skybox(self.skybox, self.camera);
-//     }
-// }
-//
-// pub trait DrawSkybox<'a> {
-//     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera);
-// }
-//
-// impl<'a, 'b> DrawSkybox<'b> for wgpu::RenderPass<'a>
-// where
-//     'b: 'a,
-// {
-//     fn draw_skybox(&mut self, skybox: &'a RenderSkybox, camera: &'a camera::RenderCamera) {
-//         self.set_vertex_buffer(0, skybox.vertex_buffer.slice(..));
-//         self.set_bind_group(0, skybox.bind_group(), &[]);
-//         self.set_bind_group(1, camera.bind_group(), &[]);
-//         self.draw(0..skybox.num_elements, 0..1);
-//     }
-// }

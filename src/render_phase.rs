@@ -1,5 +1,5 @@
 use crate::model::GpuMesh;
-use crate::renderer::{GpuAsset, PipelineBuilder, RenderAsset, Renderer};
+use crate::renderer::{GpuAsset, RenderAsset, Renderer};
 use crate::texture::GpuTexture;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -383,8 +383,7 @@ impl RenderSystem {
         for p in self.order.iter() {
             let phase = self.phases.get_mut(p).unwrap();
             execute_phase(Some(p), &mut encoder, phase, &frame_storage);
-            // TODO enable clear later
-            // phase.commands.clear();
+            phase.commands.clear();
         }
 
         renderer.submit(std::iter::once(encoder.finish()));

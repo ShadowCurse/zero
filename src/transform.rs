@@ -1,7 +1,6 @@
-use wgpu::util::DeviceExt;
-
 use crate::render_phase::{RenderResources, RenderStorage, ResourceId};
 use crate::renderer::{RenderAsset, Renderer};
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -26,7 +25,6 @@ impl Transform {
                 * cgmath::Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z))
             .into(),
             rotate: rotate.into(),
-            ..Default::default()
         }
     }
 }

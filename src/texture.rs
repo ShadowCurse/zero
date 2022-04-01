@@ -1,8 +1,7 @@
+use crate::renderer;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
 use std::path::Path;
-
-use crate::renderer;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]

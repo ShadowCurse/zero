@@ -79,7 +79,6 @@ impl From<Box> for model::Mesh {
             name: "box".to_string(),
             vertices,
             indices,
-            material: 0,
         }
     }
 }
@@ -134,7 +133,6 @@ impl From<Quad> for model::Mesh {
             name: "quad".to_string(),
             vertices,
             indices,
-            material: 0,
         }
     }
 }
@@ -172,7 +170,6 @@ impl From<Plane> for model::Mesh {
             name: "plane".to_string(),
             vertices,
             indices,
-            material: 0,
         }
     }
 }
@@ -227,7 +224,6 @@ impl From<Icoshphere> for model::Mesh {
             name: "icosphere".to_string(),
             vertices,
             indices,
-            material: 0,
         }
     }
 }

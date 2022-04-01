@@ -79,30 +79,6 @@ macro_rules! impl_light_render_asset {
     };
 }
 
-// #[derive(Debug)]
-// pub struct RenderLights {
-//     buffer: wgpu::Buffer,
-//     bind_group: wgpu::BindGroup,
-// }
-//
-// impl renderer::RenderResource for RenderLights {
-//     fn bind_group(&self) -> &wgpu::BindGroup {
-//         &self.bind_group
-//     }
-// }
-
-// #[derive(Debug)]
-// pub struct RenderLight {
-//     buffer: wgpu::Buffer,
-//     bind_group: wgpu::BindGroup,
-// }
-//
-// impl renderer::RenderResource for RenderLight {
-//     fn bind_group(&self) -> &wgpu::BindGroup {
-//         &self.bind_group
-//     }
-// }
-
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DirectionalLightUniform {

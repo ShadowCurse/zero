@@ -1,10 +1,12 @@
+use crate::{
+    render_phase::{RenderResources, RenderStorage, ResourceId},
+    renderer,
+};
 use cgmath::{perspective, InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
 use winit::event::{ElementState, VirtualKeyCode};
-
-use crate::{render_phase::{RenderResources, ResourceId, RenderStorage}, renderer};
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -14,18 +16,6 @@ pub struct CameraUniform {
     view_projection: [[f32; 4]; 4],
     vp_without_translation: [[f32; 4]; 4],
 }
-//
-// #[derive(Debug)]
-// pub struct RenderCamera {
-//     buffer: wgpu::Buffer,
-//     bind_group: wgpu::BindGroup,
-// }
-//
-// impl renderer::RenderResource for RenderCamera {
-//     fn bind_group(&self) -> &wgpu::BindGroup {
-//         &self.bind_group
-//     }
-// }
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
