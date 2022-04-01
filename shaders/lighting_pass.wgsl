@@ -23,10 +23,10 @@ fn vs_main(
 // Fragment shader
 
 // not used now
-[[group(3), binding(0)]]
-var t_shadow: texture_2d<f32>;
-[[group(3), binding(1)]]
-var s_shadow: sampler;
+//[[group(3), binding(0)]]
+//var t_shadow: texture_2d<f32>;
+//[[group(3), binding(1)]]
+//var s_shadow: sampler;
 
 struct CameraUniform {
   position: vec3<f32>;

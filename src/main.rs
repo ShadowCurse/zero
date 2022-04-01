@@ -1,10 +1,17 @@
 use camera::{Camera, CameraController};
+use cgmath::Rotation3;
+use deffered_rendering::GBuffer;
+use light::{PointLights, PointLight};
+use material::ColorMaterial;
+use model::{Mesh, ModelVertex};
 use render_phase::{
-    ColorAttachment, RenderPhase, RenderStorage, RenderSystem, ResourceId, RenderCommand, BindGroupMeta,
+    ColorAttachment, RenderPhase, RenderStorage, RenderSystem, ResourceId, RenderCommand, BindGroupMeta, DepthStencil,
 };
 use renderer::{Renderer, PipelineBuilder, Vertex};
 use skybox::Skybox;
 use texture::DepthTexture;
+use transform::Transform;
+use wgpu::{TextureFormat, Color, LoadOp, Operations};
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -38,7 +45,40 @@ fn main() {
 
     let depth_texture_id = storage.build_texture(&renderer, &DepthTexture);
 
-    let phase = RenderPhase::new(
+    let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
+    let g_buffer_id = storage.build_asset(&renderer, &g_buffer);
+    let geometry_phase = RenderPhase::new(
+        vec![ColorAttachment {
+            view_id: g_buffer_id,
+            ops: Operations {
+                load: LoadOp::Clear(Color::TRANSPARENT),
+                store: true,
+            },
+        }],
+        Some(DepthStencil {
+            view_id: depth_texture_id,
+            depth_ops: Some(Operations {
+                load: LoadOp::Clear(1.0),
+                store: true,
+            }),
+            stencil_ops: None,
+        }),
+    );
+    render_system.add_phase("geometry", geometry_phase);
+
+    let lighting_phase = RenderPhase::new(
+        vec![ColorAttachment {
+            view_id: ResourceId::WINDOW_VIEW_ID,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(Color::BLACK),
+                store: true,
+            },
+        }],
+        None,
+    );
+    render_system.add_phase("lighting", lighting_phase);
+
+    let skybox_phase = RenderPhase::new(
         vec![ColorAttachment {
             view_id: ResourceId::WINDOW_VIEW_ID,
             ops: wgpu::Operations {
@@ -46,17 +86,17 @@ fn main() {
                 store: true,
             },
         }],
-        // Some(DepthStencil {
-        //     view_id: depth_texture_id,
-        //     depth_ops: Some(wgpu::Operations {
-        //         load: wgpu::LoadOp::Load,
-        //         store: true,
-        //     }),
-        //     stencil_ops: None,
-        // }),
-        None,
+        Some(DepthStencil {
+            view_id: depth_texture_id,
+            depth_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Load,
+                store: true,
+            }),
+            stencil_ops: None,
+        }),
     );
-    render_system.add_phase("skybox", phase);
+
+    render_system.add_phase("skybox", skybox_phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -72,6 +112,59 @@ fn main() {
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
+    let light = PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
+    let light_2 = PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
+    let light_3 = PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
+    let lights = PointLights {
+        lights: vec![light, light_2, light_3],
+    };
+    let lights_id = storage.build_asset(&renderer, &lights);
+
+    let box_mesh: Mesh = shapes::Box::new(9.0, 1.0, 5.0).into();
+    let box_id = storage.build_mesh(&renderer, &box_mesh);
+
+    let box_transform = Transform {
+        translation: (0.0, 0.0, 0.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let box_transform_id = storage.build_asset(&renderer, &box_transform);
+
+    let color_material = ColorMaterial {
+        ambient: [0.4, 0.4, 0.4],
+        diffuse: [0.6, 0.6, 0.6],
+        specular: [1.0, 1.0, 1.0],
+        shininess: 32.0,
+    };
+    let color_material_id = storage.build_asset(&renderer, &color_material);
+
+    let g_color_pipeline = PipelineBuilder::new(
+        vec![
+            storage.get_bind_group_layout::<ColorMaterial>(),
+            storage.get_bind_group_layout::<Transform>(),
+            storage.get_bind_group_layout::<Camera>(),
+        ],
+        vec![ModelVertex::desc()],
+        "./shaders/geometry_color_pass.wgsl",
+    )
+    .write_depth(true)
+    .color_targets(vec![TextureFormat::Rgba32Float; 3])
+    .build(&renderer);
+    let g_color_pipeline_id = storage.add_pipeline(g_color_pipeline);
+
+    let lighting_pipeline = PipelineBuilder::new(
+        vec![
+            storage.get_bind_group_layout::<GBuffer>(),
+            storage.get_bind_group_layout::<PointLights>(),
+            storage.get_bind_group_layout::<Camera>(),
+        ],
+        vec![texture::TextureVertex::desc()],
+        "./shaders/lighting_pass.wgsl",
+    )
+    .depth_enabled(false)
+    .build(&renderer);
+    let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
+
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
         "./res/skybox/left.jpg",
@@ -82,7 +175,7 @@ fn main() {
     ])
     .unwrap();
     let skybox_id = storage.build_asset(&renderer, &skybox);
-    
+
     let skybox_pipeline = PipelineBuilder::new(
         vec![
             storage.get_bind_group_layout::<Skybox>(),
@@ -91,10 +184,46 @@ fn main() {
         vec![SkyboxVertex::desc()],
         "./shaders/skybox.wgsl",
     )
-    .depth_enabled(false)
+    .write_depth(false)
     .build(&renderer);
     let skybox_pipeline_id = storage.add_pipeline(skybox_pipeline);
     
+    let command = RenderCommand {
+        pipeline_id: g_color_pipeline_id,
+        mesh_id: box_id,
+        bind_groups: vec![BindGroupMeta {
+            index: 0,
+            bind_group_id: color_material_id,
+        },
+        BindGroupMeta {
+            index: 1,
+            bind_group_id: box_transform_id,
+        },
+        BindGroupMeta {
+            index: 2,
+            bind_group_id: camera_id,
+        }]
+    };
+    render_system.add_phase_commands("geometry", vec![command]);
+
+    let command = RenderCommand {
+        pipeline_id: lighting_pipeline_id,
+        mesh_id: g_buffer_id,
+        bind_groups: vec![BindGroupMeta {
+            index: 0,
+            bind_group_id: g_buffer_id,
+        },
+        BindGroupMeta {
+            index: 1,
+            bind_group_id: lights_id,
+        },
+        BindGroupMeta {
+            index: 2,
+            bind_group_id: camera_id,
+        }]
+    };
+    render_system.add_phase_commands("lighting", vec![command]);
+
     let command = RenderCommand {
         pipeline_id: skybox_pipeline_id,
         mesh_id: skybox_id,
@@ -107,7 +236,6 @@ fn main() {
             bind_group_id: camera_id,
         }]
     };
-
     render_system.add_phase_commands("skybox", vec![command]);
 
     let mut last_render_time = std::time::Instant::now();
@@ -148,11 +276,13 @@ fn main() {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
                     storage.rebuild_texture(&renderer, &DepthTexture, depth_texture_id);
+                    storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
                     storage.rebuild_texture(&renderer, &DepthTexture, depth_texture_id);
+                    storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
                 }
                 _ => {}
             },

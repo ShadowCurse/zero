@@ -4,7 +4,6 @@ use wgpu::{CommandEncoder, SurfaceTexture, TextureView};
 use winit::window::Window;
 
 use crate::{
-    deffered_rendering,
     render_phase::{RenderResources, RenderStorage, ResourceId},
     texture,
 };
@@ -12,13 +11,6 @@ use crate::{
 /// Trait for render vertices
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
-}
-
-/// Commands that are responsible for rendering objects
-pub trait RenderCommand<'a> {
-    fn execute<'b>(&self, render_pass: &mut wgpu::RenderPass<'b>)
-    where
-        'a: 'b;
 }
 
 /// Trait for resources located on the GPU
@@ -31,11 +23,6 @@ pub trait GpuAsset {
     fn build(&self, renderer: &Renderer) -> Self::GpuType;
 }
 
-/// Trait for types that compose Gpu resources into bind group
-// pub trait RenderResource {
-//     fn bind_group(&self) -> &wgpu::BindGroup;
-// }
-
 /// Trait for the types that can be converted to the RenderResource
 pub trait RenderAsset {
     const ASSET_NAME: &'static str;
@@ -43,26 +30,6 @@ pub trait RenderAsset {
     fn build(&self, renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> RenderResources;
     fn update(&self, _renderer: &Renderer, id: ResourceId, _storage: &RenderStorage) {}
 }
-
-/// Builder for objects with the same bind_group_layout
-// #[derive(Debug)]
-// pub struct RenderAssetBuilder<T: RenderAsset> {
-//     pub bind_group_layout: wgpu::BindGroupLayout,
-//     _phantom: std::marker::PhantomData<fn() -> T>,
-// }
-//
-// impl<T: RenderAsset> RenderAssetBuilder<T> {
-//     pub fn new(renderer: &Renderer) -> Self {
-//         Self {
-//             bind_group_layout: T::bind_group_layout(renderer),
-//             _phantom: std::marker::PhantomData::default(),
-//         }
-//     }
-//
-//     pub fn build(&self, renderer: &Renderer, resource: &T) -> T::RenderType {
-//         resource.build(renderer, &self.bind_group_layout)
-//     }
-// }
 
 #[derive(Debug)]
 pub struct CurrentFrameContext {
@@ -153,70 +120,70 @@ impl Renderer {
         self.queue.submit(command_buffers);
     }
 
-    pub fn forward_render(
-        &mut self,
-        commands: &[&dyn RenderCommand],
-        post_commands: Option<&[&dyn RenderCommand]>,
-        depth_texture: &texture::GpuTexture,
-    ) -> Result<(), wgpu::SurfaceError> {
-        let current_frame = self.current_frame()?;
-        let mut encoder = self.create_encoder();
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("render_pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
-                    view: &current_frame.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: true,
-                    },
-                }],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
-                    }),
-                    stencil_ops: None,
-                }),
-            });
-
-            for command in commands {
-                command.execute(&mut render_pass);
-            }
-        }
-
-        if let Some(commands) = post_commands {
-            {
-                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("render_pass"),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &current_frame.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.3,
-                                g: 0.3,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    }],
-                    depth_stencil_attachment: None,
-                });
-
-                for command in commands {
-                    command.execute(&mut render_pass);
-                }
-            }
-        }
-        self.submit(std::iter::once(encoder.finish()));
-        current_frame.output.present();
-        Ok(())
-    }
+    // pub fn forward_render(
+    //     &mut self,
+    //     commands: &[&dyn RenderCommand],
+    //     post_commands: Option<&[&dyn RenderCommand]>,
+    //     depth_texture: &texture::GpuTexture,
+    // ) -> Result<(), wgpu::SurfaceError> {
+    //     let current_frame = self.current_frame()?;
+    //     let mut encoder = self.create_encoder();
+    //
+    //     {
+    //         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+    //             label: Some("render_pass"),
+    //             color_attachments: &[wgpu::RenderPassColorAttachment {
+    //                 view: &current_frame.view,
+    //                 resolve_target: None,
+    //                 ops: wgpu::Operations {
+    //                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+    //                     store: true,
+    //                 },
+    //             }],
+    //             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+    //                 view: &depth_texture.view,
+    //                 depth_ops: Some(wgpu::Operations {
+    //                     load: wgpu::LoadOp::Clear(1.0),
+    //                     store: true,
+    //                 }),
+    //                 stencil_ops: None,
+    //             }),
+    //         });
+    //
+    //         for command in commands {
+    //             command.execute(&mut render_pass);
+    //         }
+    //     }
+    //
+    //     if let Some(commands) = post_commands {
+    //         {
+    //             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+    //                 label: Some("render_pass"),
+    //                 color_attachments: &[wgpu::RenderPassColorAttachment {
+    //                     view: &current_frame.view,
+    //                     resolve_target: None,
+    //                     ops: wgpu::Operations {
+    //                         load: wgpu::LoadOp::Clear(wgpu::Color {
+    //                             r: 0.3,
+    //                             g: 0.3,
+    //                             b: 0.3,
+    //                             a: 1.0,
+    //                         }),
+    //                         store: true,
+    //                     },
+    //                 }],
+    //                 depth_stencil_attachment: None,
+    //             });
+    //
+    //             for command in commands {
+    //                 command.execute(&mut render_pass);
+    //             }
+    //         }
+    //     }
+    //     self.submit(std::iter::once(encoder.finish()));
+    //     current_frame.output.present();
+    //     Ok(())
+    // }
 
     // pub fn deferred_render(
     //     &mut self,
