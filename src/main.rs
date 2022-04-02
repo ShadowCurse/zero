@@ -5,7 +5,7 @@ use light::{PointLight, PointLights};
 use material::ColorMaterial;
 use model::{Mesh, ModelVertex};
 use renderer::{
-    BindGroupMeta, ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage,
+    ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage,
     RenderSystem, ResourceId,
 };
 use renderer::{PipelineBuilder, Renderer, Vertex};
@@ -244,60 +244,25 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 storage.rebuild_asset(&renderer, &camera, camera_id);
 
-                let command = RenderCommand {
-                    pipeline_id: g_color_pipeline_id,
-                    mesh_id: box_id,
-                    bind_groups: vec![
-                        BindGroupMeta {
-                            index: 0,
-                            bind_group_id: color_material_id,
-                        },
-                        BindGroupMeta {
-                            index: 1,
-                            bind_group_id: box_transform_id,
-                        },
-                        BindGroupMeta {
-                            index: 2,
-                            bind_group_id: camera_id,
-                        },
-                    ],
-                };
+                let command = RenderCommand::new(
+                    g_color_pipeline_id,
+                    box_id,
+                    vec![color_material_id, box_transform_id, camera_id],
+                );
                 render_system.add_phase_commands("geometry", vec![command]);
 
-                let command = RenderCommand {
-                    pipeline_id: lighting_pipeline_id,
-                    mesh_id: g_buffer_id,
-                    bind_groups: vec![
-                        BindGroupMeta {
-                            index: 0,
-                            bind_group_id: g_buffer_id,
-                        },
-                        BindGroupMeta {
-                            index: 1,
-                            bind_group_id: lights_id,
-                        },
-                        BindGroupMeta {
-                            index: 2,
-                            bind_group_id: camera_id,
-                        },
-                    ],
-                };
+                let command = RenderCommand::new(
+                    lighting_pipeline_id,
+                    g_buffer_id,
+                    vec![g_buffer_id, lights_id, camera_id],
+                );
                 render_system.add_phase_commands("lighting", vec![command]);
 
-                let command = RenderCommand {
-                    pipeline_id: skybox_pipeline_id,
-                    mesh_id: skybox_id,
-                    bind_groups: vec![
-                        BindGroupMeta {
-                            index: 0,
-                            bind_group_id: skybox_id,
-                        },
-                        BindGroupMeta {
-                            index: 1,
-                            bind_group_id: camera_id,
-                        },
-                    ],
-                };
+                let command = RenderCommand::new(
+                    skybox_pipeline_id,
+                    skybox_id,
+                    vec![skybox_id, camera_id],
+                );
                 render_system.add_phase_commands("skybox", vec![command]);
 
                 match render_system.run(&renderer, &storage) {

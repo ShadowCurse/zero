@@ -17,6 +17,21 @@ pub struct RenderCommand {
 }
 
 impl RenderCommand {
+    pub fn new(pipeline_id: ResourceId, mesh_id: ResourceId, bind_groups: Vec<ResourceId>) -> Self {
+        let bind_groups = bind_groups
+            .into_iter()
+            .enumerate()
+            .map(|(i, bind_group_id)| BindGroupMeta {
+                index: i as u32,
+                bind_group_id,
+            })
+            .collect();
+        Self {
+            pipeline_id,
+            mesh_id,
+            bind_groups,
+        }
+    }
     fn execute<'a>(&self, render_pass: &mut RenderPass<'a>, storage: &'a CurrentFrameStorage) {
         let meshes = storage.get_meshes(self.mesh_id);
         let bind_groups: Vec<_> = self
