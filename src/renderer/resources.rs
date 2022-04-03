@@ -29,7 +29,7 @@ pub trait RenderAsset {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ResourceId(pub usize);
+pub struct ResourceId(usize);
 
 impl ResourceId {
     pub const WINDOW_VIEW_ID: ResourceId = ResourceId(usize::MAX);

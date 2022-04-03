@@ -1,60 +1,62 @@
 use crate::camera;
 use crate::renderer::*;
-use crate::texture::GpuTexture;
+use crate::texture::DepthTexture;
 use cgmath::{ortho, EuclideanSpace, InnerSpace, Matrix4, Point3, Vector3};
 
-#[derive(Debug, Default)]
-pub struct ShadowMapTexture;
-
-impl ShadowMapTexture {
-    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
-}
-
-impl GpuAsset for ShadowMapTexture {
-    type GpuType = GpuTexture;
-
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let size = Extent3d {
-            width: renderer.config.width,
-            height: renderer.config.height,
-            depth_or_array_layers: 1,
-        };
-        let desc = TextureDescriptor {
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: Self::DEPTH_FORMAT,
-            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            label: Some("depth_map_texture"),
-        };
-        let texture = renderer.device.create_texture(&desc);
-
-        let view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
-            compare: None, //Some(CompareFunction::LessEqual),
-            lod_min_clamp: -100.0,
-            lod_max_clamp: 100.0,
-            ..Default::default()
-        });
-
-        Self::GpuType {
-            texture,
-            view,
-            sampler,
-        }
-    }
-}
+//TODO this is a copy of depth texture 
+//do i even need this?
+// #[derive(Debug, Default)]
+// pub struct ShadowMapTexture;
+//
+// impl ShadowMapTexture {
+//     pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+// }
+//
+// impl GpuAsset for ShadowMapTexture {
+//     type GpuType = GpuTexture;
+//
+//     fn build(&self, renderer: &Renderer) -> Self::GpuType {
+//         let size = Extent3d {
+//             width: renderer.config.width,
+//             height: renderer.config.height,
+//             depth_or_array_layers: 1,
+//         };
+//         let desc = TextureDescriptor {
+//             size,
+//             mip_level_count: 1,
+//             sample_count: 1,
+//             dimension: TextureDimension::D2,
+//             format: Self::DEPTH_FORMAT,
+//             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+//             label: Some("depth_map_texture"),
+//         };
+//         let texture = renderer.device.create_texture(&desc);
+//
+//         let view = texture.create_view(&TextureViewDescriptor::default());
+//         let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+//             address_mode_u: AddressMode::ClampToEdge,
+//             address_mode_v: AddressMode::ClampToEdge,
+//             address_mode_w: AddressMode::ClampToEdge,
+//             mag_filter: FilterMode::Linear,
+//             min_filter: FilterMode::Linear,
+//             mipmap_filter: FilterMode::Nearest,
+//             compare: None, //Some(CompareFunction::LessEqual),
+//             lod_min_clamp: -100.0,
+//             lod_max_clamp: 100.0,
+//             ..Default::default()
+//         });
+//
+//         Self::GpuType {
+//             texture,
+//             view,
+//             sampler,
+//         }
+//     }
+// }
 
 #[derive(Debug, Default)]
 pub struct ShadowMap {
-    pub shadow_map: ShadowMapTexture,
+    pub shadow_map: DepthTexture,
 }
 
 impl RenderAsset for ShadowMap {

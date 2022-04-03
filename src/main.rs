@@ -5,12 +5,13 @@ use light::{PointLight, PointLights};
 use material::ColorMaterial;
 use model::{Mesh, ModelVertex};
 use renderer::{
-    ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage,
-    RenderSystem, ResourceId,
+    ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage, RenderSystem,
+    ResourceId,
 };
 use renderer::{PipelineBuilder, Renderer, Vertex};
+use shadow_map::{ShadowMap, ShadowMapDLight};
 use skybox::Skybox;
-use texture::DepthTexture;
+use texture::{DepthTexture, TextureVertex};
 use transform::Transform;
 use wgpu::{Color, LoadOp, Operations, TextureFormat};
 use winit::{
@@ -44,6 +45,7 @@ fn main() {
     let mut storage = RenderStorage::default();
 
     let depth_texture_id = storage.build_texture(&renderer, &DepthTexture);
+    let shadow_map_id = storage.build_asset(&renderer, &ShadowMap::default());
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
     let g_buffer_id = storage.build_asset(&renderer, &g_buffer);
@@ -65,6 +67,19 @@ fn main() {
         }),
     );
     render_system.add_phase("geometry", geometry_phase);
+
+    let shadow_phase = RenderPhase::new(
+        vec![],
+        Some(DepthStencil {
+            view_id: shadow_map_id,
+            depth_ops: Some(Operations {
+                load: LoadOp::Clear(1.0),
+                store: true,
+            }),
+            stencil_ops: None,
+        }),
+    );
+    render_system.add_phase("shadow", shadow_phase);
 
     let lighting_phase = RenderPhase::new(
         vec![ColorAttachment {
@@ -112,13 +127,25 @@ fn main() {
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
-    let light = PointLight::new((2.0, 1.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
-    let light_2 = PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
-    let light_3 = PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
+    let light = PointLight::new((2.0, 5.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
+    // let light_2 = PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
+    // let light_3 = PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
     let lights = PointLights {
-        lights: vec![light, light_2, light_3],
+        lights: vec![light],
     };
     let lights_id = storage.build_asset(&renderer, &lights);
+
+    let shadow_d_light = ShadowMapDLight::new(
+        (0.0, 9.0, 0.0),
+        (0.0, 0.0, 0.0),
+        -50.0,
+        50.0,
+        -50.0,
+        50.0,
+        0.1,
+        1000.0,
+    );
+    let shadow_d_light_id = storage.build_asset(&renderer, &shadow_d_light);
 
     let box_mesh: Mesh = shapes::Box::new(9.0, 1.0, 5.0).into();
     let box_id = storage.build_mesh(&renderer, &box_mesh);
@@ -129,6 +156,16 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let box_transform_id = storage.build_asset(&renderer, &box_transform);
+
+    let box2_mesh: Mesh = shapes::Box::new(1.0, 1.0, 1.0).into();
+    let box2_id = storage.build_mesh(&renderer, &box2_mesh);
+
+    let box2_transform = Transform {
+        translation: (0.0, 1.0, 1.0).into(),
+        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let box2_transform_id = storage.build_asset(&renderer, &box2_transform);
 
     let color_material = ColorMaterial {
         ambient: [0.4, 0.4, 0.4],
@@ -152,13 +189,26 @@ fn main() {
     .build(&renderer);
     let g_color_pipeline_id = storage.add_pipeline(g_color_pipeline);
 
+    let shadow_map_pipeline = PipelineBuilder::new(
+        vec![
+            storage.get_bind_group_layout::<Transform>(),
+            storage.get_bind_group_layout::<ShadowMapDLight>(),
+        ],
+        vec![ModelVertex::desc()],
+        "./shaders/shadow_map.wgsl",
+    )
+    .write_depth(true)
+    .color_targets(vec![])
+    .build(&renderer);
+    let shadow_map_pipeline_id = storage.add_pipeline(shadow_map_pipeline);
+
     let lighting_pipeline = PipelineBuilder::new(
         vec![
             storage.get_bind_group_layout::<GBuffer>(),
             storage.get_bind_group_layout::<PointLights>(),
             storage.get_bind_group_layout::<Camera>(),
         ],
-        vec![texture::TextureVertex::desc()],
+        vec![TextureVertex::desc()],
         "./shaders/lighting_pass.wgsl",
     )
     .depth_enabled(false)
@@ -244,12 +294,29 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 storage.rebuild_asset(&renderer, &camera, camera_id);
 
-                let command = RenderCommand::new(
+                let box1 = RenderCommand::new(
                     g_color_pipeline_id,
                     box_id,
                     vec![color_material_id, box_transform_id, camera_id],
                 );
-                render_system.add_phase_commands("geometry", vec![command]);
+                let box2 = RenderCommand::new(
+                    g_color_pipeline_id,
+                    box2_id,
+                    vec![color_material_id, box2_transform_id, camera_id],
+                );
+                render_system.add_phase_commands("geometry", vec![box1, box2]);
+
+                let box1 = RenderCommand::new(
+                    shadow_map_pipeline_id,
+                    box_id,
+                    vec![box_transform_id, shadow_d_light_id],
+                );
+                let box2 = RenderCommand::new(
+                    shadow_map_pipeline_id,
+                    box2_id,
+                    vec![box2_transform_id, shadow_d_light_id],
+                );
+                render_system.add_phase_commands("shadow", vec![box1, box2]);
 
                 let command = RenderCommand::new(
                     lighting_pipeline_id,
@@ -258,11 +325,8 @@ fn main() {
                 );
                 render_system.add_phase_commands("lighting", vec![command]);
 
-                let command = RenderCommand::new(
-                    skybox_pipeline_id,
-                    skybox_id,
-                    vec![skybox_id, camera_id],
-                );
+                let command =
+                    RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
                 render_system.add_phase_commands("skybox", vec![command]);
 
                 match render_system.run(&renderer, &storage) {

@@ -148,7 +148,7 @@ impl GpuAsset for ImageTexture {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DepthTexture;
 
 impl DepthTexture {
