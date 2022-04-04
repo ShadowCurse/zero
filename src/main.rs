@@ -127,7 +127,7 @@ fn main() {
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
-    let light = PointLight::new((2.0, 5.0, 0.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
+    let light = PointLight::new((-1.0, 9.0, 5.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
     // let light_2 = PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
     // let light_3 = PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
     let lights = PointLights {
@@ -136,14 +136,14 @@ fn main() {
     let lights_id = storage.build_asset(&renderer, &lights);
 
     let shadow_d_light = ShadowMapDLight::new(
-        (0.0, 9.0, 0.0),
-        (0.0, 0.0, 0.0),
-        -50.0,
-        50.0,
-        -50.0,
-        50.0,
+        (-2.0, 9.0, 8.0),
+        (1.0, -3.0, -3.0),
+        -10.0,
+        10.0,
+        -10.0,
+        10.0,
         0.1,
-        1000.0,
+        8.0,
     );
     let shadow_d_light_id = storage.build_asset(&renderer, &shadow_d_light);
 
@@ -207,6 +207,8 @@ fn main() {
             storage.get_bind_group_layout::<GBuffer>(),
             storage.get_bind_group_layout::<PointLights>(),
             storage.get_bind_group_layout::<Camera>(),
+            storage.get_bind_group_layout::<ShadowMap>(),
+            storage.get_bind_group_layout::<ShadowMapDLight>(),
         ],
         vec![TextureVertex::desc()],
         "./shaders/lighting_pass.wgsl",
@@ -214,6 +216,15 @@ fn main() {
     .depth_enabled(false)
     .build(&renderer);
     let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
+
+    let present_pipeline = PipelineBuilder::new(
+        vec![storage.get_bind_group_layout::<ShadowMap>()],
+        vec![TextureVertex::desc()],
+        "./shaders/present.wgsl",
+    )
+    .depth_enabled(false)
+    .build(&renderer);
+    let present_pipeline_id = storage.add_pipeline(present_pipeline);
 
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
@@ -321,13 +332,21 @@ fn main() {
                 let command = RenderCommand::new(
                     lighting_pipeline_id,
                     g_buffer_id,
-                    vec![g_buffer_id, lights_id, camera_id],
+                    vec![
+                        g_buffer_id,
+                        lights_id,
+                        camera_id,
+                        shadow_map_id,
+                        shadow_d_light_id,
+                    ],
                 );
+                // let command =
+                // RenderCommand::new(present_pipeline_id, g_buffer_id, vec![shadow_map_id]);
                 render_system.add_phase_commands("lighting", vec![command]);
 
-                let command =
-                    RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
-                render_system.add_phase_commands("skybox", vec![command]);
+                // let command =
+                //     RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
+                // render_system.add_phase_commands("skybox", vec![command]);
 
                 match render_system.run(&renderer, &storage) {
                     Ok(_) => {}

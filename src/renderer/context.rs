@@ -35,7 +35,10 @@ impl Renderer {
             .request_device(
                 &DeviceDescriptor {
                     features: Features::empty(),
-                    limits: Limits::default(),
+                    limits: Limits {
+                        max_bind_groups: 8,
+                        ..Default::default()
+                    },
                     label: None,
                 },
                 None,

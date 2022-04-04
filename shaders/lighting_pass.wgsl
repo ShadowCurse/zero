@@ -23,10 +23,16 @@ fn vs_main(
 // Fragment shader
 
 // not used now
-//[[group(3), binding(0)]]
-//var t_shadow: texture_2d<f32>;
-//[[group(3), binding(1)]]
-//var s_shadow: sampler;
+[[group(3), binding(0)]]
+var t_shadow: texture_2d<f32>;
+[[group(3), binding(1)]]
+var s_shadow: sampler;
+
+struct ShadowDLightUniform {
+  view_projection: mat4x4<f32>;
+};
+[[group(4), binding(0)]]
+var<uniform> d_light: ShadowDLightUniform;
 
 struct CameraUniform {
   position: vec3<f32>;
@@ -65,6 +71,18 @@ var t_albedo: texture_2d<f32>;
 [[group(0), binding(5)]]
 var s_albedo: sampler;
 
+fn shadow_calculations(frag_pos_light_space: vec4<f32>) -> f32 {
+  let proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
+  let coords = proj_coords * 0.5 + 0.5;
+  let depth: f32 = textureSample(t_shadow, s_shadow, coords.xy).r;
+  let curr_depth = coords.z;
+  if (curr_depth > depth) {
+    return 1.0;
+  } else {
+    return 0.0;
+  }
+}
+
 [[stage(fragment)]]
 fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   let vertex_position: vec4<f32> = textureSample(t_position, s_position, vertex.tex_coords);
@@ -73,6 +91,9 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
 
   let albedo_color = vertex_albedo.rgb;
   let shininess = vertex_albedo.a;
+
+  let pos_in_light = d_light.view_projection * vertex_position;
+  let shadow = shadow_calculations(pos_in_light);
 
   var result: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0); 
   for(var i: i32 = 0; i < lights.lights_num; i = i + 1) {
@@ -93,6 +114,7 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
 
     result = result + (diffuse_color + specular_color) * attenuation;
   }
+  result = (1.0 - shadow) * result;
 
   return vec4<f32>(result, 1.0); 
 }

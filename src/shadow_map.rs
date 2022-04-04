@@ -3,7 +3,7 @@ use crate::renderer::*;
 use crate::texture::DepthTexture;
 use cgmath::{ortho, EuclideanSpace, InnerSpace, Matrix4, Point3, Vector3};
 
-//TODO this is a copy of depth texture 
+//TODO this is a copy of depth texture
 //do i even need this?
 // #[derive(Debug, Default)]
 // pub struct ShadowMapTexture;
@@ -157,11 +157,7 @@ impl ShadowMapDLight {
 
     fn view(&self) -> Matrix4<f32> {
         camera::OPENGL_TO_WGPU_MATRIX
-            * Matrix4::look_to_rh(
-                self.position,
-                (self.position.to_vec() + self.direction).normalize(),
-                Vector3::unit_y(),
-            )
+            * Matrix4::look_to_rh(self.position, self.direction, Vector3::unit_y())
     }
 
     fn projection(&self) -> Matrix4<f32> {
@@ -192,7 +188,7 @@ impl RenderAsset for ShadowMapDLight {
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -219,7 +215,7 @@ impl RenderAsset for ShadowMapDLight {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
             }],
-            label: Some("comera_bind_group"),
+            label: Some("shdow_map_bind_group"),
         });
 
         RenderResources {
