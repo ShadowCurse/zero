@@ -217,14 +217,14 @@ fn main() {
     .build(&renderer);
     let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
 
-    let present_pipeline = PipelineBuilder::new(
-        vec![storage.get_bind_group_layout::<ShadowMap>()],
-        vec![TextureVertex::desc()],
-        "./shaders/present.wgsl",
-    )
-    .depth_enabled(false)
-    .build(&renderer);
-    let present_pipeline_id = storage.add_pipeline(present_pipeline);
+    // let present_pipeline = PipelineBuilder::new(
+    //     vec![storage.get_bind_group_layout::<ShadowMap>()],
+    //     vec![TextureVertex::desc()],
+    //     "./shaders/present.wgsl",
+    // )
+    // .depth_enabled(false)
+    // .build(&renderer);
+    // let present_pipeline_id = storage.add_pipeline(present_pipeline);
 
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
@@ -344,9 +344,9 @@ fn main() {
                 // RenderCommand::new(present_pipeline_id, g_buffer_id, vec![shadow_map_id]);
                 render_system.add_phase_commands("lighting", vec![command]);
 
-                // let command =
-                //     RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
-                // render_system.add_phase_commands("skybox", vec![command]);
+                let command =
+                    RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
+                render_system.add_phase_commands("skybox", vec![command]);
 
                 match render_system.run(&renderer, &storage) {
                     Ok(_) => {}

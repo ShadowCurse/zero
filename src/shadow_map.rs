@@ -73,7 +73,7 @@ impl RenderAsset for ShadowMap {
                         ty: BindingType::Texture {
                             multisampled: false,
                             view_dimension: TextureViewDimension::D2,
-                            sample_type: TextureSampleType::Float { filterable: true },
+                            sample_type: TextureSampleType::Depth,
                         },
                         count: None,
                     },

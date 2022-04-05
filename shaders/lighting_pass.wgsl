@@ -22,9 +22,8 @@ fn vs_main(
 
 // Fragment shader
 
-// not used now
 [[group(3), binding(0)]]
-var t_shadow: texture_2d<f32>;
+var t_shadow: texture_depth_2d;
 [[group(3), binding(1)]]
 var s_shadow: sampler;
 
@@ -72,11 +71,10 @@ var t_albedo: texture_2d<f32>;
 var s_albedo: sampler;
 
 fn shadow_calculations(frag_pos_light_space: vec4<f32>) -> f32 {
-  let proj_coords = frag_pos_light_space.xyz / frag_pos_light_space.w;
-  let coords = proj_coords * 0.5 + 0.5;
-  let depth: f32 = textureSample(t_shadow, s_shadow, coords.xy).r;
-  let curr_depth = coords.z;
-  if (curr_depth > depth) {
+  let proj_coords = (frag_pos_light_space.xyz / frag_pos_light_space.w).xyz;
+  let coords = proj_coords * vec3<f32>(0.5, -0.5, 1.0) + vec3<f32>(0.5, 0.5, 0.0);
+  let depth: f32 = textureSample(t_shadow, s_shadow, coords.xy);
+  if (coords.z > depth) {
     return 1.0;
   } else {
     return 0.0;
