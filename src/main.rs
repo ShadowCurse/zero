@@ -4,16 +4,12 @@ use deffered_rendering::GBuffer;
 use light::{PointLight, PointLights};
 use material::ColorMaterial;
 use model::{Mesh, ModelVertex};
-use renderer::{
-    ColorAttachment, DepthStencil, RenderCommand, RenderPhase, RenderStorage, RenderSystem,
-    ResourceId,
-};
-use renderer::{PipelineBuilder, Renderer, Vertex};
+use renderer::*;
 use shadow_map::{ShadowMap, ShadowMapDLight};
 use skybox::Skybox;
 use texture::{DepthTexture, TextureVertex};
 use transform::Transform;
-use wgpu::{Color, LoadOp, Operations, TextureFormat};
+use wgpu::{Color, Face, LoadOp, Operations, TextureFormat};
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -153,7 +149,7 @@ fn main() {
     let box_transform = Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-        scale: (1.0, 1.0, 1.0).into(),
+        scale: (10.0, 1.0, 10.0).into(),
     };
     let box_transform_id = storage.build_asset(&renderer, &box_transform);
 
@@ -199,6 +195,7 @@ fn main() {
     )
     .write_depth(true)
     .color_targets(vec![])
+    .cull_mode(Face::Front)
     .build(&renderer);
     let shadow_map_pipeline_id = storage.add_pipeline(shadow_map_pipeline);
 

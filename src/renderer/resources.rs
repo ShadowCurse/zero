@@ -201,6 +201,7 @@ pub struct PipelineBuilder<'a> {
     stencil_write_mask: u32,
     write_depth: bool,
     color_targets: Option<Vec<TextureFormat>>,
+    cull_mode: Face,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {
@@ -217,6 +218,7 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
             stencil_write_mask: 0x00,
             write_depth: true,
             color_targets: None,
+            cull_mode: Face::Back,
         }
     }
 }
@@ -273,6 +275,11 @@ impl<'a> PipelineBuilder<'a> {
 
     pub fn color_targets(mut self, color_targets: Vec<TextureFormat>) -> Self {
         self.color_targets = Some(color_targets);
+        self
+    }
+
+    pub fn cull_mode(mut self, cull_mode: Face) -> Self {
+        self.cull_mode = cull_mode;
         self
     }
 
@@ -340,7 +347,7 @@ impl<'a> PipelineBuilder<'a> {
                         _ => unimplemented!(),
                     },
                     front_face: FrontFace::Ccw,
-                    cull_mode: Some(Face::Back),
+                    cull_mode: Some(self.cull_mode),
                     polygon_mode: PolygonMode::Fill,
                     unclipped_depth: false,
                     conservative: false,
