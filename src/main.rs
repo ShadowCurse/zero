@@ -7,6 +7,7 @@ use model::{Mesh, ModelVertex};
 use renderer::*;
 use shadow_map::{ShadowMap, ShadowMapDLight};
 use skybox::Skybox;
+use skybox::SkyboxVertex;
 use texture::{DepthTexture, TextureVertex};
 use transform::Transform;
 use wgpu::{Color, Face, LoadOp, Operations, TextureFormat};
@@ -15,8 +16,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-use crate::skybox::SkyboxVertex;
 
 mod camera;
 mod deffered_rendering;
@@ -214,15 +213,6 @@ fn main() {
     .build(&renderer);
     let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
 
-    // let present_pipeline = PipelineBuilder::new(
-    //     vec![storage.get_bind_group_layout::<ShadowMap>()],
-    //     vec![TextureVertex::desc()],
-    //     "./shaders/present.wgsl",
-    // )
-    // .depth_enabled(false)
-    // .build(&renderer);
-    // let present_pipeline_id = storage.add_pipeline(present_pipeline);
-
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
         "./res/skybox/left.jpg",
@@ -337,8 +327,6 @@ fn main() {
                         shadow_d_light_id,
                     ],
                 );
-                // let command =
-                // RenderCommand::new(present_pipeline_id, g_buffer_id, vec![shadow_map_id]);
                 render_system.add_phase_commands("lighting", vec![command]);
 
                 let command =
