@@ -71,8 +71,8 @@ pub enum TextureType {
 #[derive(Debug)]
 pub struct ImageTexture {
     texture_type: TextureType,
-    texture: image::RgbaImage,
-    dimensions: (u32, u32),
+    texture: Option<image::RgbaImage>,
+    dimensions: Option<(u32, u32)>,
 }
 
 impl ImageTexture {
@@ -84,8 +84,8 @@ impl ImageTexture {
 
         Ok(Self {
             texture_type,
-            texture: img.to_rgba8(),
-            dimensions: img.dimensions(),
+            texture: Some(img.to_rgba8()),
+            dimensions: Some(img.dimensions()),
         })
     }
 }
@@ -94,10 +94,18 @@ impl GpuAsset for ImageTexture {
     type GpuType = GpuTexture;
 
     fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let texture_size = Extent3d {
-            width: self.dimensions.0,
-            height: self.dimensions.1,
-            depth_or_array_layers: 1,
+        let texture_size = if let Some(dimensions) = self.dimensions {
+            Extent3d {
+                width: dimensions.0,
+                height: dimensions.1,
+                depth_or_array_layers: 1,
+            }
+        } else {
+            Extent3d {
+                width: renderer.config.width,
+                height: renderer.config.height,
+                depth_or_array_layers: 1,
+            }
         };
 
         let texture = renderer.device.create_texture(&TextureDescriptor {
@@ -124,21 +132,23 @@ impl GpuAsset for ImageTexture {
             ..Default::default()
         });
 
-        renderer.queue.write_texture(
-            ImageCopyTexture {
-                texture: &texture,
-                mip_level: 0,
-                origin: Origin3d::ZERO,
-                aspect: TextureAspect::All,
-            },
-            &self.texture,
-            ImageDataLayout {
-                offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * self.dimensions.0),
-                rows_per_image: std::num::NonZeroU32::new(self.dimensions.1),
-            },
-            texture_size,
-        );
+        if let Some(data) = &self.texture {
+            renderer.queue.write_texture(
+                ImageCopyTexture {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                    aspect: TextureAspect::All,
+                },
+                data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: std::num::NonZeroU32::new(4 * texture_size.width),
+                    rows_per_image: std::num::NonZeroU32::new(texture_size.height),
+                },
+                texture_size,
+            );
+        }
 
         Self::GpuType {
             texture,
@@ -149,7 +159,9 @@ impl GpuAsset for ImageTexture {
 }
 
 #[derive(Debug, Default)]
-pub struct DepthTexture;
+pub struct DepthTexture {
+    dimensions: Option<(u32, u32)>,
+}
 
 impl DepthTexture {
     pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
@@ -159,13 +171,21 @@ impl GpuAsset for DepthTexture {
     type GpuType = GpuTexture;
 
     fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let size = Extent3d {
-            width: renderer.config.width,
-            height: renderer.config.height,
-            depth_or_array_layers: 1,
+        let texture_size = if let Some(dimensions) = self.dimensions {
+            Extent3d {
+                width: dimensions.0,
+                height: dimensions.1,
+                depth_or_array_layers: 1,
+            }
+        } else {
+            Extent3d {
+                width: renderer.config.width,
+                height: renderer.config.height,
+                depth_or_array_layers: 1,
+            }
         };
         let desc = TextureDescriptor {
-            size,
+            size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
@@ -199,8 +219,9 @@ impl GpuAsset for DepthTexture {
 
 #[derive(Debug)]
 pub struct CubeMap {
-    texture: Vec<u8>,
-    dimensions: (u32, u32),
+    pub format: TextureFormat,
+    pub texture: Option<Vec<u8>>,
+    pub dimensions: Option<(u32, u32)>,
 }
 
 impl CubeMap {
@@ -216,8 +237,9 @@ impl CubeMap {
         }
 
         Ok(Self {
-            texture: texture_data,
-            dimensions,
+            format: TextureFormat::Rgba8UnormSrgb,
+            texture: Some(texture_data),
+            dimensions: Some(dimensions),
         })
     }
 }
@@ -226,10 +248,18 @@ impl GpuAsset for CubeMap {
     type GpuType = GpuTexture;
 
     fn build(&self, renderer: &Renderer) -> Self::GpuType {
-        let texture_size = Extent3d {
-            width: self.dimensions.0,
-            height: self.dimensions.1,
-            depth_or_array_layers: 6,
+        let texture_size = if let Some(dimensions) = self.dimensions {
+            Extent3d {
+                width: dimensions.0,
+                height: dimensions.1,
+                depth_or_array_layers: 6,
+            }
+        } else {
+            Extent3d {
+                width: renderer.config.width,
+                height: renderer.config.height,
+                depth_or_array_layers: 6,
+            }
         };
 
         let texture = renderer.device.create_texture(&TextureDescriptor {
@@ -237,7 +267,7 @@ impl GpuAsset for CubeMap {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
+            format: self.format,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             label: Some("cube_texture"),
         });
@@ -256,21 +286,23 @@ impl GpuAsset for CubeMap {
             ..Default::default()
         });
 
-        renderer.queue.write_texture(
-            ImageCopyTexture {
-                texture: &texture,
-                mip_level: 0,
-                origin: Origin3d::ZERO,
-                aspect: TextureAspect::All,
-            },
-            &self.texture,
-            ImageDataLayout {
-                offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * self.dimensions.0),
-                rows_per_image: std::num::NonZeroU32::new(self.dimensions.1),
-            },
-            texture_size,
-        );
+        if let Some(data) = &self.texture {
+            renderer.queue.write_texture(
+                ImageCopyTexture {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                    aspect: TextureAspect::All,
+                },
+                data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: std::num::NonZeroU32::new(4 * texture_size.width),
+                    rows_per_image: std::num::NonZeroU32::new(texture_size.height),
+                },
+                texture_size,
+            );
+        }
 
         Self::GpuType {
             texture,

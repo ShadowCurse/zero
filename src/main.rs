@@ -39,7 +39,7 @@ fn main() {
     let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
-    let depth_texture_id = storage.build_texture(&renderer, &DepthTexture);
+    let depth_texture_id = storage.build_texture(&renderer, &DepthTexture::default());
     let shadow_map_id = storage.build_asset(&renderer, &ShadowMap::default());
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
@@ -273,13 +273,13 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
-                    storage.rebuild_texture(&renderer, &DepthTexture, depth_texture_id);
+                    storage.rebuild_texture(&renderer, &DepthTexture::default(), depth_texture_id);
                     storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
-                    storage.rebuild_texture(&renderer, &DepthTexture, depth_texture_id);
+                    storage.rebuild_texture(&renderer, &DepthTexture::default(), depth_texture_id);
                     storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
                 }
                 _ => {}
