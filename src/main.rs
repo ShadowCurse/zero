@@ -170,46 +170,49 @@ fn main() {
     };
     let color_material_id = storage.build_asset(&renderer, &color_material);
 
-    let g_color_pipeline = PipelineBuilder::new(
-        vec![
+    let g_color_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
             storage.get_bind_group_layout::<ColorMaterial>(),
             storage.get_bind_group_layout::<Transform>(),
             storage.get_bind_group_layout::<Camera>(),
         ],
-        vec![ModelVertex::desc()],
-        "./shaders/geometry_color_pass.wgsl",
-    )
-    .write_depth(true)
-    .color_targets(vec![TextureFormat::Rgba32Float; 3])
+        vertex_layouts: vec![ModelVertex::desc()],
+        shader_path: "./shaders/geometry_color_pass.wgsl",
+        write_depth: true,
+        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        ..Default::default()
+    }
     .build(&renderer);
     let g_color_pipeline_id = storage.add_pipeline(g_color_pipeline);
 
-    let shadow_map_pipeline = PipelineBuilder::new(
-        vec![
+    let shadow_map_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
             storage.get_bind_group_layout::<Transform>(),
             storage.get_bind_group_layout::<ShadowMapDLight>(),
         ],
-        vec![ModelVertex::desc()],
-        "./shaders/shadow_map.wgsl",
-    )
-    .write_depth(true)
-    .color_targets(vec![])
-    .cull_mode(Face::Front)
+        vertex_layouts: vec![ModelVertex::desc()],
+        shader_path: "./shaders/shadow_map.wgsl",
+        write_depth: true,
+        color_targets: Some(vec![]),
+        cull_mode: Face::Front,
+        ..Default::default()
+    }
     .build(&renderer);
     let shadow_map_pipeline_id = storage.add_pipeline(shadow_map_pipeline);
 
-    let lighting_pipeline = PipelineBuilder::new(
-        vec![
+    let lighting_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
             storage.get_bind_group_layout::<GBuffer>(),
             storage.get_bind_group_layout::<PointLights>(),
             storage.get_bind_group_layout::<Camera>(),
             storage.get_bind_group_layout::<ShadowMap>(),
             storage.get_bind_group_layout::<ShadowMapDLight>(),
         ],
-        vec![TextureVertex::desc()],
-        "./shaders/lighting_pass.wgsl",
-    )
-    .depth_enabled(false)
+        vertex_layouts: vec![TextureVertex::desc()],
+        shader_path: "./shaders/lighting_pass.wgsl",
+        depth_enabled: false,
+        ..Default::default()
+    }
     .build(&renderer);
     let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
 
@@ -224,15 +227,16 @@ fn main() {
     .unwrap();
     let skybox_id = storage.build_asset(&renderer, &skybox);
 
-    let skybox_pipeline = PipelineBuilder::new(
-        vec![
+    let skybox_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
             storage.get_bind_group_layout::<Skybox>(),
             storage.get_bind_group_layout::<Camera>(),
         ],
-        vec![SkyboxVertex::desc()],
-        "./shaders/skybox.wgsl",
-    )
-    .write_depth(false)
+        vertex_layouts: vec![SkyboxVertex::desc()],
+        shader_path: "./shaders/skybox.wgsl",
+        write_depth: false,
+        ..Default::default()
+    }
     .build(&renderer);
     let skybox_pipeline_id = storage.add_pipeline(skybox_pipeline);
 

@@ -190,26 +190,26 @@ impl RenderStorage {
 
 #[derive(Debug)]
 pub struct PipelineBuilder<'a> {
-    bind_group_layouts: Vec<&'a BindGroupLayout>,
-    vertex_layouts: Vec<VertexBufferLayout<'a>>,
-    shader_path: String,
-    primitive_topology: PrimitiveTopology,
-    depth_enabled: bool,
-    stencil_enabled: bool,
-    stencil_compare: CompareFunction,
-    stencil_read_mask: u32,
-    stencil_write_mask: u32,
-    write_depth: bool,
-    color_targets: Option<Vec<TextureFormat>>,
-    cull_mode: Face,
+    pub bind_group_layouts: Vec<&'a BindGroupLayout>,
+    pub vertex_layouts: Vec<VertexBufferLayout<'a>>,
+    pub shader_path: &'a str,
+    pub primitive_topology: PrimitiveTopology,
+    pub depth_enabled: bool,
+    pub stencil_enabled: bool,
+    pub stencil_compare: CompareFunction,
+    pub stencil_read_mask: u32,
+    pub stencil_write_mask: u32,
+    pub write_depth: bool,
+    pub color_targets: Option<Vec<TextureFormat>>,
+    pub cull_mode: Face,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {
     fn default() -> Self {
         Self {
-            bind_group_layouts: Vec::new(),
-            vertex_layouts: Vec::new(),
-            shader_path: "".to_string(),
+            bind_group_layouts: vec![],
+            vertex_layouts: vec![],
+            shader_path: "",
             primitive_topology: PrimitiveTopology::TriangleList,
             depth_enabled: true,
             stencil_enabled: false,
@@ -224,65 +224,6 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
 }
 
 impl<'a> PipelineBuilder<'a> {
-    pub fn new<P: Into<String>>(
-        bind_group_layouts: Vec<&'a BindGroupLayout>,
-        vertex_layouts: Vec<VertexBufferLayout<'a>>,
-        shader_path: P,
-    ) -> Self {
-        Self {
-            bind_group_layouts,
-            vertex_layouts,
-            shader_path: shader_path.into(),
-            stencil_compare: CompareFunction::Always,
-            ..Default::default()
-        }
-    }
-
-    pub fn primitive_topology(mut self, topology: PrimitiveTopology) -> Self {
-        self.primitive_topology = topology;
-        self
-    }
-
-    pub fn depth_enabled(mut self, enabled: bool) -> Self {
-        self.depth_enabled = enabled;
-        self
-    }
-
-    pub fn stencil_enabled(mut self, enabled: bool) -> Self {
-        self.stencil_enabled = enabled;
-        self
-    }
-
-    pub fn stencil_compare(mut self, stencil_compare: CompareFunction) -> Self {
-        self.stencil_compare = stencil_compare;
-        self
-    }
-
-    pub fn stencil_read_mask(mut self, stencil_read_mask: u32) -> Self {
-        self.stencil_read_mask = stencil_read_mask;
-        self
-    }
-
-    pub fn stencil_write_mask(mut self, stencil_write_mask: u32) -> Self {
-        self.stencil_write_mask = stencil_write_mask;
-        self
-    }
-
-    pub fn write_depth(mut self, write_depth: bool) -> Self {
-        self.write_depth = write_depth;
-        self
-    }
-
-    pub fn color_targets(mut self, color_targets: Vec<TextureFormat>) -> Self {
-        self.color_targets = Some(color_targets);
-        self
-    }
-
-    pub fn cull_mode(mut self, cull_mode: Face) -> Self {
-        self.cull_mode = cull_mode;
-        self
-    }
-
     pub fn build(self, renderer: &Renderer) -> RenderPipeline {
         println!("building pipilene: {}", self.shader_path);
         let layout = renderer
@@ -294,40 +235,76 @@ impl<'a> PipelineBuilder<'a> {
             });
 
         let mut contents = String::new();
-        let mut file = File::open(self.shader_path).unwrap();
-        file.read_to_string(&mut contents).unwrap();
+        {
+            let mut file = File::open(self.shader_path).unwrap();
+            file.read_to_string(&mut contents).unwrap();
+        }
 
         let shader = ShaderModuleDescriptor {
             label: Some("shader"),
             source: ShaderSource::Wgsl(contents.into()),
         };
-
         let shader = renderer.device.create_shader_module(&shader);
 
-        let targets = if let Some(color_targets) = self.color_targets {
-            color_targets
+        let targets = match self.color_targets {
+            Some(ct) => ct
                 .into_iter()
                 .map(|ct| ColorTargetState {
                     format: ct,
                     blend: None,
                     write_mask: ColorWrites::ALL,
                 })
-                .collect()
-        } else {
-            vec![ColorTargetState {
+                .collect(),
+            None => vec![ColorTargetState {
                 format: renderer.config.format,
                 blend: Some(BlendState {
                     alpha: BlendComponent::REPLACE,
                     color: BlendComponent::REPLACE,
                 }),
                 write_mask: ColorWrites::ALL,
-            }]
+            }],
+        };
+
+        let strip_index_format = match self.primitive_topology {
+            PrimitiveTopology::TriangleList => None,
+            PrimitiveTopology::TriangleStrip => Some(IndexFormat::Uint32),
+            _ => unimplemented!(),
+        };
+
+        let depth_stencil = if self.depth_enabled {
+            let stencil = if self.stencil_enabled {
+                let stencil_state = StencilFaceState {
+                    compare: self.stencil_compare,
+                    fail_op: StencilOperation::Keep,
+                    depth_fail_op: StencilOperation::Keep,
+                    pass_op: StencilOperation::IncrementClamp,
+                };
+
+                StencilState {
+                    front: stencil_state,
+                    back: stencil_state,
+                    read_mask: self.stencil_read_mask,
+                    write_mask: self.stencil_write_mask,
+                }
+            } else {
+                StencilState::default()
+            };
+
+            Some(DepthStencilState {
+                format: DepthTexture::DEPTH_FORMAT,
+                depth_write_enabled: self.write_depth,
+                depth_compare: CompareFunction::LessEqual,
+                stencil,
+                bias: DepthBiasState::default(),
+            })
+        } else {
+            None
         };
 
         renderer
             .device
             .create_render_pipeline(&RenderPipelineDescriptor {
-                label: Some("render_pipeline"),
+                label: Some(self.shader_path),
                 layout: Some(&layout),
                 vertex: VertexState {
                     module: &shader,
@@ -341,44 +318,14 @@ impl<'a> PipelineBuilder<'a> {
                 }),
                 primitive: PrimitiveState {
                     topology: self.primitive_topology,
-                    strip_index_format: match self.primitive_topology {
-                        PrimitiveTopology::TriangleList => None,
-                        PrimitiveTopology::TriangleStrip => Some(IndexFormat::Uint32),
-                        _ => unimplemented!(),
-                    },
+                    strip_index_format,
                     front_face: FrontFace::Ccw,
                     cull_mode: Some(self.cull_mode),
                     polygon_mode: PolygonMode::Fill,
                     unclipped_depth: false,
                     conservative: false,
                 },
-                depth_stencil: if self.depth_enabled {
-                    Some(DepthStencilState {
-                        format: DepthTexture::DEPTH_FORMAT,
-                        depth_write_enabled: self.write_depth,
-                        depth_compare: CompareFunction::LessEqual,
-                        stencil: if self.stencil_enabled {
-                            let stencil_state = StencilFaceState {
-                                compare: self.stencil_compare,
-                                fail_op: StencilOperation::Keep,
-                                depth_fail_op: StencilOperation::Keep,
-                                pass_op: StencilOperation::IncrementClamp,
-                            };
-
-                            StencilState {
-                                front: stencil_state,
-                                back: stencil_state,
-                                read_mask: self.stencil_read_mask,
-                                write_mask: self.stencil_write_mask,
-                            }
-                        } else {
-                            StencilState::default()
-                        },
-                        bias: DepthBiasState::default(),
-                    })
-                } else {
-                    None
-                },
+                depth_stencil,
                 multisample: MultisampleState {
                     count: 1,
                     mask: !0,
