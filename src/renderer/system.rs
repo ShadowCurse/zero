@@ -1,7 +1,5 @@
 use super::*;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::ops::Deref;
+use std::{borrow::Cow, collections::HashMap, ops::Deref};
 
 #[derive(Debug)]
 pub struct BindGroupMeta {

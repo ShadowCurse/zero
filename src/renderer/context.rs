@@ -64,7 +64,7 @@ impl Renderer {
         }
     }
 
-    pub fn resize(&mut self, new_size: Option<winit::dpi::PhysicalSize<u32>>) {
+    pub fn resize(&mut self, new_size: Option<PhysicalSize<u32>>) {
         let new_size = new_size.unwrap_or(self.size);
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;

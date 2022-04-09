@@ -72,8 +72,8 @@ pub struct DirectionalLightUniform {
 
 #[derive(Debug)]
 pub struct DirectionalLight {
-    pub direction: cgmath::Vector3<f32>,
-    pub color: cgmath::Vector3<f32>,
+    pub direction: Vector3<f32>,
+    pub color: Vector3<f32>,
 }
 
 impl DirectionalLight {
@@ -110,8 +110,8 @@ pub struct PointLightUniform {
 
 #[derive(Debug, Clone)]
 pub struct PointLight {
-    pub position: cgmath::Vector3<f32>,
-    pub color: cgmath::Vector3<f32>,
+    pub position: Vector3<f32>,
+    pub color: Vector3<f32>,
     pub constant: f32,
     pub linear: f32,
     pub quadratic: f32,
@@ -255,9 +255,9 @@ pub struct SpotLightUniform {
 
 #[derive(Debug)]
 pub struct SpotLight {
-    pub position: cgmath::Vector3<f32>,
-    pub direction: cgmath::Vector3<f32>,
-    pub color: cgmath::Vector3<f32>,
+    pub position: Vector3<f32>,
+    pub direction: Vector3<f32>,
+    pub color: Vector3<f32>,
 }
 
 impl SpotLight {

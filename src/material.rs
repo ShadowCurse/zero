@@ -1,5 +1,5 @@
 use crate::renderer::*;
-use crate::texture;
+use crate::texture::ImageTexture;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -19,8 +19,8 @@ pub struct MaterialPropertiesUniform {
 #[derive(Debug)]
 pub struct Material {
     pub name: String,
-    pub diffuse_texture: texture::ImageTexture,
-    pub normal_texture: texture::ImageTexture,
+    pub diffuse_texture: ImageTexture,
+    pub normal_texture: ImageTexture,
     pub ambient: [f32; 3],
     pub diffuse: [f32; 3],
     pub specular: [f32; 3],

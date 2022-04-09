@@ -1,12 +1,7 @@
-use crate::camera;
 use crate::camera::OPENGL_TO_WGPU_MATRIX;
 use crate::renderer::*;
-use crate::texture::CubeMap;
-use crate::texture::DepthTexture;
-use cgmath::perspective;
-use cgmath::Deg;
-use cgmath::Rad;
-use cgmath::{ortho, Matrix4, Point3, Vector3};
+use crate::texture::{CubeMap, DepthTexture};
+use cgmath::{ortho, perspective, Deg, Matrix4, Point3, Rad, Vector3};
 
 #[derive(Debug, Default)]
 pub struct ShadowMap {
@@ -181,12 +176,12 @@ impl ShadowMapDLight {
     }
 
     fn view(&self) -> Matrix4<f32> {
-        camera::OPENGL_TO_WGPU_MATRIX
+        OPENGL_TO_WGPU_MATRIX
             * Matrix4::look_to_rh(self.position, self.direction, Vector3::unit_y())
     }
 
     fn projection(&self) -> Matrix4<f32> {
-        camera::OPENGL_TO_WGPU_MATRIX
+        OPENGL_TO_WGPU_MATRIX
             * ortho(
                 self.left,
                 self.right,
@@ -308,8 +303,7 @@ impl ShadowMapPLight {
             .iter_mut()
             .zip(dirs.into_iter())
             .for_each(|(vp, (dir, up))| {
-                *vp = (proj * Matrix4::look_to_rh(self.position, dir.into(), up.into()))
-                    .into();
+                *vp = (proj * Matrix4::look_to_rh(self.position, dir.into(), up.into())).into();
             });
 
         ShadowMapPLightUniform { view_projections }

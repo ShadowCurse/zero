@@ -1,9 +1,9 @@
-use super::Renderer;
 use super::*;
-use crate::texture::DepthTexture;
-use crate::{model::GpuMesh, texture::GpuTexture};
-use std::io::prelude::*;
-use std::{collections::HashMap, fs::File};
+use crate::{
+    model::GpuMesh,
+    texture::{DepthTexture, GpuTexture},
+};
+use std::{collections::HashMap, fs::File, io::Read};
 
 /// Trait for render vertices
 pub trait Vertex {

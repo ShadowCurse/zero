@@ -1,13 +1,12 @@
 use camera::{Camera, CameraController};
-use cgmath::Rotation3;
+use cgmath::{Deg, Quaternion, Rotation3, Vector3};
 use deffered_rendering::GBuffer;
 use light::{PointLight, PointLights};
 use material::ColorMaterial;
 use model::{Mesh, ModelVertex};
 use renderer::*;
 use shadow_map::{ShadowMap, ShadowMapDLight};
-use skybox::Skybox;
-use skybox::SkyboxVertex;
+use skybox::{Skybox, SkyboxVertex};
 use texture::{DepthTexture, TextureVertex};
 use transform::Transform;
 use wgpu::{Color, Face, LoadOp, Operations, TextureFormat};
@@ -110,11 +109,11 @@ fn main() {
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
-        cgmath::Deg(0.0),
-        cgmath::Deg(0.0),
+        Deg(0.0),
+        Deg(0.0),
         renderer.config.width,
         renderer.config.height,
-        cgmath::Deg(90.0),
+        Deg(90.0),
         0.1,
         100.0,
     );
@@ -147,7 +146,7 @@ fn main() {
 
     let box_transform = Transform {
         translation: (0.0, 0.0, 0.0).into(),
-        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (10.0, 1.0, 10.0).into(),
     };
     let box_transform_id = storage.build_asset(&renderer, &box_transform);
@@ -157,7 +156,7 @@ fn main() {
 
     let box2_transform = Transform {
         translation: (0.0, 1.0, 1.0).into(),
-        rotation: cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+        rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
     let box2_transform_id = storage.build_asset(&renderer, &box2_transform);
@@ -339,8 +338,8 @@ fn main() {
 
                 match render_system.run(&renderer, &storage) {
                     Ok(_) => {}
-                    Err(wgpu::SurfaceError::Lost) => renderer.resize(None),
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(SurfaceError::Lost) => renderer.resize(None),
+                    Err(SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     Err(e) => eprintln!("{:?}", e),
                 }
             }
