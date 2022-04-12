@@ -2,7 +2,7 @@ use crate::model;
 use hexasphere::shapes::IcoSphere;
 
 #[derive(Debug, Copy, Clone)]
-pub struct Box {
+pub struct Cube {
     pub min_x: f32,
     pub max_x: f32,
 
@@ -13,7 +13,7 @@ pub struct Box {
     pub max_z: f32,
 }
 
-impl Box {
+impl Cube {
     pub fn new(length: f32, width: f32, height: f32) -> Self {
         Self {
             max_x: length / 2.0,
@@ -26,8 +26,8 @@ impl Box {
     }
 }
 
-impl From<Box> for model::Mesh {
-    fn from(b: Box) -> Self {
+impl From<Cube> for model::Mesh {
+    fn from(b: Cube) -> Self {
         let mut vertices: Vec<model::ModelVertex> = [
             // Top
             ([b.min_x, b.min_y, b.max_z], [0.0, 0.0], [0.0, 0.0, 1.0]),

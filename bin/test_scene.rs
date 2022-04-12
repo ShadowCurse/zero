@@ -1,32 +1,9 @@
-use camera::{Camera, CameraController};
-use cgmath::{Deg, Quaternion, Rotation3, Vector3};
-use deffered_rendering::GBuffer;
-use light::{PointLight, PointLights};
-use material::ColorMaterial;
-use model::{Mesh, ModelVertex};
-use renderer::*;
-use shadow_map::{ShadowMap, ShadowMapDLight};
-use skybox::{Skybox, SkyboxVertex};
-use texture::{DepthTexture, TextureVertex};
-use transform::Transform;
-use wgpu::{Color, Face, LoadOp, Operations, TextureFormat};
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-mod camera;
-mod deffered_rendering;
-mod light;
-mod material;
-mod model;
-mod renderer;
-mod shadow_map;
-mod shapes;
-mod skybox;
-mod texture;
-mod transform;
+use zero::prelude::*;
 
 fn main() {
     env_logger::init();
@@ -141,7 +118,7 @@ fn main() {
     );
     let shadow_d_light_id = storage.build_asset(&renderer, &shadow_d_light);
 
-    let box_mesh: Mesh = shapes::Box::new(9.0, 1.0, 5.0).into();
+    let box_mesh: Mesh = Cube::new(9.0, 1.0, 5.0).into();
     let box_id = storage.build_mesh(&renderer, &box_mesh);
 
     let box_transform = Transform {
@@ -151,7 +128,7 @@ fn main() {
     };
     let box_transform_id = storage.build_asset(&renderer, &box_transform);
 
-    let box2_mesh: Mesh = shapes::Box::new(1.0, 1.0, 1.0).into();
+    let box2_mesh: Mesh = Cube::new(1.0, 1.0, 1.0).into();
     let box2_id = storage.build_mesh(&renderer, &box2_mesh);
 
     let box2_transform = Transform {
