@@ -9,8 +9,8 @@ edition = "2021"
 path = "src/lib.rs"
 
 [[bin]]
-name = "test_scene"
-path = "bin/test_scene.rs"
+name = "example_scene"
+path = "bin/example_scene.rs"
 
 [dependencies]
 winit = "0.26"
