@@ -1,4 +1,4 @@
-use crate::renderer::*;
+use crate::renderer::prelude::*;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
 use std::path::Path;

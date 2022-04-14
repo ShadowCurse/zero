@@ -1,4 +1,4 @@
-use crate::renderer::*;
+use crate::renderer::prelude::*;
 use cgmath::Vector3;
 
 #[macro_export]

@@ -1,4 +1,4 @@
-use crate::renderer::*;
+use crate::renderer::prelude::*;
 use crate::texture::ImageTexture;
 
 #[repr(C)]

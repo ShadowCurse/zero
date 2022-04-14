@@ -1,5 +1,5 @@
-use crate::renderer::*;
-use cgmath::{Matrix4, Quaternion, Vector3};
+use crate::cgmath_imports::*;
+use crate::renderer::prelude::*;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

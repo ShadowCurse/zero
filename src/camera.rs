@@ -1,5 +1,5 @@
-use crate::renderer::*;
-use cgmath::{perspective, InnerSpace, Matrix3, Matrix4, Point3, Rad, Vector3};
+use crate::cgmath_imports::*;
+use crate::renderer::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use winit::event::{ElementState, VirtualKeyCode};

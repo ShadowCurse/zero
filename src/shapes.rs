@@ -1,4 +1,4 @@
-use crate::model;
+use crate::mesh::{Mesh, MeshVertex};
 use hexasphere::shapes::IcoSphere;
 
 #[derive(Debug, Copy, Clone)]
@@ -26,9 +26,9 @@ impl Cube {
     }
 }
 
-impl From<Cube> for model::Mesh {
+impl From<Cube> for Mesh {
     fn from(b: Cube) -> Self {
-        let mut vertices: Vec<model::ModelVertex> = [
+        let mut vertices: Vec<MeshVertex> = [
             // Top
             ([b.min_x, b.min_y, b.max_z], [0.0, 0.0], [0.0, 0.0, 1.0]),
             ([b.max_x, b.min_y, b.max_z], [1.0, 0.0], [0.0, 0.0, 1.0]),
@@ -73,7 +73,7 @@ impl From<Cube> for model::Mesh {
             20, 21, 22, 22, 23, 20, // back
         ];
 
-        model::ModelVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+        MeshVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
 
         Self {
             name: "box".to_string(),
@@ -99,7 +99,7 @@ impl Quad {
     }
 }
 
-impl From<Quad> for model::Mesh {
+impl From<Quad> for Mesh {
     fn from(quad: Quad) -> Self {
         let extent_x = quad.size.0 / 2.0;
         let extent_y = quad.size.1 / 2.0;
@@ -123,11 +123,11 @@ impl From<Quad> for model::Mesh {
                 ([bot_right.0, bot_right.1, 0.0], [1.0, 1.0], [0.0, 0.0, 1.0]),
             ]
         };
-        let mut vertices: Vec<model::ModelVertex> = vertices.into_iter().map(Into::into).collect();
+        let mut vertices: Vec<MeshVertex> = vertices.into_iter().map(Into::into).collect();
 
         let indices = vec![0, 2, 1, 0, 3, 2];
 
-        model::ModelVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+        MeshVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
 
         Self {
             name: "quad".to_string(),
@@ -148,11 +148,11 @@ impl Plane {
     }
 }
 
-impl From<Plane> for model::Mesh {
+impl From<Plane> for Mesh {
     fn from(plane: Plane) -> Self {
         let extent = plane.size / 2.0;
 
-        let mut vertices: Vec<model::ModelVertex> = [
+        let mut vertices: Vec<MeshVertex> = [
             ([extent, 0.0, -extent], [1.0, 1.0], [0.0, 1.0, 0.0]),
             ([extent, 0.0, extent], [1.0, 0.0], [0.0, 1.0, 0.0]),
             ([-extent, 0.0, extent], [0.0, 0.0], [0.0, 1.0, 0.0]),
@@ -164,7 +164,7 @@ impl From<Plane> for model::Mesh {
 
         let indices = vec![0, 2, 1, 0, 3, 2];
 
-        model::ModelVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+        MeshVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
 
         Self {
             name: "plane".to_string(),
@@ -189,7 +189,7 @@ impl Icoshphere {
     }
 }
 
-impl From<Icoshphere> for model::Mesh {
+impl From<Icoshphere> for Mesh {
     fn from(sphere: Icoshphere) -> Self {
         let gen_sphere = IcoSphere::new(sphere.subdivisions, |point| {
             let inclination = point.y.acos();
@@ -206,7 +206,7 @@ impl From<Icoshphere> for model::Mesh {
         let noramls = raw_points.iter().copied().map(Into::into);
         let uvs = gen_sphere.raw_data();
 
-        let mut vertices: Vec<model::ModelVertex> = points
+        let mut vertices: Vec<MeshVertex> = points
             .zip(uvs.iter().copied().zip(noramls))
             .map(|(p, (uv, n))| (p, uv, n))
             .map(Into::into)
@@ -218,7 +218,7 @@ impl From<Icoshphere> for model::Mesh {
             gen_sphere.get_indices(i, &mut indices);
         }
 
-        model::ModelVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+        MeshVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
 
         Self {
             name: "icosphere".to_string(),

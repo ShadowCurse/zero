@@ -1,5 +1,5 @@
-use crate::model::GpuMesh;
-use crate::renderer::*;
+use crate::mesh::GpuMesh;
+use crate::renderer::prelude::*;
 use crate::texture;
 use anyhow::{Ok, Result};
 

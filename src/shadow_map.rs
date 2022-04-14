@@ -1,7 +1,7 @@
 use crate::camera::OPENGL_TO_WGPU_MATRIX;
-use crate::renderer::*;
+use crate::renderer::prelude::*;
+use crate::cgmath_imports::*;
 use crate::texture::{CubeMap, DepthTexture};
-use cgmath::{ortho, perspective, Deg, Matrix4, Point3, Rad, Vector3};
 
 #[derive(Debug, Default)]
 pub struct ShadowMap {

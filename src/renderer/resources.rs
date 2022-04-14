@@ -1,6 +1,6 @@
-use super::*;
+use super::{context::Renderer, wgpu_imports::*};
 use crate::{
-    model::GpuMesh,
+    mesh::GpuMesh,
     texture::{DepthTexture, GpuTexture},
 };
 use std::{collections::HashMap, fs::File, io::Read};
