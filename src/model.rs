@@ -1,12 +1,30 @@
-use crate::material;
+use crate::material::Material;
 use crate::mesh::{Mesh, MeshVertex};
-use crate::texture;
+use crate::renderer::prelude::*;
+use crate::texture::{ImageTexture, TextureType};
 use anyhow::{Context, Ok, Result};
 
 #[derive(Debug)]
+pub struct ModelMesh {
+    pub material_id: usize,
+    pub mesh: Mesh,
+}
+
+#[derive(Debug)]
 pub struct Model {
-    pub meshes: Vec<Mesh>,
-    pub materials: Vec<material::Material>,
+    pub meshes: Vec<ModelMesh>,
+    pub materials: Vec<Material>,
+}
+
+#[derive(Debug)]
+pub struct MeshId {
+    pub id: ResourceId,
+    pub material_id: ResourceId,
+}
+
+#[derive(Debug)]
+pub struct ModelIds {
+    pub meshes: Vec<MeshId>,
 }
 
 impl Model {
@@ -27,14 +45,12 @@ impl Model {
         let mut materials = Vec::new();
         for mat in obj_materials {
             let diffuse_path = containing_folder.join(mat.diffuse_texture);
-            let diffuse_texture =
-                texture::ImageTexture::load(diffuse_path, texture::TextureType::Diffuse)?;
+            let diffuse_texture = ImageTexture::load(diffuse_path, TextureType::Diffuse)?;
 
             let normal_path = containing_folder.join(mat.normal_texture);
-            let normal_texture =
-                texture::ImageTexture::load(normal_path, texture::TextureType::Normal)?;
+            let normal_texture = ImageTexture::load(normal_path, TextureType::Normal)?;
 
-            materials.push(material::Material {
+            materials.push(Material {
                 name: mat.name,
                 diffuse_texture,
                 normal_texture,
@@ -68,35 +84,33 @@ impl Model {
 
             MeshVertex::calc_tangents_and_bitangents(&mut vertices, &m.mesh.indices);
 
-            meshes.push(Mesh {
-                name: m.name,
-                vertices,
-                indices: m.mesh.indices,
-                // material: m.mesh.material_id.unwrap_or(0),
+            meshes.push(ModelMesh {
+                material_id: m.mesh.material_id.unwrap_or(0),
+                mesh: Mesh {
+                    name: m.name,
+                    vertices,
+                    indices: m.mesh.indices,
+                },
             });
         }
 
         Ok(Self { meshes, materials })
     }
 
-    // TODO
-    // pub fn build(
-    //     &self,
-    //     renderer: &Renderer,
-    //     material_builder: &RenderAssetBuilder<material::Material>,
-    // ) -> RenderModel {
-    //     let meshes = self
-    //         .meshes
-    //         .iter()
-    //         .map(|mesh| mesh.build(renderer))
-    //         .collect();
-    //
-    //     let materials = self
-    //         .materials
-    //         .iter()
-    //         .map(|material| material_builder.build(renderer, material))
-    //         .collect();
-    //
-    //     RenderModel { meshes, materials }
-    // }
+    pub fn build(&self, renderer: &Renderer, storage: &mut RenderStorage) -> ModelIds {
+        let materials: Vec<_> = self
+            .materials
+            .iter()
+            .map(|m| storage.build_asset(renderer, m))
+            .collect();
+        let meshes = self
+            .meshes
+            .iter()
+            .map(|m| MeshId {
+                id: storage.build_mesh(renderer, &m.mesh),
+                material_id: materials[m.material_id],
+            })
+            .collect();
+        ModelIds { meshes }
+    }
 }

@@ -154,6 +154,31 @@ fn main() {
     };
     let green_material_id = storage.build_asset(&renderer, &green_material);
 
+    let cube_model = Model::load("./res/cube/cube.obj").unwrap();
+    let cube_model_ids = cube_model.build(&renderer, &mut storage);
+
+    let mut cube_transform = Transform {
+        translation: (2.0, 2.0, 4.0).into(),
+        rotation: Quaternion::from_axis_angle(Vector3::unit_y(), Deg(69.0)),
+        scale: (1.0, 1.0, 1.0).into(),
+    };
+    let cube_transform_id = storage.build_asset(&renderer, &cube_transform);
+
+    let g_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<Material>(),
+            storage.get_bind_group_layout::<Transform>(),
+            storage.get_bind_group_layout::<Camera>(),
+        ],
+        vertex_layouts: vec![MeshVertex::desc()],
+        shader_path: "./shaders/geometry_pass.wgsl",
+        write_depth: true,
+        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        ..Default::default()
+    }
+    .build(&renderer);
+    let g_pipeline_id = storage.add_pipeline(g_pipeline);
+
     let g_color_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
             storage.get_bind_group_layout::<ColorMaterial>(),
@@ -280,6 +305,13 @@ fn main() {
                 camera_controller.update_camera(&mut camera, dt);
                 storage.rebuild_asset(&renderer, &camera, camera_id);
 
+                cube_transform.rotation = cube_transform.rotation
+                    * cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_y(),
+                        cgmath::Deg(-dt.as_secs_f32() * 30.0),
+                    );
+                storage.rebuild_asset(&renderer, &cube_transform, cube_transform_id);
+
                 let box1 = RenderCommand::new(
                     g_color_pipeline_id,
                     box_id,
@@ -290,7 +322,12 @@ fn main() {
                     box2_id,
                     vec![green_material_id, box2_transform_id, camera_id],
                 );
-                render_system.add_phase_commands("geometry", vec![box1, box2]);
+                let cube = RenderCommand::new(
+                    g_pipeline_id,
+                    cube_model_ids.meshes[0].id,
+                    vec![cube_model_ids.meshes[0].material_id, cube_transform_id, camera_id],
+                );
+                render_system.add_phase_commands("geometry", vec![box1, box2, cube]);
 
                 let box1 = RenderCommand::new(
                     shadow_map_pipeline_id,
@@ -302,7 +339,12 @@ fn main() {
                     box2_id,
                     vec![box2_transform_id, shadow_d_light_id],
                 );
-                render_system.add_phase_commands("shadow", vec![box1, box2]);
+                let cube = RenderCommand::new(
+                    shadow_map_pipeline_id,
+                    cube_model_ids.meshes[0].id,
+                    vec![cube_transform_id, shadow_d_light_id],
+                );
+                render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
 
                 let command = RenderCommand::new(
                     lighting_pipeline_id,
