@@ -99,10 +99,11 @@ fn main() {
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
     let light = PointLight::new((-1.0, 9.0, 5.0), (1.0, 1.0, 1.0), 1.0, 0.109, 0.032);
-    let light_2 = PointLight::new((-2.0, 0.8, 2.0), (0.7, 0.0, 0.8), 1.0, 0.109, 0.032);
-    let light_3 = PointLight::new((-5.0, 1.5, 1.0), (0.7, 0.3, 0.3), 1.0, 0.209, 0.032);
+    let light_2 = PointLight::new((-2.0, 1.0, -2.0), (0.8, 0.1, 0.1), 1.0, 0.109, 0.032);
+    let light_3 = PointLight::new((-2.0, 1.0, 0.0), (0.1, 0.8, 0.1), 1.0, 0.209, 0.032);
+    let light_4 = PointLight::new((-2.0, 1.0, 2.0), (0.1, 0.1, 0.8), 1.0, 0.209, 0.032);
     let lights = PointLights {
-        lights: vec![light, light_2, light_3],
+        lights: vec![light, light_2, light_3, light_4],
     };
     let lights_id = storage.build_asset(&renderer, &lights);
 
@@ -124,7 +125,7 @@ fn main() {
     let box_transform = Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
-        scale: (5.0, 1.0, 5.0).into(),
+        scale: (3.0, 1.0, 3.0).into(),
     };
     let box_transform_id = storage.build_asset(&renderer, &box_transform);
 
