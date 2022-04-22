@@ -1,5 +1,6 @@
 use super::wgpu_imports::*;
 use winit::{dpi::PhysicalSize, window::Window};
+use log::info;
 
 #[derive(Debug)]
 pub struct CurrentFrameContext {
@@ -30,6 +31,7 @@ impl Renderer {
             })
             .await
             .unwrap();
+        info!("Using adapter: {:?}", adapter);
 
         let (device, queue) = adapter
             .request_device(

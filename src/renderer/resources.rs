@@ -4,6 +4,7 @@ use crate::{
     texture::{DepthTexture, GpuTexture},
 };
 use std::{collections::HashMap, fs::File, io::Read};
+use log::trace;
 
 /// Trait for render vertices
 pub trait Vertex {
@@ -22,7 +23,6 @@ pub trait GpuAsset {
 
 /// Trait for the types that can be converted to the RenderResource
 pub trait RenderAsset {
-    const ASSET_NAME: &'static str;
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout;
     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources;
     fn update(&self, _renderer: &Renderer, _id: ResourceId, _storage: &RenderStorage) {}
@@ -225,7 +225,7 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
 
 impl<'a> PipelineBuilder<'a> {
     pub fn build(self, renderer: &Renderer) -> RenderPipeline {
-        println!("building pipilene: {}", self.shader_path);
+        trace!("Building pipilene: {}", self.shader_path);
         let layout = renderer
             .device
             .create_pipeline_layout(&PipelineLayoutDescriptor {

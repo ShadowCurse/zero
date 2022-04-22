@@ -2,6 +2,7 @@ use crate::renderer::prelude::*;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
 use std::path::Path;
+use log::trace;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -79,7 +80,7 @@ impl ImageTexture {
     pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
         let path_copy = path.as_ref().to_path_buf();
 
-        println!("loading texture from {:#?}", path_copy);
+        trace!("loading texture from {:#?}", path_copy);
         let img = image::open(path)?;
 
         Ok(Self {
@@ -230,7 +231,7 @@ impl CubeMap {
         let mut dimensions = (0, 0);
         for path in paths {
             let path_copy = path.as_ref().to_path_buf();
-            println!("loading texture from {:#?}", path_copy);
+            trace!("Loading texture from {:#?}", path_copy);
             let img = image::open(path)?;
             dimensions = img.dimensions();
             texture_data.extend(img.to_rgba8().into_raw());
