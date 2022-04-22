@@ -5,8 +5,6 @@ use cgmath::Vector3;
 macro_rules! impl_light_render_asset {
     ($type:ty) => {
         impl RenderAsset for $type {
-            const ASSET_NAME: &'static str = "$type";
-
             fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
                 renderer
                     .device
@@ -188,8 +186,6 @@ impl PointLights {
 }
 
 impl RenderAsset for PointLights {
-    const ASSET_NAME: &'static str = "PointLights";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

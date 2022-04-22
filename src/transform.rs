@@ -29,8 +29,6 @@ impl Transform {
 }
 
 impl RenderAsset for Transform {
-    const ASSET_NAME: &'static str = "Transform";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

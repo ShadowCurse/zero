@@ -53,8 +53,6 @@ impl Skybox {
 }
 
 impl RenderAsset for Skybox {
-    const ASSET_NAME: &'static str = "Skybox";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

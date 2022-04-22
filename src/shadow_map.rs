@@ -9,8 +9,6 @@ pub struct ShadowMap {
 }
 
 impl RenderAsset for ShadowMap {
-    const ASSET_NAME: &'static str = "ShadowMap";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -80,8 +78,6 @@ impl Default for ShadowCubeMap {
 }
 
 impl RenderAsset for ShadowCubeMap {
-    const ASSET_NAME: &'static str = "ShadowCubeMap";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -200,8 +196,6 @@ impl ShadowMapDLight {
 }
 
 impl RenderAsset for ShadowMapDLight {
-    const ASSET_NAME: &'static str = "ShadowMapDLight";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -311,8 +305,6 @@ impl ShadowMapPLight {
 }
 
 impl RenderAsset for ShadowMapPLight {
-    const ASSET_NAME: &'static str = "ShadowMapPLight";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

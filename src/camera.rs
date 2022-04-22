@@ -95,8 +95,6 @@ impl Camera {
 }
 
 impl RenderAsset for Camera {
-    const ASSET_NAME: &'static str = "Camera";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

@@ -67,8 +67,6 @@ impl GBuffer {
 }
 
 impl RenderAsset for GBuffer {
-    const ASSET_NAME: &'static str = "GBuffer";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

@@ -40,8 +40,6 @@ impl Material {
 }
 
 impl RenderAsset for Material {
-    const ASSET_NAME: &'static str = "Material";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -163,8 +161,6 @@ impl ColorMaterial {
 }
 
 impl RenderAsset for ColorMaterial {
-    const ASSET_NAME: &'static str = "ColorMaterial";
-
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device

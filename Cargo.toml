@@ -14,16 +14,16 @@ path = "bin/example_scene.rs"
 
 [dependencies]
 winit = "0.26"
-cgmath = "0.18"
-env_logger = "0.9"
-log = "0.4"
 wgpu = "0.12"
-pollster = "0.2"
-anyhow = "1.0"
 bytemuck = { version = "1.4", features = [ "derive" ] }
+cgmath = "0.18"
+pollster = "0.2"
 image = "0.23"
 tobj = { version = "3.0", features = [ "log" ] }
 hexasphere = "7.0.0"
+anyhow = "1.0"
+env_logger = "0.9"
+log = "0.4"
 
 [build-dependencies]
 anyhow = "1.0"
