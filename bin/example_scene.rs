@@ -304,14 +304,14 @@ fn main() {
                 last_render_time = now;
 
                 camera_controller.update_camera(&mut camera, dt);
-                storage.rebuild_asset(&renderer, &camera, camera_id);
+                storage.update_asset(&renderer, &camera, camera_id);
 
                 cube_transform.rotation = cube_transform.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_y(),
                         cgmath::Deg(-dt.as_secs_f32() * 30.0),
                     );
-                storage.rebuild_asset(&renderer, &cube_transform, cube_transform_id);
+                storage.update_asset(&renderer, &cube_transform, cube_transform_id);
 
                 let box1 = RenderCommand::new(
                     g_color_pipeline_id,

@@ -43,12 +43,6 @@ pub struct RenderResources {
     pub bind_group: Option<BindGroup>,
 }
 
-#[derive(Debug)]
-pub struct IndexBuffer {
-    pub buffer: Option<Buffer>,
-    pub num_elements: u32,
-}
-
 #[derive(Debug, Default)]
 pub struct RenderStorage {
     pub buffers: Vec<Vec<Buffer>>,
@@ -157,6 +151,10 @@ impl RenderStorage {
         self.textures[id.0] = resources.textures;
         self.meshes[id.0] = resources.meshes;
         self.bind_groups[id.0] = resources.bind_group;
+    }
+
+    pub fn update_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A, id: ResourceId) {
+        item.update(renderer, id, self);
     }
 
     pub fn get_bind_group_layout<A: RenderAsset>(&self) -> &BindGroupLayout {
