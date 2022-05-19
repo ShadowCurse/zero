@@ -13,10 +13,10 @@ impl GBufferTexture {
     }
 }
 
-impl GpuAsset for GBufferTexture {
-    type GpuType = GpuTexture;
+impl GpuResource for GBufferTexture {
+    type ResourceType = GpuTexture;
 
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture_size = Extent3d {
             width: renderer.config.width,
             height: renderer.config.height,
@@ -41,7 +41,7 @@ impl GpuAsset for GBufferTexture {
             ..Default::default()
         });
 
-        Self::GpuType {
+        Self::ResourceType {
             texture,
             view,
             sampler,
@@ -66,7 +66,93 @@ impl GBuffer {
     }
 }
 
-impl RenderAsset for GBuffer {
+pub struct GBufferResource {
+    position_texture: GpuTexture,
+    normal_texture: GpuTexture,
+    albedo_texture: GpuTexture,
+    mesh: GpuMesh,
+}
+
+impl GpuResource for GBuffer {
+    type ResourceType = GBufferResource;
+
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
+        let vertices: Vec<TextureVertex> = vec![
+            ([-1.0, 1.0, 0.0], [0.0, 0.0]),
+            ([-1.0, -1.0, 0.0], [0.0, 1.0]),
+            ([1.0, 1.0, 0.0], [1.0, 0.0]),
+            ([1.0, -1.0, 0.0], [1.0, 1.0]),
+        ]
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("vertex_buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: BufferUsages::VERTEX,
+        });
+
+        let indices = vec![0, 1, 2, 2, 1, 3];
+
+        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("index_buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: BufferUsages::INDEX,
+        });
+
+        let position_texture = self.position.build(renderer);
+        let normal_texture = self.normal.build(renderer);
+        let albedo_texture = self.albedo.build(renderer);
+
+        let mesh = GpuMesh {
+            vertex_buffer,
+            index_buffer: Some(index_buffer),
+            num_elements: 6,
+        };
+
+        Self::ResourceType {
+            position_texture,
+            normal_texture,
+            albedo_texture,
+            mesh,
+        }
+    }
+}
+
+pub struct GBufferHandle {
+    pub position_texture_id: ResourceId,
+    pub normal_texture_id: ResourceId,
+    pub albedo_texture_id: ResourceId,
+    pub mesh_id: ResourceId,
+}
+
+impl ResourceHandle for GBufferHandle {
+    type OriginalResource = GBuffer;
+    type ResourceType = GBufferResource;
+
+    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+        Self {
+            position_texture_id: storage.insert_texture(resource.position_texture),
+            normal_texture_id: storage.insert_texture(resource.normal_texture),
+            albedo_texture_id: storage.insert_texture(resource.albedo_texture),
+            mesh_id: storage.insert_mesh(resource.mesh),
+        }
+    }
+
+    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
+        storage.replace_texture(self.position_texture_id, resource.position_texture);
+        storage.replace_texture(self.normal_texture_id, resource.normal_texture);
+        storage.replace_texture(self.albedo_texture_id, resource.albedo_texture);
+        storage.replace_mesh(self.mesh_id, resource.mesh);
+    }
+}
+
+pub struct GBufferBindGroup(pub ResourceId);
+
+impl AssetBindGroup for GBufferBindGroup {
+    type ResourceHandle = GBufferHandle;
+
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -125,34 +211,17 @@ impl RenderAsset for GBuffer {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-        let vertices: Vec<TextureVertex> = vec![
-            ([-1.0, 1.0, 0.0], [0.0, 0.0]),
-            ([-1.0, -1.0, 0.0], [0.0, 1.0]),
-            ([1.0, 1.0, 0.0], [1.0, 0.0]),
-            ([1.0, -1.0, 0.0], [1.0, 1.0]),
-        ]
-        .into_iter()
-        .map(Into::into)
-        .collect();
-
-        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("vertex_buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: BufferUsages::VERTEX,
-        });
-
-        let indices = vec![0, 1, 2, 2, 1, 3];
-
-        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("index_buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: BufferUsages::INDEX,
-        });
-
-        let position = self.position.build(renderer);
-        let normal = self.normal.build(renderer);
-        let albedo = self.albedo.build(renderer);
+    fn new(
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resources: &Self::ResourceHandle,
+    ) -> Self {
+        storage.register_bind_group_layout::<Self>(renderer);
+        storage.register_bind_group_layout::<Self>(renderer);
+        let layout = storage.get_bind_group_layout::<Self>();
+        let position = storage.get_texture(resources.position_texture_id);
+        let normal = storage.get_texture(resources.normal_texture_id);
+        let albedo = storage.get_texture(resources.albedo_texture_id);
 
         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
             layout,
@@ -185,17 +254,6 @@ impl RenderAsset for GBuffer {
             label: None,
         });
 
-        let mesh = GpuMesh {
-            vertex_buffer,
-            index_buffer: Some(index_buffer),
-            num_elements: 6,
-        };
-
-        RenderResources {
-            textures: vec![position, normal, albedo],
-            meshes: vec![mesh],
-            bind_group: Some(bind_group),
-            ..Default::default()
-        }
+        Self(storage.insert_bind_group(bind_group))
     }
 }

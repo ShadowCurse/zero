@@ -1,13 +1,14 @@
 use crate::material::Material;
 use crate::mesh::{Mesh, MeshVertex};
+use crate::prelude::{MaterialBindGroup, MaterialHandle};
 use crate::renderer::prelude::*;
 use crate::texture::{ImageTexture, TextureType};
 use anyhow::{Context, Ok, Result};
 
 #[derive(Debug)]
 pub struct ModelMesh {
-    pub material_id: usize,
     pub mesh: Mesh,
+    pub material_id: usize,
 }
 
 #[derive(Debug)]
@@ -16,15 +17,21 @@ pub struct Model {
     pub materials: Vec<Material>,
 }
 
-#[derive(Debug)]
-pub struct MeshId {
-    pub id: ResourceId,
-    pub material_id: ResourceId,
+// #[derive(Debug)]
+pub struct ModelMeshHandle {
+    pub mesh_id: ResourceId,
+    pub material_index: usize,
 }
 
-#[derive(Debug)]
-pub struct ModelIds {
-    pub meshes: Vec<MeshId>,
+pub struct ModelMaterialHandle {
+    pub material_handle: MaterialHandle,
+    pub material_bind_group: MaterialBindGroup,
+}
+
+// #[derive(Debug)]
+pub struct ModelHandle {
+    pub meshes: Vec<ModelMeshHandle>,
+    pub materials: Vec<ModelMaterialHandle>,
 }
 
 impl Model {
@@ -97,20 +104,28 @@ impl Model {
         Ok(Self { meshes, materials })
     }
 
-    pub fn build(&self, renderer: &Renderer, storage: &mut RenderStorage) -> ModelIds {
+    pub fn build(&self, renderer: &Renderer, storage: &mut RenderStorage) -> ModelHandle {
         let materials: Vec<_> = self
             .materials
             .iter()
-            .map(|m| storage.build_asset(renderer, m))
+            .map(|m| {
+                let material_handle = MaterialHandle::from_resource(storage, m.build(renderer));
+                let material_bind_group =
+                    MaterialBindGroup::new(renderer, storage, &material_handle);
+                ModelMaterialHandle {
+                    material_handle,
+                    material_bind_group,
+                }
+            })
             .collect();
         let meshes = self
             .meshes
             .iter()
-            .map(|m| MeshId {
-                id: storage.build_mesh(renderer, &m.mesh),
-                material_id: materials[m.material_id],
+            .map(|m| ModelMeshHandle {
+                mesh_id: storage.insert_mesh(m.mesh.build(renderer)),
+                material_index: m.material_id,
             })
             .collect();
-        ModelIds { meshes }
+        ModelHandle { meshes, materials }
     }
 }

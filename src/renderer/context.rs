@@ -1,6 +1,6 @@
 use super::wgpu_imports::*;
-use winit::{dpi::PhysicalSize, window::Window};
 use log::info;
+use winit::{dpi::PhysicalSize, window::Window};
 
 #[derive(Debug)]
 pub struct CurrentFrameContext {

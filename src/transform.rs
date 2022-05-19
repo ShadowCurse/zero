@@ -28,7 +28,60 @@ impl Transform {
     }
 }
 
-impl RenderAsset for Transform {
+pub struct TransformResources {
+    buffer: Buffer,
+}
+impl GpuResource for Transform {
+    type ResourceType = TransformResources;
+
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
+        let uniform = self.to_uniform();
+        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("transform_buffer"),
+            contents: bytemuck::cast_slice(&[uniform]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        Self::ResourceType { buffer }
+    }
+}
+
+pub struct TransformHandle {
+    buffer_id: ResourceId,
+}
+
+impl ResourceHandle for TransformHandle {
+    type OriginalResource = Transform;
+    type ResourceType = TransformResources;
+
+    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+        Self {
+            buffer_id: storage.insert_buffer(resource.buffer),
+        }
+    }
+
+    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
+        storage.replace_buffer(self.buffer_id, resource.buffer);
+    }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
+}
+
+pub struct TransformBindGroup(pub ResourceId);
+
+impl AssetBindGroup for TransformBindGroup {
+    type ResourceHandle = TransformHandle;
+
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
             .device
@@ -47,13 +100,14 @@ impl RenderAsset for Transform {
             })
     }
 
-    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-        let uniform = self.to_uniform();
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("transform_buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
+    fn new(
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resources: &Self::ResourceHandle,
+    ) -> Self {
+        storage.register_bind_group_layout::<Self>(renderer);
+        let layout = storage.get_bind_group_layout::<Self>();
+        let buffer = storage.get_buffer(resources.buffer_id);
 
         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
             layout,
@@ -64,18 +118,6 @@ impl RenderAsset for Transform {
             label: Some("transform_bind_group"),
         });
 
-        RenderResources {
-            buffers: vec![buffer],
-            bind_group: Some(bind_group),
-            ..Default::default()
-        }
-    }
-
-    fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-        renderer.queue.write_buffer(
-            &storage.get_buffers(id)[0],
-            0,
-            bytemuck::cast_slice(&[self.to_uniform()]),
-        );
+        Self(storage.insert_bind_group(bind_group))
     }
 }

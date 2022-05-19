@@ -23,7 +23,7 @@ impl From<([f32; 3], [f32; 2], [f32; 3])> for MeshVertex {
 }
 
 impl MeshVertex {
-    pub fn calc_tangents_and_bitangents(vertices: &mut Vec<MeshVertex>, indices: &[u32]) {
+    pub fn calc_tangents_and_bitangents(vertices: &mut [MeshVertex], indices: &[u32]) {
         for c in indices.chunks(3) {
             let v0 = vertices[c[0] as usize];
             let v1 = vertices[c[1] as usize];
@@ -111,8 +111,6 @@ pub struct GpuMesh {
     pub num_elements: u32,
 }
 
-impl GpuResource for GpuMesh {}
-
 #[derive(Debug)]
 pub struct Mesh {
     pub name: String,
@@ -120,10 +118,10 @@ pub struct Mesh {
     pub indices: Vec<u32>,
 }
 
-impl GpuAsset for Mesh {
-    type GpuType = GpuMesh;
+impl GpuResource for Mesh {
+    type ResourceType = GpuMesh;
 
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("vertex_buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
@@ -136,7 +134,7 @@ impl GpuAsset for Mesh {
             usage: BufferUsages::INDEX,
         });
 
-        Self::GpuType {
+        Self::ResourceType {
             vertex_buffer,
             index_buffer: Some(index_buffer),
             num_elements: self.indices.len() as u32,

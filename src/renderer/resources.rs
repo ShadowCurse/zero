@@ -3,29 +3,48 @@ use crate::{
     mesh::GpuMesh,
     texture::{DepthTexture, GpuTexture},
 };
-use std::{collections::HashMap, fs::File, io::Read};
 use log::trace;
+use std::{collections::HashMap, fs::File, io::Read};
 
 /// Trait for render vertices
 pub trait Vertex {
     fn desc<'a>() -> VertexBufferLayout<'a>;
 }
 
-/// Trait for resources located on the GPU
-pub trait GpuResource {}
-
-/// Trait for types that can be loaded to the GPU
-pub trait GpuAsset {
-    type GpuType: GpuResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::GpuType;
+/// Trait for types that create resources on the GPU (buffers, textures, etc..)
+pub trait GpuResource {
+    type ResourceType;
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType;
 }
 
-/// Trait for the types that can be converted to the RenderResource
-pub trait RenderAsset {
+/// Trait for types that combine multiple GpuResources
+pub trait ResourceHandle {
+    type OriginalResource;
+    type ResourceType;
+
+    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self;
+    fn replace(
+        &self,
+        storage: &mut RenderStorage,
+        resource: Self::ResourceType,
+    );
+    fn update(
+        &self,
+        _renderer: &Renderer,
+        _storage: &RenderStorage,
+        _original: &Self::OriginalResource,
+    ) {}
+}
+
+/// Trait for the types that combine GpuResources into bind_groups
+pub trait AssetBindGroup {
+    type ResourceHandle;
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout;
-    fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources;
-    fn update(&self, _renderer: &Renderer, _id: ResourceId, _storage: &RenderStorage) {}
+    fn new(
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) -> Self;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -45,119 +64,66 @@ pub struct RenderResources {
 
 #[derive(Debug, Default)]
 pub struct RenderStorage {
-    pub buffers: Vec<Vec<Buffer>>,
-    pub textures: Vec<Vec<GpuTexture>>,
-    pub meshes: Vec<Vec<GpuMesh>>,
-    pub bind_groups: Vec<Option<BindGroup>>,
-    // ....
+    pub buffers: Vec<Buffer>,
+    pub textures: Vec<GpuTexture>,
+    pub meshes: Vec<GpuMesh>,
+    pub bind_groups: Vec<BindGroup>,
+
     pub pipelines: Vec<RenderPipeline>,
     pub layouts: HashMap<&'static str, BindGroupLayout>,
 }
 
 impl RenderStorage {
-    pub fn build_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A) -> ResourceId {
-        let t_name = std::any::type_name::<A>();
-        if !self.layouts.contains_key(t_name) {
-            self.layouts.insert(t_name, A::bind_group_layout(renderer));
-        }
-        let layout = self.layouts.get(t_name).unwrap();
-        let resources = item.build(renderer, layout);
-        self.insert_resources(resources)
-    }
-
-    pub fn build_texture<A: GpuAsset<GpuType = GpuTexture>>(
-        &mut self,
-        renderer: &Renderer,
-        texture: &A,
-    ) -> ResourceId {
-        let texture = texture.build(renderer);
-        self.insert_resources(RenderResources {
-            textures: vec![texture],
-            ..Default::default()
-        })
-    }
-
-    pub fn build_mesh<A: GpuAsset<GpuType = GpuMesh>>(
-        &mut self,
-        renderer: &Renderer,
-        mesh: &A,
-    ) -> ResourceId {
-        let mesh = mesh.build(renderer);
-        self.insert_resources(RenderResources {
-            meshes: vec![mesh],
-            ..Default::default()
-        })
-    }
-
     pub fn add_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
         let id = self.pipelines.len();
         self.pipelines.push(pipeline);
         ResourceId(id)
     }
 
-    fn insert_resources(&mut self, resources: RenderResources) -> ResourceId {
-        let id = self.buffers.len();
-        self.buffers.push(resources.buffers);
-        self.textures.push(resources.textures);
-        self.meshes.push(resources.meshes);
-        self.bind_groups.push(resources.bind_group);
-        ResourceId(id)
+    pub fn insert_buffer(&mut self, buffer: Buffer) -> ResourceId {
+        let id = ResourceId(self.buffers.len());
+        self.buffers.push(buffer);
+        id
     }
 
-    pub fn rebuild_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A, id: ResourceId) {
+    pub fn insert_texture(&mut self, texture: GpuTexture) -> ResourceId {
+        let id = ResourceId(self.textures.len());
+        self.textures.push(texture);
+        id
+    }
+
+    pub fn insert_mesh(&mut self, mesh: GpuMesh) -> ResourceId {
+        let id = ResourceId(self.meshes.len());
+        self.meshes.push(mesh);
+        id
+    }
+
+    pub fn insert_bind_group(&mut self, bind_group: BindGroup) -> ResourceId {
+        let id = ResourceId(self.bind_groups.len());
+        self.bind_groups.push(bind_group);
+        id
+    }
+
+    pub fn replace_buffer(&mut self, buffer_id: ResourceId, buffer: Buffer) {
+        self.buffers[buffer_id.0] = buffer;
+    }
+
+    pub fn replace_texture(&mut self, texture_id: ResourceId, texture: GpuTexture) {
+        self.textures[texture_id.0] = texture;
+    }
+
+    pub fn replace_mesh(&mut self, mesh_id: ResourceId, mesh: GpuMesh) {
+        self.meshes[mesh_id.0] = mesh;
+    }
+
+    pub fn register_bind_group_layout<A: AssetBindGroup>(&mut self, renderer: &Renderer) {
         let t_name = std::any::type_name::<A>();
         if !self.layouts.contains_key(t_name) {
-            panic!("Rebuilding asset that was never built");
+            self.layouts.insert(t_name, A::bind_group_layout(renderer));
         }
-        let layout = self.layouts.get(t_name).unwrap();
-        let resources = item.build(renderer, layout);
-        self.insert_resources_at(resources, id);
     }
 
-    pub fn rebuild_texture<A: GpuAsset<GpuType = GpuTexture>>(
-        &mut self,
-        renderer: &Renderer,
-        texture: &A,
-        id: ResourceId,
-    ) {
-        let texture = texture.build(renderer);
-        self.insert_resources_at(
-            RenderResources {
-                textures: vec![texture],
-                ..Default::default()
-            },
-            id,
-        );
-    }
-
-    pub fn rebuild_mesh<A: GpuAsset<GpuType = GpuMesh>>(
-        &mut self,
-        renderer: &Renderer,
-        mesh: &A,
-        id: ResourceId,
-    ) {
-        let mesh = mesh.build(renderer);
-        self.insert_resources_at(
-            RenderResources {
-                meshes: vec![mesh],
-                ..Default::default()
-            },
-            id,
-        );
-    }
-
-    fn insert_resources_at(&mut self, resources: RenderResources, id: ResourceId) {
-        self.buffers[id.0] = resources.buffers;
-        self.textures[id.0] = resources.textures;
-        self.meshes[id.0] = resources.meshes;
-        self.bind_groups[id.0] = resources.bind_group;
-    }
-
-    pub fn update_asset<A: RenderAsset>(&mut self, renderer: &Renderer, item: &A, id: ResourceId) {
-        item.update(renderer, id, self);
-    }
-
-    pub fn get_bind_group_layout<A: RenderAsset>(&self) -> &BindGroupLayout {
+    pub fn get_bind_group_layout<A: AssetBindGroup>(&self) -> &BindGroupLayout {
         let t_name = std::any::type_name::<A>();
         if !self.layouts.contains_key(t_name) {
             panic!("Trying to get a layout of an asset that was never built");
@@ -165,20 +131,20 @@ impl RenderStorage {
         self.layouts.get(t_name).unwrap()
     }
 
-    pub fn get_buffers(&self, id: ResourceId) -> &[Buffer] {
+    pub fn get_buffer(&self, id: ResourceId) -> &Buffer {
         self.buffers.get(id.0).unwrap()
     }
 
-    pub fn get_textures(&self, id: ResourceId) -> &[GpuTexture] {
+    pub fn get_texture(&self, id: ResourceId) -> &GpuTexture {
         self.textures.get(id.0).unwrap()
     }
 
-    pub fn get_meshes(&self, id: ResourceId) -> &[GpuMesh] {
+    pub fn get_mesh(&self, id: ResourceId) -> &GpuMesh {
         self.meshes.get(id.0).unwrap()
     }
 
-    pub fn get_bind_group(&self, id: ResourceId) -> Option<&BindGroup> {
-        self.bind_groups.get(id.0).unwrap().as_ref()
+    pub fn get_bind_group(&self, id: ResourceId) -> &BindGroup {
+        self.bind_groups.get(id.0).unwrap()
     }
 
     pub fn get_pipeline(&self, id: ResourceId) -> &RenderPipeline {

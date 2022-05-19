@@ -1,8 +1,8 @@
 use crate::renderer::prelude::*;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
-use std::path::Path;
 use log::trace;
+use std::path::Path;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -61,8 +61,6 @@ impl GpuTexture {
     }
 }
 
-impl GpuResource for GpuTexture {}
-
 #[derive(Debug, Clone, Copy)]
 pub enum TextureType {
     Diffuse,
@@ -91,10 +89,10 @@ impl ImageTexture {
     }
 }
 
-impl GpuAsset for ImageTexture {
-    type GpuType = GpuTexture;
+impl GpuResource for ImageTexture {
+    type ResourceType = GpuTexture;
 
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture_size = if let Some(dimensions) = self.dimensions {
             Extent3d {
                 width: dimensions.0,
@@ -151,7 +149,7 @@ impl GpuAsset for ImageTexture {
             );
         }
 
-        Self::GpuType {
+        Self::ResourceType {
             texture,
             view,
             sampler,
@@ -168,10 +166,10 @@ impl DepthTexture {
     pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
 }
 
-impl GpuAsset for DepthTexture {
-    type GpuType = GpuTexture;
+impl GpuResource for DepthTexture {
+    type ResourceType = GpuTexture;
 
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture_size = if let Some(dimensions) = self.dimensions {
             Extent3d {
                 width: dimensions.0,
@@ -210,7 +208,7 @@ impl GpuAsset for DepthTexture {
             ..Default::default()
         });
 
-        Self::GpuType {
+        Self::ResourceType {
             texture,
             view,
             sampler,
@@ -245,10 +243,10 @@ impl CubeMap {
     }
 }
 
-impl GpuAsset for CubeMap {
-    type GpuType = GpuTexture;
+impl GpuResource for CubeMap {
+    type ResourceType = GpuTexture;
 
-    fn build(&self, renderer: &Renderer) -> Self::GpuType {
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture_size = if let Some(dimensions) = self.dimensions {
             Extent3d {
                 width: dimensions.0,
@@ -305,7 +303,7 @@ impl GpuAsset for CubeMap {
             );
         }
 
-        Self::GpuType {
+        Self::ResourceType {
             texture,
             view,
             sampler,
