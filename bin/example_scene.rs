@@ -15,19 +15,40 @@ fn main() {
     let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
-    let depth_texture_id = storage.build_texture(&renderer, &DepthTexture::default());
-    let shadow_map_id = storage.build_asset(&renderer, &ShadowMap::default());
+    let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
+    let shadow_map_handle =
+        ShadowMapHandle::from_resource(&mut storage, ShadowMap::default().build(&renderer));
+    let shadow_map_bind_group =
+        ShadowMapBindGroup::new(&renderer, &mut storage, &shadow_map_handle);
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
-    let g_buffer_id = storage.build_asset(&renderer, &g_buffer);
+    let g_buffer_handle = GBufferHandle::from_resource(&mut storage, g_buffer.build(&renderer));
+    let mut g_buffer_bind_group = GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
+
     let geometry_phase = RenderPhase::new(
-        vec![ColorAttachment {
-            view_id: g_buffer_id,
-            ops: Operations {
-                load: LoadOp::Clear(Color::TRANSPARENT),
-                store: true,
+        vec![
+            ColorAttachment {
+                view_id: g_buffer_handle.position_texture_id,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::TRANSPARENT),
+                    store: true,
+                },
             },
-        }],
+            ColorAttachment {
+                view_id: g_buffer_handle.normal_texture_id,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::TRANSPARENT),
+                    store: true,
+                },
+            },
+            ColorAttachment {
+                view_id: g_buffer_handle.albedo_texture_id,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::TRANSPARENT),
+                    store: true,
+                },
+            },
+        ],
         Some(DepthStencil {
             view_id: depth_texture_id,
             depth_ops: Some(Operations {
@@ -42,7 +63,7 @@ fn main() {
     let shadow_phase = RenderPhase::new(
         vec![],
         Some(DepthStencil {
-            view_id: shadow_map_id,
+            view_id: shadow_map_handle.texture_id,
             depth_ops: Some(Operations {
                 load: LoadOp::Clear(1.0),
                 store: true,
@@ -94,7 +115,8 @@ fn main() {
         0.1,
         100.0,
     );
-    let camera_id = storage.build_asset(&renderer, &camera);
+    let camera_handle = CameraHandle::from_resource(&mut storage, camera.build(&renderer));
+    let camera_bind_group = CameraBindGroup::new(&renderer, &mut storage, &camera_handle);
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
@@ -105,7 +127,8 @@ fn main() {
     let lights = PointLights {
         lights: vec![light, light_2, light_3, light_4],
     };
-    let lights_id = storage.build_asset(&renderer, &lights);
+    let lights_handle = PointLightsHandle::from_resource(&mut storage, lights.build(&renderer));
+    let lights_bind_group = PointLightsBindGroup::new(&renderer, &mut storage, &lights_handle);
 
     let shadow_d_light = ShadowMapDLight::new(
         (-2.0, 9.0, 8.0),
@@ -117,27 +140,36 @@ fn main() {
         0.1,
         8.0,
     );
-    let shadow_d_light_id = storage.build_asset(&renderer, &shadow_d_light);
+    let shadow_d_light_handle =
+        ShadowMapDLightHandle::from_resource(&mut storage, shadow_d_light.build(&renderer));
+    let shadow_d_light_bind_group =
+        ShadowMapDLightBindGroup::new(&renderer, &mut storage, &shadow_d_light_handle);
 
     let box_mesh: Mesh = Cube::new(9.0, 1.0, 5.0).into();
-    let box_id = storage.build_mesh(&renderer, &box_mesh);
+    let box_id = storage.insert_mesh(box_mesh.build(&renderer));
 
     let box_transform = Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (3.0, 1.0, 3.0).into(),
     };
-    let box_transform_id = storage.build_asset(&renderer, &box_transform);
+    let box_transform_handle =
+        TransformHandle::from_resource(&mut storage, box_transform.build(&renderer));
+    let box_transform_bind_group =
+        TransformBindGroup::new(&renderer, &mut storage, &box_transform_handle);
 
     let box2_mesh: Mesh = Cube::new(1.0, 1.0, 1.0).into();
-    let box2_id = storage.build_mesh(&renderer, &box2_mesh);
+    let box2_id = storage.insert_mesh(box2_mesh.build(&renderer));
 
     let box2_transform = Transform {
         translation: (0.0, 1.0, 1.0).into(),
         rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let box2_transform_id = storage.build_asset(&renderer, &box2_transform);
+    let box2_transform_handle =
+        TransformHandle::from_resource(&mut storage, box2_transform.build(&renderer));
+    let box2_transform_bind_group =
+        TransformBindGroup::new(&renderer, &mut storage, &box2_transform_handle);
 
     let grey_material = ColorMaterial {
         ambient: [0.4, 0.4, 0.4],
@@ -145,7 +177,10 @@ fn main() {
         specular: [1.0, 1.0, 1.0],
         shininess: 32.0,
     };
-    let grey_material_id = storage.build_asset(&renderer, &grey_material);
+    let grey_material_handle =
+        ColorMaterialHandle::from_resource(&mut storage, grey_material.build(&renderer));
+    let grey_material_bind_group =
+        ColorMaterialBindGroup::new(&renderer, &mut storage, &grey_material_handle);
 
     let green_material = ColorMaterial {
         ambient: [0.4, 0.9, 0.4],
@@ -153,7 +188,10 @@ fn main() {
         specular: [0.1, 0.1, 0.1],
         shininess: 1.0,
     };
-    let green_material_id = storage.build_asset(&renderer, &green_material);
+    let green_material_handle =
+        ColorMaterialHandle::from_resource(&mut storage, green_material.build(&renderer));
+    let green_material_bind_group =
+        ColorMaterialBindGroup::new(&renderer, &mut storage, &green_material_handle);
 
     let cube_model = Model::load("./res/cube/cube.obj").unwrap();
     let cube_model_ids = cube_model.build(&renderer, &mut storage);
@@ -163,13 +201,16 @@ fn main() {
         rotation: Quaternion::from_axis_angle(Vector3::unit_y(), Deg(69.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let cube_transform_id = storage.build_asset(&renderer, &cube_transform);
+    let cube_transform_handle =
+        TransformHandle::from_resource(&mut storage, cube_transform.build(&renderer));
+    let cube_transform_bind_group =
+        TransformBindGroup::new(&renderer, &mut storage, &cube_transform_handle);
 
     let g_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
-            storage.get_bind_group_layout::<Material>(),
-            storage.get_bind_group_layout::<Transform>(),
-            storage.get_bind_group_layout::<Camera>(),
+            storage.get_bind_group_layout::<MaterialBindGroup>(),
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
         ],
         vertex_layouts: vec![MeshVertex::desc()],
         shader_path: "./shaders/geometry_pass.wgsl",
@@ -182,9 +223,9 @@ fn main() {
 
     let g_color_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
-            storage.get_bind_group_layout::<ColorMaterial>(),
-            storage.get_bind_group_layout::<Transform>(),
-            storage.get_bind_group_layout::<Camera>(),
+            storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
         ],
         vertex_layouts: vec![MeshVertex::desc()],
         shader_path: "./shaders/geometry_color_pass.wgsl",
@@ -197,8 +238,8 @@ fn main() {
 
     let shadow_map_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
-            storage.get_bind_group_layout::<Transform>(),
-            storage.get_bind_group_layout::<ShadowMapDLight>(),
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
         ],
         vertex_layouts: vec![MeshVertex::desc()],
         shader_path: "./shaders/shadow_map.wgsl",
@@ -212,11 +253,11 @@ fn main() {
 
     let lighting_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
-            storage.get_bind_group_layout::<GBuffer>(),
-            storage.get_bind_group_layout::<PointLights>(),
-            storage.get_bind_group_layout::<Camera>(),
-            storage.get_bind_group_layout::<ShadowMap>(),
-            storage.get_bind_group_layout::<ShadowMapDLight>(),
+            storage.get_bind_group_layout::<GBufferBindGroup>(),
+            storage.get_bind_group_layout::<PointLightsBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
+            storage.get_bind_group_layout::<ShadowMapBindGroup>(),
+            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
         ],
         vertex_layouts: vec![TextureVertex::desc()],
         shader_path: "./shaders/lighting_pass.wgsl",
@@ -235,12 +276,13 @@ fn main() {
         "./res/skybox/back.jpg",
     ])
     .unwrap();
-    let skybox_id = storage.build_asset(&renderer, &skybox);
+    let skybox_handle = SkyboxHandle::from_resource(&mut storage, skybox.build(&renderer));
+    let skybox_bind_group = SkyboxBindGroup::new(&renderer, &mut storage, &skybox_handle);
 
     let skybox_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
-            storage.get_bind_group_layout::<Skybox>(),
-            storage.get_bind_group_layout::<Camera>(),
+            storage.get_bind_group_layout::<SkyboxBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
         ],
         vertex_layouts: vec![SkyboxVertex::desc()],
         shader_path: "./shaders/skybox.wgsl",
@@ -287,14 +329,24 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     camera.resize(physical_size.width, physical_size.height);
                     renderer.resize(Some(*physical_size));
-                    storage.rebuild_texture(&renderer, &DepthTexture::default(), depth_texture_id);
-                    storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
+                    storage.replace_texture(
+                        depth_texture_id,
+                        DepthTexture::default().build(&renderer),
+                    );
+                    g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
+                    g_buffer_bind_group =
+                        GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
                     renderer.resize(Some(**new_inner_size));
-                    storage.rebuild_texture(&renderer, &DepthTexture::default(), depth_texture_id);
-                    storage.rebuild_asset(&renderer, &g_buffer, g_buffer_id);
+                    storage.replace_texture(
+                        depth_texture_id,
+                        DepthTexture::default().build(&renderer),
+                    );
+                    g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
+                    g_buffer_bind_group =
+                        GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
                 }
                 _ => {}
             },
@@ -304,64 +356,81 @@ fn main() {
                 last_render_time = now;
 
                 camera_controller.update_camera(&mut camera, dt);
-                storage.update_asset(&renderer, &camera, camera_id);
+                camera_handle.update(&renderer, &storage, &camera);
 
                 cube_transform.rotation = cube_transform.rotation
                     * cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_y(),
                         cgmath::Deg(-dt.as_secs_f32() * 30.0),
                     );
-                storage.update_asset(&renderer, &cube_transform, cube_transform_id);
+                cube_transform_handle.update(&renderer, &storage, &cube_transform);
 
                 let box1 = RenderCommand::new(
                     g_color_pipeline_id,
                     box_id,
-                    vec![grey_material_id, box_transform_id, camera_id],
+                    vec![
+                        grey_material_bind_group.0,
+                        box_transform_bind_group.0,
+                        camera_bind_group.0,
+                    ],
                 );
                 let box2 = RenderCommand::new(
                     g_color_pipeline_id,
                     box2_id,
-                    vec![green_material_id, box2_transform_id, camera_id],
+                    vec![
+                        green_material_bind_group.0,
+                        box2_transform_bind_group.0,
+                        camera_bind_group.0,
+                    ],
                 );
                 let cube = RenderCommand::new(
                     g_pipeline_id,
-                    cube_model_ids.meshes[0].id,
-                    vec![cube_model_ids.meshes[0].material_id, cube_transform_id, camera_id],
+                    cube_model_ids.meshes[0].mesh_id,
+                    vec![
+                        cube_model_ids.materials[cube_model_ids.meshes[0].material_index]
+                            .material_bind_group
+                            .0,
+                        cube_transform_bind_group.0,
+                        camera_bind_group.0,
+                    ],
                 );
                 render_system.add_phase_commands("geometry", vec![box1, box2, cube]);
 
                 let box1 = RenderCommand::new(
                     shadow_map_pipeline_id,
                     box_id,
-                    vec![box_transform_id, shadow_d_light_id],
+                    vec![box_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 let box2 = RenderCommand::new(
                     shadow_map_pipeline_id,
                     box2_id,
-                    vec![box2_transform_id, shadow_d_light_id],
+                    vec![box2_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 let cube = RenderCommand::new(
                     shadow_map_pipeline_id,
-                    cube_model_ids.meshes[0].id,
-                    vec![cube_transform_id, shadow_d_light_id],
+                    cube_model_ids.meshes[0].mesh_id,
+                    vec![cube_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
 
                 let command = RenderCommand::new(
                     lighting_pipeline_id,
-                    g_buffer_id,
+                    g_buffer_handle.mesh_id,
                     vec![
-                        g_buffer_id,
-                        lights_id,
-                        camera_id,
-                        shadow_map_id,
-                        shadow_d_light_id,
+                        g_buffer_bind_group.0,
+                        lights_bind_group.0,
+                        camera_bind_group.0,
+                        shadow_map_bind_group.0,
+                        shadow_d_light_bind_group.0,
                     ],
                 );
                 render_system.add_phase_commands("lighting", vec![command]);
 
-                let command =
-                    RenderCommand::new(skybox_pipeline_id, skybox_id, vec![skybox_id, camera_id]);
+                let command = RenderCommand::new(
+                    skybox_pipeline_id,
+                    skybox_handle.mesh_id,
+                    vec![skybox_bind_group.0, camera_bind_group.0],
+                );
                 render_system.add_phase_commands("skybox", vec![command]);
 
                 match render_system.run(&renderer, &storage) {
