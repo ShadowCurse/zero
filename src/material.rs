@@ -246,11 +246,7 @@ impl ResourceHandle for ColorMaterialHandle {
         }
     }
 
-    fn replace(
-        &self,
-        storage: &mut RenderStorage,
-        resource: Self::ResourceType,
-    ) {
+    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
         storage.replace_buffer(self.buffer_id, resource.buffer);
     }
 }

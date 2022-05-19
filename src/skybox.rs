@@ -1,6 +1,6 @@
+use crate::mesh::GpuMesh;
 use crate::renderer::prelude::*;
 use crate::texture;
-use crate::mesh::GpuMesh;
 use anyhow::{Ok, Result};
 use texture::GpuTexture;
 

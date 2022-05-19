@@ -23,17 +23,14 @@ pub trait ResourceHandle {
     type ResourceType;
 
     fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self;
-    fn replace(
-        &self,
-        storage: &mut RenderStorage,
-        resource: Self::ResourceType,
-    );
+    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType);
     fn update(
         &self,
         _renderer: &Renderer,
         _storage: &RenderStorage,
         _original: &Self::OriginalResource,
-    ) {}
+    ) {
+    }
 }
 
 /// Trait for the types that combine GpuResources into bind_groups
