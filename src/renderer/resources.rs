@@ -61,6 +61,7 @@ pub struct RenderResources {
 
 #[derive(Debug, Default)]
 pub struct RenderStorage {
+    // TODO use sparse arrays
     pub buffers: Vec<Buffer>,
     pub textures: Vec<GpuTexture>,
     pub meshes: Vec<GpuMesh>,
@@ -71,10 +72,10 @@ pub struct RenderStorage {
 }
 
 impl RenderStorage {
-    pub fn add_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
-        let id = self.pipelines.len();
+    pub fn insert_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
+        let id = ResourceId(self.pipelines.len());
         self.pipelines.push(pipeline);
-        ResourceId(id)
+        id
     }
 
     pub fn insert_buffer(&mut self, buffer: Buffer) -> ResourceId {

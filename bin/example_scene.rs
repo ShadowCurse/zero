@@ -219,7 +219,7 @@ fn main() {
         ..Default::default()
     }
     .build(&renderer);
-    let g_pipeline_id = storage.add_pipeline(g_pipeline);
+    let g_pipeline_id = storage.insert_pipeline(g_pipeline);
 
     let g_color_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
@@ -234,7 +234,7 @@ fn main() {
         ..Default::default()
     }
     .build(&renderer);
-    let g_color_pipeline_id = storage.add_pipeline(g_color_pipeline);
+    let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
 
     let shadow_map_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
@@ -249,7 +249,7 @@ fn main() {
         ..Default::default()
     }
     .build(&renderer);
-    let shadow_map_pipeline_id = storage.add_pipeline(shadow_map_pipeline);
+    let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
 
     let lighting_pipeline = PipelineBuilder {
         bind_group_layouts: vec![
@@ -265,7 +265,7 @@ fn main() {
         ..Default::default()
     }
     .build(&renderer);
-    let lighting_pipeline_id = storage.add_pipeline(lighting_pipeline);
+    let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
 
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
@@ -290,7 +290,7 @@ fn main() {
         ..Default::default()
     }
     .build(&renderer);
-    let skybox_pipeline_id = storage.add_pipeline(skybox_pipeline);
+    let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
 
     let mut last_render_time = std::time::Instant::now();
     event_loop.run(move |event, _, control_flow| {

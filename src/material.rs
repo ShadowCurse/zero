@@ -40,6 +40,7 @@ impl Material {
     }
 }
 
+#[derive(Debug)]
 pub struct MaterialResource {
     buffer: Buffer,
     diffuse_texture: GpuTexture,
@@ -69,6 +70,7 @@ impl GpuResource for Material {
     }
 }
 
+#[derive(Debug)]
 pub struct MaterialHandle {
     pub buffer_id: ResourceId,
     pub diffuse_texture_id: ResourceId,
@@ -92,8 +94,22 @@ impl ResourceHandle for MaterialHandle {
         storage.replace_texture(self.diffuse_texture_id, resource.diffuse_texture);
         storage.replace_texture(self.normal_texture_id, resource.normal_texture);
     }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
 }
 
+#[derive(Debug)]
 pub struct MaterialBindGroup(pub ResourceId);
 
 impl AssetBindGroup for MaterialBindGroup {
@@ -213,6 +229,7 @@ impl ColorMaterial {
     }
 }
 
+#[derive(Debug)]
 pub struct ColorMaterialResource {
     buffer: Buffer,
 }
@@ -232,6 +249,7 @@ impl GpuResource for ColorMaterial {
     }
 }
 
+#[derive(Debug)]
 pub struct ColorMaterialHandle {
     pub buffer_id: ResourceId,
 }
@@ -249,8 +267,22 @@ impl ResourceHandle for ColorMaterialHandle {
     fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
         storage.replace_buffer(self.buffer_id, resource.buffer);
     }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
 }
 
+#[derive(Debug)]
 pub struct ColorMaterialBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ColorMaterialBindGroup {

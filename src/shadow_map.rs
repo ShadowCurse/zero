@@ -9,6 +9,7 @@ pub struct ShadowMap {
     pub shadow_map: DepthTexture,
 }
 
+#[derive(Debug)]
 pub struct ShadowMapResource {
     texture: GpuTexture,
 }
@@ -22,6 +23,7 @@ impl GpuResource for ShadowMap {
     }
 }
 
+#[derive(Debug)]
 pub struct ShadowMapHandle {
     pub texture_id: ResourceId,
 }
@@ -41,6 +43,7 @@ impl ResourceHandle for ShadowMapHandle {
     }
 }
 
+#[derive(Debug)]
 pub struct ShadowMapBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ShadowMapBindGroup {
@@ -234,6 +237,7 @@ impl ShadowMapDLight {
     }
 }
 
+#[derive(Debug)]
 pub struct ShadowMapDLightResource {
     buffer: Buffer,
 }
@@ -253,6 +257,7 @@ impl GpuResource for ShadowMapDLight {
     }
 }
 
+#[derive(Debug)]
 pub struct ShadowMapDLightHandle {
     pub buffer_id: ResourceId,
 }
@@ -285,6 +290,7 @@ impl ResourceHandle for ShadowMapDLightHandle {
     }
 }
 
+#[derive(Debug)]
 pub struct ShadowMapDLightBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ShadowMapDLightBindGroup {

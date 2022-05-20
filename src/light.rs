@@ -91,6 +91,7 @@ impl DirectionalLight {
     }
 }
 
+#[derive(Debug)]
 pub struct DirectionalLightResource {
     pub buffer: Buffer,
 }
@@ -110,6 +111,7 @@ impl GpuResource for DirectionalLight {
     }
 }
 
+#[derive(Debug)]
 pub struct DirectionalLightHandle {
     pub buffer_id: ResourceId,
 }
@@ -127,8 +129,22 @@ impl ResourceHandle for DirectionalLightHandle {
     fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
         storage.replace_buffer(self.buffer_id, resource.buffer);
     }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
 }
 
+#[derive(Debug)]
 struct DirectionalLightBindGroup(pub ResourceId);
 
 impl AssetBindGroup for DirectionalLightBindGroup {
@@ -227,6 +243,7 @@ impl PointLight {
     }
 }
 
+#[derive(Debug)]
 pub struct PointLightResource {
     pub buffer: Buffer,
 }
@@ -246,6 +263,7 @@ impl GpuResource for PointLight {
     }
 }
 
+#[derive(Debug)]
 pub struct PointLightHandle {
     pub buffer_id: ResourceId,
 }
@@ -263,9 +281,23 @@ impl ResourceHandle for PointLightHandle {
     fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
         storage.replace_buffer(self.buffer_id, resource.buffer);
     }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
 }
 
-struct PointLightBindGroup(pub ResourceId);
+#[derive(Debug)]
+pub struct PointLightBindGroup(pub ResourceId);
 
 impl AssetBindGroup for PointLightBindGroup {
     type ResourceHandle = PointLightHandle;
@@ -310,8 +342,6 @@ impl AssetBindGroup for PointLightBindGroup {
     }
 }
 
-// impl_light_render_asset!(PointLight);
-
 const MAX_LIGHTS: usize = 10;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -351,6 +381,7 @@ impl PointLights {
     }
 }
 
+#[derive(Debug)]
 pub struct PointLightsResource {
     pub buffer: Buffer,
 }
@@ -370,6 +401,7 @@ impl GpuResource for PointLights {
     }
 }
 
+#[derive(Debug)]
 pub struct PointLightsHandle {
     pub buffer_id: ResourceId,
 }
@@ -387,8 +419,22 @@ impl ResourceHandle for PointLightsHandle {
     fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
         storage.replace_buffer(self.buffer_id, resource.buffer);
     }
+
+    fn update(
+        &self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        original: &Self::OriginalResource,
+    ) {
+        renderer.queue.write_buffer(
+            storage.get_buffer(self.buffer_id),
+            0,
+            bytemuck::cast_slice(&[original.to_uniform()]),
+        );
+    }
 }
 
+#[derive(Debug)]
 pub struct PointLightsBindGroup(pub ResourceId);
 
 impl AssetBindGroup for PointLightsBindGroup {

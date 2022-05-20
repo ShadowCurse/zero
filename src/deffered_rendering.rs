@@ -66,6 +66,7 @@ impl GBuffer {
     }
 }
 
+#[derive(Debug)]
 pub struct GBufferResource {
     position_texture: GpuTexture,
     normal_texture: GpuTexture,
@@ -120,6 +121,7 @@ impl GpuResource for GBuffer {
     }
 }
 
+#[derive(Debug)]
 pub struct GBufferHandle {
     pub position_texture_id: ResourceId,
     pub normal_texture_id: ResourceId,
@@ -148,6 +150,7 @@ impl ResourceHandle for GBufferHandle {
     }
 }
 
+#[derive(Debug)]
 pub struct GBufferBindGroup(pub ResourceId);
 
 impl AssetBindGroup for GBufferBindGroup {

@@ -28,9 +28,11 @@ impl Transform {
     }
 }
 
+#[derive(Debug)]
 pub struct TransformResources {
     buffer: Buffer,
 }
+
 impl GpuResource for Transform {
     type ResourceType = TransformResources;
 
@@ -45,6 +47,7 @@ impl GpuResource for Transform {
     }
 }
 
+#[derive(Debug)]
 pub struct TransformHandle {
     buffer_id: ResourceId,
 }
@@ -77,6 +80,7 @@ impl ResourceHandle for TransformHandle {
     }
 }
 
+#[derive(Debug)]
 pub struct TransformBindGroup(pub ResourceId);
 
 impl AssetBindGroup for TransformBindGroup {

@@ -17,18 +17,19 @@ pub struct Model {
     pub materials: Vec<Material>,
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct ModelMeshHandle {
     pub mesh_id: ResourceId,
     pub material_index: usize,
 }
 
+#[derive(Debug)]
 pub struct ModelMaterialHandle {
     pub material_handle: MaterialHandle,
     pub material_bind_group: MaterialBindGroup,
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct ModelHandle {
     pub meshes: Vec<ModelMeshHandle>,
     pub materials: Vec<ModelMaterialHandle>,

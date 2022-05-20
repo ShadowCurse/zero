@@ -94,6 +94,7 @@ impl Camera {
     }
 }
 
+#[derive(Debug)]
 pub struct CameraResource {
     pub buffer: Buffer,
 }
@@ -113,6 +114,7 @@ impl GpuResource for Camera {
     }
 }
 
+#[derive(Debug)]
 pub struct CameraHandle {
     pub buffer_id: ResourceId,
 }
@@ -145,6 +147,7 @@ impl ResourceHandle for CameraHandle {
     }
 }
 
+#[derive(Debug)]
 pub struct CameraBindGroup(pub ResourceId);
 
 impl AssetBindGroup for CameraBindGroup {
@@ -189,59 +192,6 @@ impl AssetBindGroup for CameraBindGroup {
         Self(storage.insert_bind_group(bind_group))
     }
 }
-
-// impl AssetBindGroup for Camera {
-//     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-//         renderer
-//             .device
-//             .create_bind_group_layout(&BindGroupLayoutDescriptor {
-//                 entries: &[BindGroupLayoutEntry {
-//                     binding: 0,
-//                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-//                     ty: BindingType::Buffer {
-//                         ty: BufferBindingType::Uniform,
-//                         has_dynamic_offset: false,
-//                         min_binding_size: None,
-//                     },
-//                     count: None,
-//                 }],
-//                 label: Some("camera_binding_group_layout"),
-//             })
-//     }
-//
-//     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-//         let uniform = self.to_uniform();
-//
-//         let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-//             label: Some("Camera buffer"),
-//             contents: bytemuck::cast_slice(&[uniform]),
-//             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-//         });
-//
-//         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
-//             layout,
-//             entries: &[BindGroupEntry {
-//                 binding: 0,
-//                 resource: buffer.as_entire_binding(),
-//             }],
-//             label: Some("comera_bind_group"),
-//         });
-//
-//         RenderResources {
-//             buffers: vec![buffer],
-//             bind_group: Some(bind_group),
-//             ..Default::default()
-//         }
-//     }
-//
-//     fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-//         renderer.queue.write_buffer(
-//             &storage.get_buffers(id)[0],
-//             0,
-//             bytemuck::cast_slice(&[self.to_uniform()]),
-//         );
-//     }
-// }
 
 #[derive(Debug, Default)]
 pub struct CameraController {
