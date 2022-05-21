@@ -1,63 +1,58 @@
 use crate::renderer::prelude::*;
 use cgmath::Vector3;
 
-// #[macro_export]
-// macro_rules! impl_light_render_asset {
-//     ($type:ty) => {
-//         impl RenderAsset for $type {
-//             fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-//                 renderer
-//                     .device
-//                     .create_bind_group_layout(&BindGroupLayoutDescriptor {
-//                         entries: &[BindGroupLayoutEntry {
-//                             binding: 0,
-//                             visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-//                             ty: BindingType::Buffer {
-//                                 ty: BufferBindingType::Uniform,
-//                                 has_dynamic_offset: false,
-//                                 min_binding_size: None,
-//                             },
-//                             count: None,
-//                         }],
-//                         label: Some("binding_group_layout"),
-//                     })
-//             }
-//
-//             fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-//                 let uniform = self.to_uniform();
-//
-//                 let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-//                     label: Some("light_uniform"),
-//                     contents: bytemuck::cast_slice(&[uniform]),
-//                     usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-//                 });
-//
-//                 let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
-//                     layout,
-//                     entries: &[BindGroupEntry {
-//                         binding: 0,
-//                         resource: buffer.as_entire_binding(),
-//                     }],
-//                     label: Some("bind_group"),
-//                 });
-//
-//                 RenderResources {
-//                     buffers: vec![buffer],
-//                     bind_group: Some(bind_group),
-//                     ..Default::default()
-//                 }
-//             }
-//
-//             fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-//                 renderer.queue.write_buffer(
-//                     &storage.get_buffers(id)[0],
-//                     0,
-//                     bytemuck::cast_slice(&[self.to_uniform()]),
-//                 );
-//             }
-//         }
-//     };
-// }
+#[macro_export]
+macro_rules! impl_gpu_resource {
+    ($type:ty, $resource_type:ty) => {
+        impl GpuResource for $type {
+            type ResourceType = $resource_type;
+
+            fn build(&self, renderer: &Renderer) -> Self::ResourceType {
+                let uniform = self.to_uniform();
+
+                let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+                    label: Some("{$type}_uniform"),
+                    contents: bytemuck::cast_slice(&[uniform]),
+                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                });
+                Self::ResourceType { buffer }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_resource_handle {
+    ($handle_type:ty, $original_type:ty, $resource_type:ty) => {
+        impl ResourceHandle for $handle_type {
+            type OriginalResource = $original_type;
+            type ResourceType = $resource_type;
+
+            fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+                Self {
+                    buffer_id: storage.insert_buffer(resource.buffer),
+                }
+            }
+
+            fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
+                storage.replace_buffer(self.buffer_id, resource.buffer);
+            }
+
+            fn update(
+                &self,
+                renderer: &Renderer,
+                storage: &RenderStorage,
+                original: &Self::OriginalResource,
+            ) {
+                renderer.queue.write_buffer(
+                    storage.get_buffer(self.buffer_id),
+                    0,
+                    bytemuck::cast_slice(&[original.to_uniform()]),
+                );
+            }
+        }
+    };
+}
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -95,54 +90,17 @@ impl DirectionalLight {
 pub struct DirectionalLightResource {
     pub buffer: Buffer,
 }
-
-impl GpuResource for DirectionalLight {
-    type ResourceType = DirectionalLightResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("light_uniform"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        Self::ResourceType { buffer }
-    }
-}
+impl_gpu_resource!(DirectionalLight, DirectionalLightResource);
 
 #[derive(Debug)]
 pub struct DirectionalLightHandle {
     pub buffer_id: ResourceId,
 }
-
-impl ResourceHandle for DirectionalLightHandle {
-    type OriginalResource = DirectionalLight;
-    type ResourceType = DirectionalLightResource;
-
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource,
-    ) {
-        renderer.queue.write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
+impl_resource_handle!(
+    DirectionalLightHandle,
+    DirectionalLight,
+    DirectionalLightResource
+);
 
 #[derive(Debug)]
 struct DirectionalLightBindGroup(pub ResourceId);
@@ -189,8 +147,6 @@ impl AssetBindGroup for DirectionalLightBindGroup {
         Self(storage.insert_bind_group(bind_group))
     }
 }
-
-// impl_light_render_asset!(DirectionalLight);
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -247,54 +203,13 @@ impl PointLight {
 pub struct PointLightResource {
     pub buffer: Buffer,
 }
-
-impl GpuResource for PointLight {
-    type ResourceType = PointLightResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("light_uniform"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        Self::ResourceType { buffer }
-    }
-}
+impl_gpu_resource!(PointLight, PointLightResource);
 
 #[derive(Debug)]
 pub struct PointLightHandle {
     pub buffer_id: ResourceId,
 }
-
-impl ResourceHandle for PointLightHandle {
-    type OriginalResource = PointLight;
-    type ResourceType = PointLightResource;
-
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource,
-    ) {
-        renderer.queue.write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
+impl_resource_handle!(PointLightHandle, PointLight, PointLightResource);
 
 #[derive(Debug)]
 pub struct PointLightBindGroup(pub ResourceId);
@@ -405,34 +320,7 @@ impl GpuResource for PointLights {
 pub struct PointLightsHandle {
     pub buffer_id: ResourceId,
 }
-
-impl ResourceHandle for PointLightsHandle {
-    type OriginalResource = PointLights;
-    type ResourceType = PointLightsResource;
-
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource,
-    ) {
-        renderer.queue.write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
+impl_resource_handle!(PointLightsHandle, PointLights, PointLightsResource);
 
 #[derive(Debug)]
 pub struct PointLightsBindGroup(pub ResourceId);
@@ -479,99 +367,3 @@ impl AssetBindGroup for PointLightsBindGroup {
         Self(storage.insert_bind_group(bind_group))
     }
 }
-
-// impl AssetBindGroup for PointLights {
-//     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-//         renderer
-//             .device
-//             .create_bind_group_layout(&BindGroupLayoutDescriptor {
-//                 entries: &[BindGroupLayoutEntry {
-//                     binding: 0,
-//                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-//                     ty: BindingType::Buffer {
-//                         ty: BufferBindingType::Storage { read_only: true },
-//                         has_dynamic_offset: false,
-//                         min_binding_size: None,
-//                     },
-//                     count: None,
-//                 }],
-//                 label: Some("point_lights_binding_group_layout"),
-//             })
-//     }
-//
-//     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-//         let uniforms = self.to_uniform();
-//
-//         let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
-//             label: Some("point_lights_uniform"),
-//             contents: bytemuck::cast_slice(&[uniforms]),
-//             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-//         });
-//
-//         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
-//             layout,
-//             entries: &[BindGroupEntry {
-//                 binding: 0,
-//                 resource: buffer.as_entire_binding(),
-//             }],
-//             label: Some("point_lights_bind_group"),
-//         });
-//
-//         RenderResources {
-//             buffers: vec![buffer],
-//             bind_group: Some(bind_group),
-//             ..Default::default()
-//         }
-//     }
-//
-//     fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-//         renderer.queue.write_buffer(
-//             &storage.get_buffers(id)[0],
-//             0,
-//             bytemuck::cast_slice(&[self.to_uniform()]),
-//         );
-//     }
-// }
-
-// #[repr(C)]
-// #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-// pub struct SpotLightUniform {
-//     position: [f32; 3],
-//     _pad1: u32,
-//     direction: [f32; 3],
-//     _pad2: u32,
-//     color: [f32; 3],
-//     _pad3: u32,
-// }
-//
-// #[derive(Debug)]
-// pub struct SpotLight {
-//     pub position: Vector3<f32>,
-//     pub direction: Vector3<f32>,
-//     pub color: Vector3<f32>,
-// }
-//
-// impl SpotLight {
-//     pub fn new<P: Into<Vector3<f32>>, D: Into<Vector3<f32>>, C: Into<Vector3<f32>>>(
-//         position: P,
-//         direction: D,
-//         color: C,
-//     ) -> Self {
-//         Self {
-//             position: position.into(),
-//             direction: direction.into(),
-//             color: color.into(),
-//         }
-//     }
-//
-//     fn to_uniform(&self) -> SpotLightUniform {
-//         SpotLightUniform {
-//             position: self.position.into(),
-//             direction: self.direction.into(),
-//             color: self.color.into(),
-//             ..Default::default()
-//         }
-//     }
-// }
-//
-// impl_light_render_asset!(SpotLight);
