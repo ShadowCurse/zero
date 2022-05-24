@@ -81,7 +81,7 @@ impl ResourceHandle for MaterialHandle {
     type OriginalResource = Material;
     type ResourceType = MaterialResource;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             buffer_id: storage.insert_buffer(resource.buffer),
             diffuse_texture_id: storage.insert_texture(resource.diffuse_texture),
@@ -258,7 +258,7 @@ impl ResourceHandle for ColorMaterialHandle {
     type OriginalResource = ColorMaterial;
     type ResourceType = ColorMaterialResource;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             buffer_id: storage.insert_buffer(resource.buffer),
         }

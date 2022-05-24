@@ -133,7 +133,7 @@ impl ResourceHandle for GBufferHandle {
     type OriginalResource = GBuffer;
     type ResourceType = GBufferResource;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             position_texture_id: storage.insert_texture(resource.position_texture),
             normal_texture_id: storage.insert_texture(resource.normal_texture),

@@ -110,7 +110,7 @@ impl Model {
             .materials
             .iter()
             .map(|m| {
-                let material_handle = MaterialHandle::from_resource(storage, m.build(renderer));
+                let material_handle = MaterialHandle::new(storage, m.build(renderer));
                 let material_bind_group =
                     MaterialBindGroup::new(renderer, storage, &material_handle);
                 ModelMaterialHandle {

@@ -32,7 +32,7 @@ impl ResourceHandle for ShadowMapHandle {
     type OriginalResource = ShadowMap;
     type ResourceType = ShadowMapResource;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             texture_id: storage.insert_texture(resource.texture),
         }
@@ -266,7 +266,7 @@ impl ResourceHandle for ShadowMapDLightHandle {
     type OriginalResource = ShadowMapDLight;
     type ResourceType = ShadowMapDLightResource;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             buffer_id: storage.insert_buffer(resource.buffer),
         }

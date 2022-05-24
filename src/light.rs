@@ -28,7 +28,7 @@ macro_rules! impl_resource_handle {
             type OriginalResource = $original_type;
             type ResourceType = $resource_type;
 
-            fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+            fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
                 Self {
                     buffer_id: storage.insert_buffer(resource.buffer),
                 }

@@ -89,7 +89,7 @@ impl ResourceHandle for SkyboxHandle {
     type OriginalResource = Skybox;
     type ResourceType = SkyboxResources;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             texture_id: storage.insert_texture(resource.texture),
             mesh_id: storage.insert_mesh(resource.mesh),

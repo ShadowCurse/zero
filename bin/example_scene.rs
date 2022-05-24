@@ -17,12 +17,12 @@ fn main() {
 
     let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
     let shadow_map_handle =
-        ShadowMapHandle::from_resource(&mut storage, ShadowMap::default().build(&renderer));
+        ShadowMapHandle::new(&mut storage, ShadowMap::default().build(&renderer));
     let shadow_map_bind_group =
         ShadowMapBindGroup::new(&renderer, &mut storage, &shadow_map_handle);
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
-    let g_buffer_handle = GBufferHandle::from_resource(&mut storage, g_buffer.build(&renderer));
+    let g_buffer_handle = GBufferHandle::new(&mut storage, g_buffer.build(&renderer));
     let mut g_buffer_bind_group = GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
 
     let geometry_phase = RenderPhase::new(
@@ -115,7 +115,7 @@ fn main() {
         0.1,
         100.0,
     );
-    let camera_handle = CameraHandle::from_resource(&mut storage, camera.build(&renderer));
+    let camera_handle = CameraHandle::new(&mut storage, camera.build(&renderer));
     let camera_bind_group = CameraBindGroup::new(&renderer, &mut storage, &camera_handle);
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
@@ -127,7 +127,7 @@ fn main() {
     let lights = PointLights {
         lights: vec![light, light_2, light_3, light_4],
     };
-    let lights_handle = PointLightsHandle::from_resource(&mut storage, lights.build(&renderer));
+    let lights_handle = PointLightsHandle::new(&mut storage, lights.build(&renderer));
     let lights_bind_group = PointLightsBindGroup::new(&renderer, &mut storage, &lights_handle);
 
     let shadow_d_light = ShadowMapDLight::new(
@@ -141,7 +141,7 @@ fn main() {
         8.0,
     );
     let shadow_d_light_handle =
-        ShadowMapDLightHandle::from_resource(&mut storage, shadow_d_light.build(&renderer));
+        ShadowMapDLightHandle::new(&mut storage, shadow_d_light.build(&renderer));
     let shadow_d_light_bind_group =
         ShadowMapDLightBindGroup::new(&renderer, &mut storage, &shadow_d_light_handle);
 
@@ -154,7 +154,7 @@ fn main() {
         scale: (3.0, 1.0, 3.0).into(),
     };
     let box_transform_handle =
-        TransformHandle::from_resource(&mut storage, box_transform.build(&renderer));
+        TransformHandle::new(&mut storage, box_transform.build(&renderer));
     let box_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &box_transform_handle);
 
@@ -167,7 +167,7 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let box2_transform_handle =
-        TransformHandle::from_resource(&mut storage, box2_transform.build(&renderer));
+        TransformHandle::new(&mut storage, box2_transform.build(&renderer));
     let box2_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &box2_transform_handle);
 
@@ -178,7 +178,7 @@ fn main() {
         shininess: 32.0,
     };
     let grey_material_handle =
-        ColorMaterialHandle::from_resource(&mut storage, grey_material.build(&renderer));
+        ColorMaterialHandle::new(&mut storage, grey_material.build(&renderer));
     let grey_material_bind_group =
         ColorMaterialBindGroup::new(&renderer, &mut storage, &grey_material_handle);
 
@@ -189,7 +189,7 @@ fn main() {
         shininess: 1.0,
     };
     let green_material_handle =
-        ColorMaterialHandle::from_resource(&mut storage, green_material.build(&renderer));
+        ColorMaterialHandle::new(&mut storage, green_material.build(&renderer));
     let green_material_bind_group =
         ColorMaterialBindGroup::new(&renderer, &mut storage, &green_material_handle);
 
@@ -202,7 +202,7 @@ fn main() {
         scale: (1.0, 1.0, 1.0).into(),
     };
     let cube_transform_handle =
-        TransformHandle::from_resource(&mut storage, cube_transform.build(&renderer));
+        TransformHandle::new(&mut storage, cube_transform.build(&renderer));
     let cube_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &cube_transform_handle);
 
@@ -276,7 +276,7 @@ fn main() {
         "./res/skybox/back.jpg",
     ])
     .unwrap();
-    let skybox_handle = SkyboxHandle::from_resource(&mut storage, skybox.build(&renderer));
+    let skybox_handle = SkyboxHandle::new(&mut storage, skybox.build(&renderer));
     let skybox_bind_group = SkyboxBindGroup::new(&renderer, &mut storage, &skybox_handle);
 
     let skybox_pipeline = PipelineBuilder {

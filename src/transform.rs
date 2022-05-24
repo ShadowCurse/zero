@@ -56,7 +56,7 @@ impl ResourceHandle for TransformHandle {
     type OriginalResource = Transform;
     type ResourceType = TransformResources;
 
-    fn from_resource(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
+    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
         Self {
             buffer_id: storage.insert_buffer(resource.buffer),
         }
