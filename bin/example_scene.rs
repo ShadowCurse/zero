@@ -153,8 +153,7 @@ fn main() {
         rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (3.0, 1.0, 3.0).into(),
     };
-    let box_transform_handle =
-        TransformHandle::new(&mut storage, box_transform.build(&renderer));
+    let box_transform_handle = TransformHandle::new(&mut storage, box_transform.build(&renderer));
     let box_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &box_transform_handle);
 
@@ -166,8 +165,7 @@ fn main() {
         rotation: Quaternion::from_axis_angle(Vector3::unit_z(), Deg(0.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let box2_transform_handle =
-        TransformHandle::new(&mut storage, box2_transform.build(&renderer));
+    let box2_transform_handle = TransformHandle::new(&mut storage, box2_transform.build(&renderer));
     let box2_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &box2_transform_handle);
 
@@ -201,8 +199,7 @@ fn main() {
         rotation: Quaternion::from_axis_angle(Vector3::unit_y(), Deg(69.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let cube_transform_handle =
-        TransformHandle::new(&mut storage, cube_transform.build(&renderer));
+    let cube_transform_handle = TransformHandle::new(&mut storage, cube_transform.build(&renderer));
     let cube_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &cube_transform_handle);
 

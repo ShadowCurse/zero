@@ -1,15 +1,15 @@
 pub mod context;
+pub mod pipeline_builder;
 pub mod resources;
 pub mod system;
-pub mod pipeline_builder;
 
 pub mod prelude {
     use super::*;
 
     pub use context::*;
+    pub use pipeline_builder::*;
     pub use resources::*;
     pub use system::*;
-    pub use pipeline_builder::*;
 
     pub use wgpu_imports::*;
 }
