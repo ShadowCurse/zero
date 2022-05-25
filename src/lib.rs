@@ -10,6 +10,7 @@ pub mod shapes;
 pub mod skybox;
 pub mod texture;
 pub mod transform;
+pub mod utils;
 
 pub mod prelude {
     use super::*;
