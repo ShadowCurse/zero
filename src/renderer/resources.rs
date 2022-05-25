@@ -1,5 +1,5 @@
 use super::{context::Renderer, wgpu_imports::*};
-use crate::{mesh::GpuMesh, texture::GpuTexture};
+use crate::{mesh::GpuMesh, texture::GpuTexture, utils::sparse_set::SparseSet};
 use std::collections::HashMap;
 
 /// Trait for meshes vertices
@@ -49,19 +49,35 @@ impl ResourceId {
 }
 
 /// Strorage for resources
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RenderStorage {
-    // TODO use sparse arrays
-    pub buffers: Vec<Buffer>,
-    pub textures: Vec<GpuTexture>,
-    pub meshes: Vec<GpuMesh>,
-    pub bind_groups: Vec<BindGroup>,
+    buffers: SparseSet<Buffer>,
+    textures: SparseSet<GpuTexture>,
+    meshes: SparseSet<GpuMesh>,
+    bind_groups: SparseSet<BindGroup>,
 
-    pub pipelines: Vec<RenderPipeline>,
-    pub layouts: HashMap<&'static str, BindGroupLayout>,
+    pipelines: Vec<RenderPipeline>,
+    layouts: HashMap<&'static str, BindGroupLayout>,
+}
+
+impl Default for RenderStorage {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RenderStorage {
+    pub fn new() -> Self {
+        Self {
+            buffers: SparseSet::new(),
+            textures: SparseSet::new(),
+            meshes: SparseSet::new(),
+            bind_groups: SparseSet::new(),
+            pipelines: Vec::new(),
+            layouts: HashMap::new(),
+        }
+    }
+
     pub fn insert_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
         let id = ResourceId(self.pipelines.len());
         self.pipelines.push(pipeline);
@@ -69,39 +85,37 @@ impl RenderStorage {
     }
 
     pub fn insert_buffer(&mut self, buffer: Buffer) -> ResourceId {
-        let id = ResourceId(self.buffers.len());
-        self.buffers.push(buffer);
-        id
+        ResourceId(self.buffers.insert(buffer))
     }
 
     pub fn insert_texture(&mut self, texture: GpuTexture) -> ResourceId {
-        let id = ResourceId(self.textures.len());
-        self.textures.push(texture);
-        id
+        ResourceId(self.textures.insert(texture))
     }
 
     pub fn insert_mesh(&mut self, mesh: GpuMesh) -> ResourceId {
-        let id = ResourceId(self.meshes.len());
-        self.meshes.push(mesh);
-        id
+        ResourceId(self.meshes.insert(mesh))
     }
 
     pub fn insert_bind_group(&mut self, bind_group: BindGroup) -> ResourceId {
-        let id = ResourceId(self.bind_groups.len());
-        self.bind_groups.push(bind_group);
-        id
+        ResourceId(self.bind_groups.insert(bind_group))
     }
 
     pub fn replace_buffer(&mut self, buffer_id: ResourceId, buffer: Buffer) {
-        self.buffers[buffer_id.0] = buffer;
+        if let Some(b) = self.buffers.get_mut(buffer_id.0) {
+            *b = buffer;
+        };
     }
 
     pub fn replace_texture(&mut self, texture_id: ResourceId, texture: GpuTexture) {
-        self.textures[texture_id.0] = texture;
+        if let Some(t) = self.textures.get_mut(texture_id.0) {
+            *t = texture;
+        };
     }
 
     pub fn replace_mesh(&mut self, mesh_id: ResourceId, mesh: GpuMesh) {
-        self.meshes[mesh_id.0] = mesh;
+        if let Some(m) = self.meshes.get_mut(mesh_id.0) {
+            *m = mesh;
+        };
     }
 
     pub fn register_bind_group_layout<A: AssetBindGroup>(&mut self, renderer: &Renderer) {
