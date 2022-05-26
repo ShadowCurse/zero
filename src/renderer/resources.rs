@@ -55,8 +55,7 @@ pub struct RenderStorage {
     textures: SparseSet<GpuTexture>,
     meshes: SparseSet<GpuMesh>,
     bind_groups: SparseSet<BindGroup>,
-
-    pipelines: Vec<RenderPipeline>,
+    pipelines: SparseSet<RenderPipeline>,
     layouts: HashMap<&'static str, BindGroupLayout>,
 }
 
@@ -73,15 +72,13 @@ impl RenderStorage {
             textures: SparseSet::new(),
             meshes: SparseSet::new(),
             bind_groups: SparseSet::new(),
-            pipelines: Vec::new(),
+            pipelines: SparseSet::new(),
             layouts: HashMap::new(),
         }
     }
 
     pub fn insert_pipeline(&mut self, pipeline: RenderPipeline) -> ResourceId {
-        let id = ResourceId(self.pipelines.len());
-        self.pipelines.push(pipeline);
-        id
+        ResourceId(self.pipelines.insert(pipeline))
     }
 
     pub fn insert_buffer(&mut self, buffer: Buffer) -> ResourceId {
