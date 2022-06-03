@@ -1,5 +1,5 @@
 use crate::mesh::GpuMesh;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use crate::texture;
 use anyhow::{Ok, Result};
 use texture::GpuTexture;
@@ -64,7 +64,7 @@ impl GpuResource for Skybox {
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture = self.cube_map.build(renderer);
 
-        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let vertex_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("cube_map_vertex_buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
             usage: BufferUsages::VERTEX,
@@ -110,7 +110,7 @@ impl AssetBindGroup for SkyboxBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
                     BindGroupLayoutEntry {
@@ -143,7 +143,7 @@ impl AssetBindGroup for SkyboxBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let texture = storage.get_texture(resources.texture_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[
                 BindGroupEntry {

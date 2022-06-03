@@ -1,13 +1,13 @@
-pub mod context;
 pub mod pipeline_builder;
+pub mod renderer;
 pub mod resources;
 pub mod system;
 
 pub mod prelude {
     use super::*;
 
-    pub use context::*;
     pub use pipeline_builder::*;
+    pub use renderer::*;
     pub use resources::*;
     pub use system::*;
 

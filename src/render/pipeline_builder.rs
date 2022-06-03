@@ -1,4 +1,4 @@
-use super::{context::Renderer, wgpu_imports::*};
+use super::{renderer::Renderer, wgpu_imports::*};
 use crate::texture::DepthTexture;
 use log::trace;
 use std::{fs::File, io::Read};
@@ -43,7 +43,7 @@ impl<'a> PipelineBuilder<'a> {
     pub fn build(self, renderer: &Renderer) -> RenderPipeline {
         trace!("Building pipilene: {}", self.shader_path);
         let layout = renderer
-            .device
+            .device()
             .create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("render_pipeline_descriptor"),
                 bind_group_layouts: &self.bind_group_layouts,
@@ -60,7 +60,7 @@ impl<'a> PipelineBuilder<'a> {
             label: Some("shader"),
             source: ShaderSource::Wgsl(contents.into()),
         };
-        let shader = renderer.device.create_shader_module(&shader);
+        let shader = renderer.device().create_shader_module(&shader);
 
         let targets = match self.color_targets {
             Some(ct) => ct
@@ -72,7 +72,7 @@ impl<'a> PipelineBuilder<'a> {
                 })
                 .collect(),
             None => vec![ColorTargetState {
-                format: renderer.config.format,
+                format: renderer.surface_format(),
                 blend: Some(BlendState {
                     alpha: BlendComponent::REPLACE,
                     color: BlendComponent::REPLACE,
@@ -118,7 +118,7 @@ impl<'a> PipelineBuilder<'a> {
         };
 
         renderer
-            .device
+            .device()
             .create_render_pipeline(&RenderPipelineDescriptor {
                 label: Some(self.shader_path),
                 layout: Some(&layout),

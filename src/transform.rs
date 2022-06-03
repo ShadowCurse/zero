@@ -1,5 +1,5 @@
 use crate::cgmath_imports::*;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -38,7 +38,7 @@ impl GpuResource for Transform {
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let uniform = self.to_uniform();
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("transform_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -72,7 +72,7 @@ impl ResourceHandle for TransformHandle {
         storage: &RenderStorage,
         original: &Self::OriginalResource,
     ) {
-        renderer.queue.write_buffer(
+        renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
             0,
             bytemuck::cast_slice(&[original.to_uniform()]),
@@ -88,7 +88,7 @@ impl AssetBindGroup for TransformBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
@@ -113,7 +113,7 @@ impl AssetBindGroup for TransformBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resources.buffer_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[BindGroupEntry {
                 binding: 0,

@@ -1,7 +1,7 @@
 use crate::material::Material;
 use crate::mesh::{Mesh, MeshVertex};
 use crate::prelude::{MaterialBindGroup, MaterialHandle};
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use crate::texture::{ImageTexture, TextureType};
 use anyhow::{Context, Ok, Result};
 

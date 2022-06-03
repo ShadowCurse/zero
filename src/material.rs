@@ -1,5 +1,5 @@
 use crate::prelude::GpuTexture;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use crate::texture::ImageTexture;
 
 #[repr(C)]
@@ -56,7 +56,7 @@ impl GpuResource for Material {
 
         let properties = self.to_uniform();
 
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("material_params_buffer"),
             contents: bytemuck::cast_slice(&[properties]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -101,7 +101,7 @@ impl ResourceHandle for MaterialHandle {
         storage: &RenderStorage,
         original: &Self::OriginalResource,
     ) {
-        renderer.queue.write_buffer(
+        renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
             0,
             bytemuck::cast_slice(&[original.to_uniform()]),
@@ -117,7 +117,7 @@ impl AssetBindGroup for MaterialBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
                     BindGroupLayoutEntry {
@@ -178,7 +178,7 @@ impl AssetBindGroup for MaterialBindGroup {
         let diffuse_texture = storage.get_texture(resources.diffuse_texture_id);
         let normal_texture = storage.get_texture(resources.normal_texture_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[
                 BindGroupEntry {
@@ -239,7 +239,7 @@ impl GpuResource for ColorMaterial {
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let uniform = self.to_uniform();
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("color_material_params_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -274,7 +274,7 @@ impl ResourceHandle for ColorMaterialHandle {
         storage: &RenderStorage,
         original: &Self::OriginalResource,
     ) {
-        renderer.queue.write_buffer(
+        renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
             0,
             bytemuck::cast_slice(&[original.to_uniform()]),
@@ -290,7 +290,7 @@ impl AssetBindGroup for ColorMaterialBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
@@ -315,7 +315,7 @@ impl AssetBindGroup for ColorMaterialBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resources.buffer_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[BindGroupEntry {
                 binding: 0,

@@ -1,4 +1,4 @@
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use anyhow::{Ok, Result};
 use image::GenericImageView;
 use log::trace;
@@ -101,13 +101,13 @@ impl GpuResource for ImageTexture {
             }
         } else {
             Extent3d {
-                width: renderer.config.width,
-                height: renderer.config.height,
+                width: renderer.size().width,
+                height: renderer.size().height,
                 depth_or_array_layers: 1,
             }
         };
 
-        let texture = renderer.device.create_texture(&TextureDescriptor {
+        let texture = renderer.device().create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
@@ -121,7 +121,7 @@ impl GpuResource for ImageTexture {
         });
 
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+        let sampler = renderer.device().create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -132,7 +132,7 @@ impl GpuResource for ImageTexture {
         });
 
         if let Some(data) = &self.texture {
-            renderer.queue.write_texture(
+            renderer.queue().write_texture(
                 ImageCopyTexture {
                     texture: &texture,
                     mip_level: 0,
@@ -178,8 +178,8 @@ impl GpuResource for DepthTexture {
             }
         } else {
             Extent3d {
-                width: renderer.config.width,
-                height: renderer.config.height,
+                width: renderer.size().width,
+                height: renderer.size().height,
                 depth_or_array_layers: 1,
             }
         };
@@ -192,10 +192,10 @@ impl GpuResource for DepthTexture {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             label: Some("depth_texture"),
         };
-        let texture = renderer.device.create_texture(&desc);
+        let texture = renderer.device().create_texture(&desc);
 
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+        let sampler = renderer.device().create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -255,13 +255,13 @@ impl GpuResource for CubeMap {
             }
         } else {
             Extent3d {
-                width: renderer.config.width,
-                height: renderer.config.height,
+                width: renderer.size().width,
+                height: renderer.size().height,
                 depth_or_array_layers: 6,
             }
         };
 
-        let texture = renderer.device.create_texture(&TextureDescriptor {
+        let texture = renderer.device().create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
@@ -275,7 +275,7 @@ impl GpuResource for CubeMap {
             dimension: Some(TextureViewDimension::Cube),
             ..Default::default()
         });
-        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+        let sampler = renderer.device().create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -286,7 +286,7 @@ impl GpuResource for CubeMap {
         });
 
         if let Some(data) = &self.texture {
-            renderer.queue.write_texture(
+            renderer.queue().write_texture(
                 ImageCopyTexture {
                     texture: &texture,
                     mip_level: 0,

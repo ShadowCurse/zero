@@ -1,5 +1,5 @@
 use crate::cgmath_imports::*;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -122,13 +122,13 @@ impl GpuResource for Mesh {
     type ResourceType = GpuMesh;
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let vertex_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("vertex_buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
             usage: BufferUsages::VERTEX,
         });
 
-        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let index_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("index_buffer"),
             contents: bytemuck::cast_slice(&self.indices),
             usage: BufferUsages::INDEX,

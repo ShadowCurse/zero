@@ -4,7 +4,7 @@ pub mod light;
 pub mod material;
 pub mod mesh;
 pub mod model;
-pub mod renderer;
+pub mod render;
 pub mod shadow_map;
 pub mod shapes;
 pub mod skybox;
@@ -21,7 +21,7 @@ pub mod prelude {
     pub use material::*;
     pub use mesh::*;
     pub use model::*;
-    pub use renderer::prelude::*;
+    pub use render::prelude::*;
     pub use shadow_map::*;
     pub use shapes::*;
     pub use skybox::*;

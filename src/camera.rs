@@ -1,5 +1,5 @@
 use crate::cgmath_imports::*;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use winit::event::{ElementState, VirtualKeyCode};
@@ -105,7 +105,7 @@ impl GpuResource for Camera {
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let uniform = self.to_uniform();
 
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("Camera buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -139,7 +139,7 @@ impl ResourceHandle for CameraHandle {
         storage: &RenderStorage,
         original: &Self::OriginalResource,
     ) {
-        renderer.queue.write_buffer(
+        renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
             0,
             bytemuck::cast_slice(&[original.to_uniform()]),
@@ -155,7 +155,7 @@ impl AssetBindGroup for CameraBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
@@ -180,7 +180,7 @@ impl AssetBindGroup for CameraBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resources.buffer_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[BindGroupEntry {
                 binding: 0,

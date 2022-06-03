@@ -1,7 +1,7 @@
 use crate::camera::OPENGL_TO_WGPU_MATRIX;
 use crate::cgmath_imports::*;
 use crate::prelude::GpuTexture;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use crate::texture::DepthTexture;
 
 #[derive(Debug, Default)]
@@ -51,7 +51,7 @@ impl AssetBindGroup for ShadowMapBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
                     BindGroupLayoutEntry {
@@ -84,7 +84,7 @@ impl AssetBindGroup for ShadowMapBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let shadow_map = storage.get_texture(resources.texture_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[
                 BindGroupEntry {
@@ -149,7 +149,7 @@ impl AssetBindGroup for ShadowMapBindGroup {
 //     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
 //         let shadow_cube = self.cube_map.build(renderer);
 //
-//         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+//         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
 //             layout,
 //             entries: &[
 //                 BindGroupEntry {
@@ -248,7 +248,7 @@ impl GpuResource for ShadowMapDLight {
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let uniform = self.to_uniform();
 
-        let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("shadow_map_dlight_buffer"),
             contents: bytemuck::cast_slice(&[uniform]),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -282,7 +282,7 @@ impl ResourceHandle for ShadowMapDLightHandle {
         storage: &RenderStorage,
         original: &Self::OriginalResource,
     ) {
-        renderer.queue.write_buffer(
+        renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
             0,
             bytemuck::cast_slice(&[original.to_uniform()]),
@@ -298,7 +298,7 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
@@ -323,7 +323,7 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resources.buffer_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[BindGroupEntry {
                 binding: 0,
@@ -415,13 +415,13 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
 //     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
 //         let uniform = self.to_uniform();
 //
-//         let buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+//         let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
 //             label: Some("shadow_map_plight_buffer"),
 //             contents: bytemuck::cast_slice(&[uniform]),
 //             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 //         });
 //
-//         let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+//         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
 //             layout,
 //             entries: &[BindGroupEntry {
 //                 binding: 0,
@@ -438,7 +438,7 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
 //     }
 //
 //     fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-//         renderer.queue.write_buffer(
+//         renderer.queue().write_buffer(
 //             &storage.get_buffers(id)[0],
 //             0,
 //             bytemuck::cast_slice(&[self.to_uniform()]),

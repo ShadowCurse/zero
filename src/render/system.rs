@@ -1,4 +1,4 @@
-use super::context::Renderer;
+use super::renderer::Renderer;
 use super::{
     resources::{RenderStorage, ResourceId},
     wgpu_imports::*,
@@ -191,7 +191,7 @@ impl RenderSystem {
 
         let frame_storage = CurrentFrameStorage {
             storage,
-            current_frame_view: &current_frame.view,
+            current_frame_view: current_frame.view(),
         };
 
         for p in self.order.iter() {
@@ -201,7 +201,7 @@ impl RenderSystem {
         }
 
         renderer.submit(std::iter::once(encoder.finish()));
-        current_frame.output.present();
+        current_frame.present();
         Ok(())
     }
 

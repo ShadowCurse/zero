@@ -1,5 +1,5 @@
 use crate::mesh::GpuMesh;
-use crate::renderer::prelude::*;
+use crate::render::prelude::*;
 use crate::texture::{GpuTexture, TextureVertex};
 
 #[derive(Debug)]
@@ -18,12 +18,12 @@ impl GpuResource for GBufferTexture {
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let texture_size = Extent3d {
-            width: renderer.config.width,
-            height: renderer.config.height,
+            width: renderer.size().width,
+            height: renderer.size().height,
             depth_or_array_layers: 1,
         };
 
-        let texture = renderer.device.create_texture(&TextureDescriptor {
+        let texture = renderer.device().create_texture(&TextureDescriptor {
             size: texture_size,
             mip_level_count: 1,
             sample_count: 1,
@@ -34,7 +34,7 @@ impl GpuResource for GBufferTexture {
         });
 
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = renderer.device.create_sampler(&SamplerDescriptor {
+        let sampler = renderer.device().create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -88,7 +88,7 @@ impl GpuResource for GBuffer {
         .map(Into::into)
         .collect();
 
-        let vertex_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let vertex_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("vertex_buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: BufferUsages::VERTEX,
@@ -96,7 +96,7 @@ impl GpuResource for GBuffer {
 
         let indices = vec![0, 1, 2, 2, 1, 3];
 
-        let index_buffer = renderer.device.create_buffer_init(&BufferInitDescriptor {
+        let index_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
             label: Some("index_buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: BufferUsages::INDEX,
@@ -158,7 +158,7 @@ impl AssetBindGroup for GBufferBindGroup {
 
     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
         renderer
-            .device
+            .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 entries: &[
                     BindGroupLayoutEntry {
@@ -226,7 +226,7 @@ impl AssetBindGroup for GBufferBindGroup {
         let normal = storage.get_texture(resources.normal_texture_id);
         let albedo = storage.get_texture(resources.albedo_texture_id);
 
-        let bind_group = renderer.device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
             entries: &[
                 BindGroupEntry {

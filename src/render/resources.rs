@@ -1,4 +1,4 @@
-use super::{context::Renderer, wgpu_imports::*};
+use super::{renderer::Renderer, wgpu_imports::*};
 use crate::{mesh::GpuMesh, texture::GpuTexture, utils::sparse_set::SparseSet};
 use std::collections::HashMap;
 
