@@ -1,5 +1,5 @@
 pub mod camera;
-pub mod deffered_rendering;
+pub mod gbuffer;
 pub mod light;
 pub mod material;
 pub mod mesh;
@@ -16,7 +16,7 @@ pub mod prelude {
     use super::*;
 
     pub use camera::*;
-    pub use deffered_rendering::*;
+    pub use gbuffer::*;
     pub use light::*;
     pub use material::*;
     pub use mesh::*;

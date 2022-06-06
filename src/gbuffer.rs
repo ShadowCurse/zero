@@ -89,7 +89,7 @@ impl GpuResource for GBuffer {
         .collect();
 
         let vertex_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("vertex_buffer"),
+            label: Some("gbuffer_vertex_buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: BufferUsages::VERTEX,
         });
@@ -97,7 +97,7 @@ impl GpuResource for GBuffer {
         let indices = vec![0, 1, 2, 2, 1, 3];
 
         let index_buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("index_buffer"),
+            label: Some("gbuffer_index_buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: BufferUsages::INDEX,
         });
@@ -210,7 +210,7 @@ impl AssetBindGroup for GBufferBindGroup {
                         count: None,
                     },
                 ],
-                label: Some("deffered_pass_bind_group_layout"),
+                label: Some("gbuffer_bind_group_layout"),
             })
     }
 
