@@ -220,7 +220,6 @@ impl AssetBindGroup for GBufferBindGroup {
         resources: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let position = storage.get_texture(resources.position_texture_id);
         let normal = storage.get_texture(resources.normal_texture_id);

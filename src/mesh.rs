@@ -68,8 +68,8 @@ impl MeshVertex {
     }
 }
 
-impl Vertex for MeshVertex {
-    fn desc<'a>() -> VertexBufferLayout<'a> {
+impl VertexLayout for MeshVertex {
+    fn layout<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,

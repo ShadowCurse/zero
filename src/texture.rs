@@ -20,8 +20,8 @@ impl From<([f32; 3], [f32; 2])> for TextureVertex {
     }
 }
 
-impl Vertex for TextureVertex {
-    fn desc<'a>() -> VertexBufferLayout<'a> {
+impl VertexLayout for TextureVertex {
+    fn layout<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,

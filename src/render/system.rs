@@ -1,6 +1,6 @@
 use super::renderer::Renderer;
 use super::{
-    resources::{RenderStorage, ResourceId},
+    storage::{RenderStorage, ResourceId},
     wgpu_imports::*,
 };
 use std::{borrow::Cow, collections::HashMap, ops::Deref};

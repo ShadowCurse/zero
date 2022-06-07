@@ -10,8 +10,8 @@ pub struct SkyboxVertex {
     position: [f32; 3],
 }
 
-impl Vertex for SkyboxVertex {
-    fn desc<'a>() -> VertexBufferLayout<'a> {
+impl VertexLayout for SkyboxVertex {
+    fn layout<'a>() -> VertexBufferLayout<'a> {
         VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,

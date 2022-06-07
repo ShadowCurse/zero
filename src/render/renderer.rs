@@ -1,6 +1,28 @@
 use super::wgpu_imports::*;
 use winit::{dpi::PhysicalSize, window::Window};
 
+trait IntoTextureDescriptor {
+    fn texture_descriptor(&self) -> TextureDescriptor;
+}
+
+impl IntoTextureDescriptor for SurfaceConfiguration {
+    fn texture_descriptor(&self) -> TextureDescriptor {
+        TextureDescriptor {
+            size: Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+        }
+    }
+}
+
 /// Contains the context of the current frame surface
 #[derive(Debug)]
 pub struct CurrentFrameContext {
@@ -24,13 +46,8 @@ impl CurrentFrameContext {
 /// Surface for headless and not headless renderer
 #[derive(Debug)]
 enum RenderSurface {
-    WindowSurface {
-        config: SurfaceConfiguration,
-        surface: Surface,
-    },
-    TextureSurface {
-        texture: Texture,
-    },
+    Surface(Surface),
+    Texture(Texture),
 }
 
 /// Main renderer struct
@@ -39,6 +56,7 @@ pub struct Renderer {
     device: Device,
     queue: Queue,
     render_surface: RenderSurface,
+    config: SurfaceConfiguration,
     size: PhysicalSize<u32>,
 }
 
@@ -83,16 +101,18 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
-        let render_surface = RenderSurface::WindowSurface { config, surface };
+        let render_surface = RenderSurface::Surface(surface);
 
         Self {
             device,
             queue,
             render_surface,
+            config,
             size,
         }
     }
 
+    /// Creates new headless [`Renderer`] instance with internal texture with provided size 
     pub async fn new_headless(width: u32, height: u32) -> Self {
         let instance = Instance::new(Backends::all());
 
@@ -121,27 +141,24 @@ impl Renderer {
             .unwrap();
 
         let size = PhysicalSize { width, height };
-        let texture_desc = wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
+
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::Rgba8UnormSrgb,
+            width: size.width,
+            height: size.height,
+            present_mode: PresentMode::Fifo,
         };
+        let texture_desc = config.texture_descriptor();
         let texture = device.create_texture(&texture_desc);
 
-        let render_surface = RenderSurface::TextureSurface { texture };
+        let render_surface = RenderSurface::Texture(texture);
 
         Self {
             device,
             queue,
             render_surface,
+            config,
             size,
         }
     }
@@ -162,10 +179,7 @@ impl Renderer {
     }
 
     pub fn surface_format(&self) -> wgpu::TextureFormat {
-        match &self.render_surface {
-            RenderSurface::WindowSurface { config, .. } => config.format,
-            RenderSurface::TextureSurface { .. } => wgpu::TextureFormat::Rgba8UnormSrgb,
-        }
+        self.config.format
     }
 
     /// Reconfigures current surface with new size if provided.
@@ -181,27 +195,14 @@ impl Renderer {
 
     pub fn resize_surface(&mut self, new_size: PhysicalSize<u32>) {
         self.size = new_size;
+        self.config.width = new_size.width;
+        self.config.height = new_size.height;
         match &mut self.render_surface {
-            RenderSurface::WindowSurface { config, surface } => {
-                config.width = new_size.width;
-                config.height = new_size.height;
-                surface.configure(&self.device, config);
+            RenderSurface::Surface(surface) => {
+                surface.configure(&self.device, &self.config);
             }
-            RenderSurface::TextureSurface { texture } => {
-                let texture_desc = wgpu::TextureDescriptor {
-                    size: wgpu::Extent3d {
-                        width: self.size.width,
-                        height: self.size.height,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    label: None,
-                };
-                *texture = self.device.create_texture(&texture_desc);
+            RenderSurface::Texture(texture) => {
+                *texture = self.device.create_texture(&self.config.texture_descriptor());
             }
         }
     }
@@ -209,7 +210,7 @@ impl Renderer {
     /// Returns context for the current frame
     pub fn current_frame(&self) -> Result<CurrentFrameContext, SurfaceError> {
         let context = match &self.render_surface {
-            RenderSurface::WindowSurface { surface, .. } => {
+            RenderSurface::Surface(surface) => {
                 let output = surface.get_current_texture()?;
                 let view = output
                     .texture
@@ -219,7 +220,7 @@ impl Renderer {
                     output: Some(output),
                 }
             }
-            RenderSurface::TextureSurface { texture } => CurrentFrameContext {
+            RenderSurface::Texture(texture) => CurrentFrameContext {
                 view: texture.create_view(&TextureViewDescriptor::default()),
                 output: None,
             },
