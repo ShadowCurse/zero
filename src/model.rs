@@ -5,6 +5,11 @@ use crate::render::prelude::*;
 use crate::texture::{ImageTexture, TextureType};
 use anyhow::{Context, Ok, Result};
 
+pub struct ModelHadle {
+    pub mesh_id: ResourceId,
+    pub material_bind_group: MaterialBindGroup,
+}
+
 #[derive(Debug)]
 pub struct ModelMesh {
     pub mesh: Mesh,
@@ -18,21 +23,9 @@ pub struct Model {
 }
 
 #[derive(Debug)]
-pub struct ModelMeshHandle {
-    pub mesh_id: ResourceId,
-    pub material_index: usize,
-}
-
-#[derive(Debug)]
 pub struct ModelMaterialHandle {
     pub material_handle: MaterialHandle,
     pub material_bind_group: MaterialBindGroup,
-}
-
-#[derive(Debug)]
-pub struct ModelHandle {
-    pub meshes: Vec<ModelMeshHandle>,
-    pub materials: Vec<ModelMaterialHandle>,
 }
 
 impl Model {
@@ -105,7 +98,11 @@ impl Model {
         Ok(Self { meshes, materials })
     }
 
-    pub fn build(&self, renderer: &Renderer, storage: &mut RenderStorage) -> ModelHandle {
+    pub fn build(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+    ) -> (Vec<ModelHadle>, Vec<ModelMaterialHandle>) {
         let materials: Vec<_> = self
             .materials
             .iter()
@@ -119,14 +116,14 @@ impl Model {
                 }
             })
             .collect();
-        let meshes = self
+        let mmm = self
             .meshes
             .iter()
-            .map(|m| ModelMeshHandle {
+            .map(|m| ModelHadle {
                 mesh_id: storage.insert_mesh(m.mesh.build(renderer)),
-                material_index: m.material_id,
+                material_bind_group: materials[m.material_id].material_bind_group,
             })
             .collect();
-        ModelHandle { meshes, materials }
+        (mmm, materials)
     }
 }

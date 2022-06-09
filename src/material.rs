@@ -109,7 +109,7 @@ impl ResourceHandle for MaterialHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub struct MaterialBindGroup(pub ResourceId);
 
 impl AssetBindGroup for MaterialBindGroup {

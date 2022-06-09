@@ -192,7 +192,7 @@ fn main() {
         ColorMaterialBindGroup::new(&renderer, &mut storage, &green_material_handle);
 
     let cube_model = Model::load("./res/cube/cube.obj").unwrap();
-    let cube_model_ids = cube_model.build(&renderer, &mut storage);
+    let (cube_model_handler, _cube_model_materials) = cube_model.build(&renderer, &mut storage);
 
     let mut cube_transform = Transform {
         translation: (2.0, 2.0, 4.0).into(),
@@ -382,11 +382,9 @@ fn main() {
                 );
                 let cube = RenderCommand::new(
                     g_pipeline_id,
-                    cube_model_ids.meshes[0].mesh_id,
+                    cube_model_handler[0].mesh_id,
                     vec![
-                        cube_model_ids.materials[cube_model_ids.meshes[0].material_index]
-                            .material_bind_group
-                            .0,
+                        cube_model_handler[0].material_bind_group.0,
                         cube_transform_bind_group.0,
                         camera_bind_group.0,
                     ],
@@ -405,7 +403,7 @@ fn main() {
                 );
                 let cube = RenderCommand::new(
                     shadow_map_pipeline_id,
-                    cube_model_ids.meshes[0].mesh_id,
+                    cube_model_handler[0].mesh_id,
                     vec![cube_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
