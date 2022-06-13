@@ -3,14 +3,21 @@ name = "zero"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 path = "src/lib.rs"
 
 [[bin]]
 name = "example_scene"
 path = "bin/example_scene.rs"
+
+[[bin]]
+name = "example_scene_headless"
+path = "bin/example_scene_headless.rs"
+required-features = ["headless"]
+
+[features]
+default = []
+headless = []
 
 [dependencies]
 winit = "0.26"

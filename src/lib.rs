@@ -9,6 +9,7 @@ pub mod shadow_map;
 pub mod shapes;
 pub mod skybox;
 pub mod texture;
+pub mod texture_buffer;
 pub mod transform;
 pub mod utils;
 
@@ -26,6 +27,7 @@ pub mod prelude {
     pub use shapes::*;
     pub use skybox::*;
     pub use texture::*;
+    pub use texture_buffer::*;
     pub use transform::*;
 
     pub use cgmath_imports::*;

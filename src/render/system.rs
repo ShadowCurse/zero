@@ -181,6 +181,7 @@ impl RenderSystem {
             .extend(commands);
     }
 
+    #[cfg(not(feature = "headless"))]
     pub fn run(
         &mut self,
         renderer: &Renderer,
@@ -203,6 +204,26 @@ impl RenderSystem {
         renderer.submit(std::iter::once(encoder.finish()));
         current_frame.present();
         Ok(())
+    }
+
+    #[cfg(feature = "headless")]
+    pub fn run(&mut self, renderer: &Renderer, storage: &RenderStorage) {
+        let current_frame = renderer.current_frame();
+        let mut encoder = renderer.create_encoder();
+
+        let frame_storage = CurrentFrameStorage {
+            storage,
+            current_frame_view: current_frame.view(),
+        };
+
+        for p in self.order.iter() {
+            let phase = self.phases.get_mut(p).unwrap();
+            Self::execute_phase(Some(p), &mut encoder, phase, &frame_storage);
+            phase.commands.clear();
+        }
+
+        renderer.submit(std::iter::once(encoder.finish()));
+        current_frame.present();
     }
 
     fn execute_phase(

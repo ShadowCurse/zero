@@ -1,33 +1,15 @@
 use super::wgpu_imports::*;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::dpi::PhysicalSize;
 
-trait IntoTextureDescriptor {
-    fn texture_descriptor(&self) -> TextureDescriptor;
-}
-
-impl IntoTextureDescriptor for SurfaceConfiguration {
-    fn texture_descriptor(&self) -> TextureDescriptor {
-        TextureDescriptor {
-            size: Extent3d {
-                width: self.width,
-                height: self.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.format,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
-        }
-    }
-}
+#[cfg(not(feature = "headless"))]
+use winit::window::Window;
 
 /// Contains the context of the current frame surface
 #[derive(Debug)]
 pub struct CurrentFrameContext {
     view: TextureView,
-    output: Option<SurfaceTexture>,
+    #[cfg(not(feature = "headless"))]
+    output: SurfaceTexture,
 }
 
 impl CurrentFrameContext {
@@ -35,19 +17,13 @@ impl CurrentFrameContext {
         &self.view
     }
 
+    #[cfg(not(feature = "headless"))]
     pub fn present(self) {
-        match self.output {
-            Some(surf) => surf.present(),
-            None => {}
-        }
+        self.output.present();
     }
-}
 
-/// Surface for headless and not headless renderer
-#[derive(Debug)]
-enum RenderSurface {
-    Surface(Surface),
-    Texture(Texture),
+    #[cfg(feature = "headless")]
+    pub fn present(self) {}
 }
 
 /// Main renderer struct
@@ -55,13 +31,21 @@ enum RenderSurface {
 pub struct Renderer {
     device: Device,
     queue: Queue,
-    render_surface: RenderSurface,
+
+    #[cfg(not(feature = "headless"))]
+    surface: Surface,
+    #[cfg(not(feature = "headless"))]
     config: SurfaceConfiguration,
+
+    #[cfg(feature = "headless")]
+    texture: Texture,
+
     size: PhysicalSize<u32>,
 }
 
 impl Renderer {
     /// Creates new [`Renderer`] instance attached to the provided window
+    #[cfg(not(feature = "headless"))]
     pub async fn new(window: &Window) -> Self {
         let instance = Instance::new(Backends::all());
 
@@ -101,19 +85,18 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
-        let render_surface = RenderSurface::Surface(surface);
-
         Self {
             device,
             queue,
-            render_surface,
+            surface,
             config,
             size,
         }
     }
 
-    /// Creates new headless [`Renderer`] instance with internal texture with provided size 
-    pub async fn new_headless(width: u32, height: u32) -> Self {
+    /// Creates new headless [`Renderer`] instance with internal texture with provided size
+    #[cfg(feature = "headless")]
+    pub async fn new(width: u32, height: u32) -> Self {
         let instance = Instance::new(Backends::all());
 
         let adapter = instance
@@ -142,23 +125,25 @@ impl Renderer {
 
         let size = PhysicalSize { width, height };
 
-        let config = SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT,
+        let desc = TextureDescriptor {
+            size: Extent3d {
+                width: size.width,
+                height: size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
-            width: size.width,
-            height: size.height,
-            present_mode: PresentMode::Fifo,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
         };
-        let texture_desc = config.texture_descriptor();
-        let texture = device.create_texture(&texture_desc);
-
-        let render_surface = RenderSurface::Texture(texture);
+        let texture = device.create_texture(&desc);
 
         Self {
             device,
             queue,
-            render_surface,
-            config,
+            texture,
             size,
         }
     }
@@ -178,8 +163,19 @@ impl Renderer {
         &self.size
     }
 
-    pub fn surface_format(&self) -> wgpu::TextureFormat {
+    #[cfg(not(feature = "headless"))]
+    pub fn surface_format(&self) -> TextureFormat {
         self.config.format
+    }
+
+    #[cfg(feature = "headless")]
+    pub fn surface_format(&self) -> TextureFormat {
+        TextureFormat::Rgba8UnormSrgb
+    }
+
+    #[cfg(feature = "headless")]
+    pub fn surface_texture(&self) -> &Texture {
+        &self.texture
     }
 
     /// Reconfigures current surface with new size if provided.
@@ -193,39 +189,52 @@ impl Renderer {
         self.resize_surface(self.size);
     }
 
-    pub fn resize_surface(&mut self, new_size: PhysicalSize<u32>) {
+    #[cfg(not(feature = "headless"))]
+    fn resize_surface(&mut self, new_size: PhysicalSize<u32>) {
         self.size = new_size;
         self.config.width = new_size.width;
         self.config.height = new_size.height;
-        match &mut self.render_surface {
-            RenderSurface::Surface(surface) => {
-                surface.configure(&self.device, &self.config);
-            }
-            RenderSurface::Texture(texture) => {
-                *texture = self.device.create_texture(&self.config.texture_descriptor());
-            }
-        }
+
+        self.surface.configure(&self.device, &self.config);
+    }
+
+    #[cfg(feature = "headless")]
+    fn resize_surface(&mut self, new_size: PhysicalSize<u32>) {
+        self.size = new_size;
+
+        let desc = TextureDescriptor {
+            size: Extent3d {
+                width: self.size.width,
+                height: self.size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            label: None,
+        };
+        self.texture = self.device.create_texture(&desc);
     }
 
     /// Returns context for the current frame
+    #[cfg(not(feature = "headless"))]
     pub fn current_frame(&self) -> Result<CurrentFrameContext, SurfaceError> {
-        let context = match &self.render_surface {
-            RenderSurface::Surface(surface) => {
-                let output = surface.get_current_texture()?;
-                let view = output
-                    .texture
-                    .create_view(&TextureViewDescriptor::default());
-                CurrentFrameContext {
-                    view,
-                    output: Some(output),
-                }
-            }
-            RenderSurface::Texture(texture) => CurrentFrameContext {
-                view: texture.create_view(&TextureViewDescriptor::default()),
-                output: None,
-            },
-        };
+        let output = self.surface.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&TextureViewDescriptor::default());
+        let context = CurrentFrameContext { view, output };
         Ok(context)
+    }
+
+    /// Returns context for the current frame
+    #[cfg(feature = "headless")]
+    pub fn current_frame(&self) -> CurrentFrameContext {
+        CurrentFrameContext {
+            view: self.texture.create_view(&TextureViewDescriptor::default()),
+        }
     }
 
     /// Creates command encoder
