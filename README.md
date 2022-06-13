@@ -5,9 +5,14 @@ Zero is a basic rendering engine
 Example scene can be found in [bin](/bin)
 
 To launch it run
+```bash
+$ cargo run --release --bin example_scene
 ```
-cargo run --release --bin example_scene
+To launch headless example run
+```bash
+$ cargo run --release --features headless --bin example_scene_headless
 ```
+
 ## Libraries Used
 Main libraries on which Zero relies on:
 - [wgpu](https://github.com/gfx-rs/wgpu/tree/v0.12): modern / low-level / cross-platform graphics library inspired by Vulkan
