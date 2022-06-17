@@ -18,8 +18,6 @@ fn main() {
     let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
     let shadow_map_handle =
         ShadowMapHandle::new(&mut storage, ShadowMap::default().build(&renderer));
-    let shadow_map_bind_group =
-        ShadowMapBindGroup::new(&renderer, &mut storage, &shadow_map_handle);
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
     let g_buffer_handle = GBufferHandle::new(&mut storage, g_buffer.build(&renderer));
@@ -145,6 +143,12 @@ fn main() {
     let shadow_d_light_bind_group =
         ShadowMapDLightBindGroup::new(&renderer, &mut storage, &shadow_d_light_handle);
 
+    let shadow_bind_group = ShadowBindGroup::new(
+        &renderer,
+        &mut storage,
+        &(shadow_map_handle, shadow_d_light_handle),
+    );
+
     let box_mesh: Mesh = Cube::new(9.0, 1.0, 5.0).into();
     let box_id = storage.insert_mesh(box_mesh.build(&renderer));
 
@@ -253,8 +257,7 @@ fn main() {
             storage.get_bind_group_layout::<GBufferBindGroup>(),
             storage.get_bind_group_layout::<PointLightsBindGroup>(),
             storage.get_bind_group_layout::<CameraBindGroup>(),
-            storage.get_bind_group_layout::<ShadowMapBindGroup>(),
-            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
+            storage.get_bind_group_layout::<ShadowBindGroup>(),
         ],
         vertex_layouts: vec![TextureVertex::layout()],
         shader_path: "./shaders/lighting_pass.wgsl",
@@ -415,8 +418,7 @@ fn main() {
                         g_buffer_bind_group.0,
                         lights_bind_group.0,
                         camera_bind_group.0,
-                        shadow_map_bind_group.0,
-                        shadow_d_light_bind_group.0,
+                        shadow_bind_group.0,
                     ],
                 );
                 render_system.add_phase_commands("lighting", vec![command]);

@@ -1,4 +1,4 @@
-use super::{wgpu_imports::*, renderer::Renderer, storage::RenderStorage};
+use super::{renderer::Renderer, storage::RenderStorage, wgpu_imports::*};
 
 /// Trait for meshes vertices
 pub trait VertexLayout {

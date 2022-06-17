@@ -66,7 +66,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     features: Features::empty(),
                     limits: Limits {
-                        max_bind_groups: 8,
+                        max_bind_groups: 4,
                         ..Default::default()
                     },
                     label: Some("device_descriptor"),
@@ -113,7 +113,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     features: Features::empty(),
                     limits: Limits {
-                        max_bind_groups: 8,
+                        max_bind_groups: 4,
                         ..Default::default()
                     },
                     label: Some("device_descriptor"),

@@ -22,15 +22,15 @@ fn vs_main(
 
 // Fragment shader
 
+struct ShadowDLightUniform {
+  view_projection: mat4x4<f32>;
+};
+
 [[group(3), binding(0)]]
 var t_shadow: texture_depth_2d;
 [[group(3), binding(1)]]
 var s_shadow: sampler;
-
-struct ShadowDLightUniform {
-  view_projection: mat4x4<f32>;
-};
-[[group(4), binding(0)]]
+[[group(3), binding(2)]]
 var<uniform> d_light: ShadowDLightUniform;
 
 struct CameraUniform {

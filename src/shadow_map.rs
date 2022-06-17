@@ -102,75 +102,6 @@ impl AssetBindGroup for ShadowMapBindGroup {
     }
 }
 
-// #[derive(Debug)]
-// pub struct ShadowCubeMap {
-//     pub cube_map: CubeMap,
-// }
-//
-// impl Default for ShadowCubeMap {
-//     fn default() -> Self {
-//         Self {
-//             cube_map: CubeMap {
-//                 format: TextureFormat::Depth32Float,
-//                 texture: None,
-//                 dimensions: None,
-//             },
-//         }
-//     }
-// }
-//
-// impl AssetBindGroup for ShadowCubeMap {
-//     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-//         renderer
-//             .device
-//             .create_bind_group_layout(&BindGroupLayoutDescriptor {
-//                 entries: &[
-//                     BindGroupLayoutEntry {
-//                         binding: 0,
-//                         visibility: ShaderStages::FRAGMENT,
-//                         ty: BindingType::Texture {
-//                             multisampled: false,
-//                             view_dimension: TextureViewDimension::Cube,
-//                             sample_type: TextureSampleType::Float { filterable: true },
-//                         },
-//                         count: None,
-//                     },
-//                     BindGroupLayoutEntry {
-//                         binding: 1,
-//                         visibility: ShaderStages::FRAGMENT,
-//                         ty: BindingType::Sampler(SamplerBindingType::Filtering),
-//                         count: None,
-//                     },
-//                 ],
-//                 label: Some("shadow_cube_bind_group_layout"),
-//             })
-//     }
-//
-//     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-//         let shadow_cube = self.cube_map.build(renderer);
-//
-//         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-//             layout,
-//             entries: &[
-//                 BindGroupEntry {
-//                     binding: 0,
-//                     resource: BindingResource::TextureView(&shadow_cube.view),
-//                 },
-//                 BindGroupEntry {
-//                     binding: 1,
-//                     resource: BindingResource::Sampler(&shadow_cube.sampler),
-//                 },
-//             ],
-//             label: None,
-//         });
-//         RenderResources {
-//             textures: vec![shadow_cube],
-//             bind_group: Some(bind_group),
-//             ..Default::default()
-//         }
-//     }
-// }
-
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ShadowMapDLightUniform {
@@ -336,112 +267,79 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
     }
 }
 
-//
-// #[repr(C)]
-// #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-// pub struct ShadowMapPLightUniform {
-//     view_projections: [[[f32; 4]; 4]; 6],
-// }
-//
-// #[derive(Debug)]
-// pub struct ShadowMapPLight {
-//     pub position: Point3<f32>,
-//     pub aspect: f32,
-//     pub fovy: Rad<f32>,
-//     pub znear: f32,
-//     pub zfar: f32,
-// }
-//
-// impl ShadowMapPLight {
-//     pub fn new<P: Into<Point3<f32>>>(
-//         position: P,
-//         width: u32,
-//         height: u32,
-//         znear: f32,
-//         zfar: f32,
-//     ) -> Self {
-//         Self {
-//             position: position.into(),
-//             aspect: width as f32 / height as f32,
-//             fovy: Deg(90.0).into(),
-//             znear,
-//             zfar,
-//         }
-//     }
-//
-//     fn to_uniform(&self) -> ShadowMapPLightUniform {
-//         let proj =
-//             OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar);
-//
-//         let dirs = [
-//             ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
-//             ([-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
-//             ([0.0, 1.0, 0.0], [0.0, 0.0, -1.0]),
-//             ([0.0, -1.0, 0.0], [0.0, 0.0, 1.0]),
-//             ([0.0, 0.0, 1.0], [0.0, 1.0, 0.0]),
-//             ([0.0, 0.0, -1.0], [0.0, 1.0, 0.0]),
-//         ];
-//         let mut view_projections = [[[0.0; 4]; 4]; 6];
-//         view_projections
-//             .iter_mut()
-//             .zip(dirs.into_iter())
-//             .for_each(|(vp, (dir, up))| {
-//                 *vp = (proj * Matrix4::look_to_rh(self.position, dir.into(), up.into())).into();
-//             });
-//
-//         ShadowMapPLightUniform { view_projections }
-//     }
-// }
-//
-// impl AssetBindGroup for ShadowMapPLight {
-//     fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-//         renderer
-//             .device
-//             .create_bind_group_layout(&BindGroupLayoutDescriptor {
-//                 entries: &[BindGroupLayoutEntry {
-//                     binding: 0,
-//                     visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-//                     ty: BindingType::Buffer {
-//                         ty: BufferBindingType::Uniform,
-//                         has_dynamic_offset: false,
-//                         min_binding_size: None,
-//                     },
-//                     count: None,
-//                 }],
-//                 label: Some("shadow_map_binding_group_layout"),
-//             })
-//     }
-//
-//     fn build(&self, renderer: &Renderer, layout: &BindGroupLayout) -> RenderResources {
-//         let uniform = self.to_uniform();
-//
-//         let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-//             label: Some("shadow_map_plight_buffer"),
-//             contents: bytemuck::cast_slice(&[uniform]),
-//             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-//         });
-//
-//         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-//             layout,
-//             entries: &[BindGroupEntry {
-//                 binding: 0,
-//                 resource: buffer.as_entire_binding(),
-//             }],
-//             label: Some("shdow_map_bind_group"),
-//         });
-//
-//         RenderResources {
-//             buffers: vec![buffer],
-//             bind_group: Some(bind_group),
-//             ..Default::default()
-//         }
-//     }
-//
-//     fn update(&self, renderer: &Renderer, id: ResourceId, storage: &RenderStorage) {
-//         renderer.queue().write_buffer(
-//             &storage.get_buffers(id)[0],
-//             0,
-//             bytemuck::cast_slice(&[self.to_uniform()]),
-//         );
-//     }
-// }
+#[derive(Debug)]
+pub struct ShadowBindGroup(pub ResourceId);
+
+impl AssetBindGroup for ShadowBindGroup {
+    type ResourceHandle = (ShadowMapHandle, ShadowMapDLightHandle);
+
+    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
+        renderer
+            .device()
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: TextureViewDimension::D2,
+                            sample_type: TextureSampleType::Depth,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("shadow_binding_group_layout"),
+            })
+    }
+
+    fn new(
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resources: &Self::ResourceHandle,
+    ) -> Self {
+        storage.register_bind_group_layout::<Self>(renderer);
+        let layout = storage.get_bind_group_layout::<Self>();
+
+        let (shadow_map, shadow_d_light) = resources;
+        let texture = storage.get_texture(shadow_map.texture_id);
+        let buffer = storage.get_buffer(shadow_d_light.buffer_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&texture.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: buffer.as_entire_binding(),
+                },
+            ],
+            label: Some("shadow_bind_group"),
+        });
+
+        Self(storage.insert_bind_group(bind_group))
+    }
+}
