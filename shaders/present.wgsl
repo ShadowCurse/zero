@@ -1,16 +1,16 @@
 // Vertex shader
 
 struct VertexInput {
-  [[location(0)]] position: vec3<f32>;
-  [[location(1)]] tex_coords: vec2<f32>;
+  @location(0) position: vec3<f32>,
+  @location(1) tex_coords: vec2<f32>,
 };
 
 struct VertexOutput {
-  [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] tex_coords: vec2<f32>;
+  @builtin(position) clip_position: vec4<f32>,
+  @location(0) tex_coords: vec2<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
@@ -22,13 +22,13 @@ fn vs_main(
 
 // Fragment shader
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var t_texture: texture_2d<f32>;
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var s_sampler: sampler;
 
-[[stage(fragment)]]
-fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   let color: f32 = textureSample(t_texture, s_sampler, vertex.tex_coords).r;
   return vec4<f32>(color, color, color, 1.0);
 }

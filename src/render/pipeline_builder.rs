@@ -56,29 +56,32 @@ impl<'a> PipelineBuilder<'a> {
             file.read_to_string(&mut contents).unwrap();
         }
 
+        let shader_label = format!("shader: {}", self.shader_path);
         let shader = ShaderModuleDescriptor {
-            label: Some("shader"),
+            label: Some(&shader_label),
             source: ShaderSource::Wgsl(contents.into()),
         };
-        let shader = renderer.device().create_shader_module(&shader);
+        let shader = renderer.device().create_shader_module(shader);
 
         let targets = match self.color_targets {
             Some(ct) => ct
                 .into_iter()
-                .map(|ct| ColorTargetState {
-                    format: ct,
-                    blend: None,
-                    write_mask: ColorWrites::ALL,
+                .map(|ct| {
+                    Some(ColorTargetState {
+                        format: ct,
+                        blend: None,
+                        write_mask: ColorWrites::ALL,
+                    })
                 })
                 .collect(),
-            None => vec![ColorTargetState {
+            None => vec![Some(ColorTargetState {
                 format: renderer.surface_format(),
                 blend: Some(BlendState {
                     alpha: BlendComponent::REPLACE,
                     color: BlendComponent::REPLACE,
                 }),
                 write_mask: ColorWrites::ALL,
-            }],
+            })],
         };
 
         let strip_index_format = match self.primitive_topology {

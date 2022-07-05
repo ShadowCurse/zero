@@ -100,16 +100,16 @@ impl RenderPhase {
     fn color_attachments<'a>(
         &self,
         storage: &'a CurrentFrameStorage,
-    ) -> Vec<RenderPassColorAttachment<'a>> {
+    ) -> Vec<Option<RenderPassColorAttachment<'a>>> {
         self.color_attachments
             .iter()
             .map(|attachment| {
                 let view = storage.get_view(attachment.view_id);
-                RenderPassColorAttachment {
+                Some(RenderPassColorAttachment {
                     view,
                     resolve_target: None,
                     ops: attachment.ops,
-                }
+                })
             })
             .collect()
     }

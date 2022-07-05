@@ -1,38 +1,38 @@
 // Vertex shader
 
 struct TransformUniform {
-  transform: mat4x4<f32>;
-  rotate: mat4x4<f32>;
+  transform: mat4x4<f32>,
+  rotate: mat4x4<f32>,
 };
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
-  position: vec3<f32>;
-  view_projection: mat4x4<f32>;
-  vp_without_translation: mat4x4<f32>;
+  position: vec3<f32>,
+  view_projection: mat4x4<f32>,
+  vp_without_translation: mat4x4<f32>,
 };
-[[group(2), binding(0)]]
+@group(2) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
-  [[location(0)]] position: vec3<f32>;
-  [[location(1)]] tex_coords: vec2<f32>;
-  [[location(2)]] normal: vec3<f32>;
-  [[location(3)]] tangent: vec3<f32>;
-  [[location(4)]] bitangent: vec3<f32>;
+  @location(0) position: vec3<f32>,
+  @location(1) tex_coords: vec2<f32>,
+  @location(2) normal: vec3<f32>,
+  @location(3) tangent: vec3<f32>,
+  @location(4) bitangent: vec3<f32>,
 };
 
 struct VertexOutput {
-  [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] tex_coords: vec2<f32>;
-  [[location(1)]] world_position: vec4<f32>;
-  [[location(2)]] world_normal: vec3<f32>;
-  [[location(3)]] world_tangent: vec3<f32>;
-  [[location(4)]] world_bitangent: vec3<f32>;
+  @builtin(position) clip_position: vec4<f32>,
+  @location(0) tex_coords: vec2<f32>,
+  @location(1) world_position: vec4<f32>,
+  @location(2) world_normal: vec3<f32>,
+  @location(3) world_tangent: vec3<f32>,
+  @location(4) world_bitangent: vec3<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
@@ -56,31 +56,31 @@ fn vs_main(
 // Fragment shader
 
 struct MaterialProperties {
-    ambient: vec3<f32>;
-    diffuse: vec3<f32>;
-    specular: vec3<f32>;
+    ambient: vec3<f32>,
+    diffuse: vec3<f32>,
+    specular: vec3<f32>,
     // for now  r - shininess, else is empty
-    shininess: vec4<f32>;
+    shininess: vec4<f32>,
 };
-[[group(0), binding(4)]]
+@group(0) @binding(4)
 var<uniform> properties: MaterialProperties;
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var s_diffuse: sampler;
-[[group(0), binding(2)]]
+@group(0) @binding(2)
 var t_normal: texture_2d<f32>;
-[[group(0), binding(3)]]
+@group(0) @binding(3)
 var s_normal: sampler;
 
 struct FragmentOut {
-  [[location(0)]] position: vec4<f32>;
-  [[location(1)]] normal: vec4<f32>;
-  [[location(2)]] albedo: vec4<f32>;
+  @location(0) position: vec4<f32>,
+  @location(1) normal: vec4<f32>,
+  @location(2) albedo: vec4<f32>,
 };
 
-[[stage(fragment)]]
+@fragment
 fn fs_main(vertex: VertexOutput) -> FragmentOut {
   let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, vertex.tex_coords);
 

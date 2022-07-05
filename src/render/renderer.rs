@@ -78,7 +78,7 @@ impl Renderer {
 
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
             present_mode: PresentMode::Fifo,
@@ -133,9 +133,9 @@ impl Renderer {
             },
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
             label: None,
         };
         let texture = device.create_texture(&desc);
@@ -210,9 +210,9 @@ impl Renderer {
             },
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
             label: None,
         };
         self.texture = self.device.create_texture(&desc);

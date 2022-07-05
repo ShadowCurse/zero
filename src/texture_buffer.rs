@@ -64,9 +64,9 @@ impl TextureBuffer {
     ) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let buffer_slice = self.buffer.slice(..);
 
-        let mapping = buffer_slice.map_async(MapMode::Read);
+        let _mapping = buffer_slice.map_async(MapMode::Read, |_| {});
         renderer.device().poll(Maintain::Wait);
-        mapping.await.unwrap();
+        // mapping.unwrap();
 
         let data = buffer_slice.get_mapped_range().to_owned();
         self.buffer.unmap();

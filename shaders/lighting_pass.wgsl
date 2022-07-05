@@ -1,16 +1,16 @@
 // Vertex shader
 
 struct VertexInput {
-  [[location(0)]] position: vec3<f32>;
-  [[location(1)]] tex_coords: vec2<f32>;
+  @location(0) position: vec3<f32>,
+  @location(1) tex_coords: vec2<f32>,
 };
 
 struct VertexOutput {
-  [[builtin(position)]] clip_position: vec4<f32>;
-  [[location(0)]] tex_coords: vec2<f32>;
+  @builtin(position) clip_position: vec4<f32>,
+  @location(0) tex_coords: vec2<f32>,
 };
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
@@ -23,51 +23,51 @@ fn vs_main(
 // Fragment shader
 
 struct ShadowDLightUniform {
-  view_projection: mat4x4<f32>;
+  view_projection: mat4x4<f32>,
 };
 
-[[group(3), binding(0)]]
+@group(3) @binding(0)
 var t_shadow: texture_depth_2d;
-[[group(3), binding(1)]]
+@group(3) @binding(1)
 var s_shadow: sampler;
-[[group(3), binding(2)]]
+@group(3) @binding(2)
 var<uniform> d_light: ShadowDLightUniform;
 
 struct CameraUniform {
-  position: vec3<f32>;
-  view_projection: mat4x4<f32>;
-  vp_without_translation: mat4x4<f32>;
+  position: vec3<f32>,
+  view_projection: mat4x4<f32>,
+  vp_without_translation: mat4x4<f32>,
 };
-[[group(2), binding(0)]]
+@group(2) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct LightUniform {
-  position: vec3<f32>;
-  color: vec3<f32>;
-  constant: f32;
-  linear: f32;
-  quadratic: f32;
+  position: vec3<f32>,
+  color: vec3<f32>,
+  a_constant: f32,
+  a_linear: f32,
+  a_quadratic: f32,
 };
 
 struct Lights {
-  lights_num: i32;
-  lights: array<LightUniform>;
+  lights_num: i32,
+  lights: array<LightUniform>,
 };
 
-[[group(1), binding(0)]]
+@group(1) @binding(0)
 var<storage, read> lights: Lights;
 
-[[group(0), binding(0)]]
+@group(0) @binding(0)
 var t_position: texture_2d<f32>;
-[[group(0), binding(1)]]
+@group(0) @binding(1)
 var s_position: sampler;
-[[group(0), binding(2)]]
+@group(0) @binding(2)
 var t_normal: texture_2d<f32>;
-[[group(0), binding(3)]]
+@group(0) @binding(3)
 var s_normal: sampler;
-[[group(0), binding(4)]]
+@group(0) @binding(4)
 var t_albedo: texture_2d<f32>;
-[[group(0), binding(5)]]
+@group(0) @binding(5)
 var s_albedo: sampler;
 
 fn shadow_calculations(frag_pos_light_space: vec4<f32>, bias: f32) -> f32 {
@@ -81,6 +81,7 @@ fn shadow_calculations(frag_pos_light_space: vec4<f32>, bias: f32) -> f32 {
   var shadow: f32 = 0.0;
   for (var x: i32 = -1; x <= 1; x = x + 1) {
       for (var y: i32 = -1; y <= 1; y = y + 1) {
+
         let depth: f32 = textureSample(t_shadow,
                                        s_shadow,
                                        coords.xy + vec2<f32>(f32(x), f32(y)) * tex_size);
@@ -96,8 +97,8 @@ fn shadow_calculations(frag_pos_light_space: vec4<f32>, bias: f32) -> f32 {
   return shadow;
 }
 
-[[stage(fragment)]]
-fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   let vertex_position: vec4<f32> = textureSample(t_position, s_position, vertex.tex_coords);
   let vertex_normal: vec4<f32> = textureSample(t_normal, s_normal, vertex.tex_coords);
   let vertex_albedo: vec4<f32> = textureSample(t_albedo, s_albedo, vertex.tex_coords);
@@ -110,8 +111,8 @@ fn fs_main(vertex: VertexOutput) -> [[location(0)]] vec4<f32> {
   var result: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0); 
   for(var i: i32 = 0; i < lights.lights_num; i = i + 1) {
     let distance = distance(lights.lights[i].position, vertex_position.xyz);
-    let attenuation = 1.0 / (lights.lights[i].constant + lights.lights[i].linear * distance + 
-                      lights.lights[i].quadratic * (distance * distance));  
+    let attenuation = 1.0 / (lights.lights[i].a_constant + lights.lights[i].a_linear * distance + 
+                      lights.lights[i].a_quadratic * (distance * distance));  
 
     let light_dir = normalize(lights.lights[i].position - vertex_position.xyz);
     let view_dir = normalize(camera.position - vertex_position.xyz);
