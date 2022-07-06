@@ -1,6 +1,6 @@
 use super::{renderer::Renderer, wgpu_imports::*};
 use crate::texture::DepthTexture;
-use log::trace;
+use log::info;
 use std::{fs::File, io::Read};
 
 /// Builder for the pipelines
@@ -41,7 +41,7 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
 
 impl<'a> PipelineBuilder<'a> {
     pub fn build(self, renderer: &Renderer) -> RenderPipeline {
-        trace!("Building pipilene: {}", self.shader_path);
+        info!("Building pipilene: {}", self.shader_path);
         let layout = renderer
             .device()
             .create_pipeline_layout(&PipelineLayoutDescriptor {

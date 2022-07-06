@@ -1,4 +1,5 @@
 use super::wgpu_imports::*;
+use log::info;
 use winit::dpi::PhysicalSize;
 
 #[cfg(not(feature = "headless"))]
@@ -21,9 +22,6 @@ impl CurrentFrameContext {
     pub fn present(self) {
         self.output.present();
     }
-
-    #[cfg(feature = "headless")]
-    pub fn present(self) {}
 }
 
 /// Main renderer struct
@@ -47,7 +45,7 @@ impl Renderer {
     /// Creates new [`Renderer`] instance attached to the provided window
     #[cfg(not(feature = "headless"))]
     pub async fn new(window: &Window) -> Self {
-        let instance = Instance::new(Backends::all());
+        let instance = Instance::new(Backends::VULKAN);
 
         let size = window.inner_size();
         let surface = unsafe { instance.create_surface(window) };
@@ -76,6 +74,8 @@ impl Renderer {
             .await
             .unwrap();
 
+        info!("Renderer device: {:#?}, queue: {:#?}", device, queue);
+
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter)[0],
@@ -97,14 +97,10 @@ impl Renderer {
     /// Creates new headless [`Renderer`] instance with internal texture with provided size
     #[cfg(feature = "headless")]
     pub async fn new(width: u32, height: u32) -> Self {
-        let instance = Instance::new(Backends::all());
+        let instance = Instance::new(Backends::VULKAN);
 
         let adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::default(),
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
+            .request_adapter(&RequestAdapterOptions::default())
             .await
             .unwrap();
 
@@ -123,6 +119,8 @@ impl Renderer {
             .await
             .unwrap();
 
+        info!("Renderer device: {:#?}, queue: {:#?}", device, queue);
+
         let size = PhysicalSize { width, height };
 
         let desc = TextureDescriptor {
@@ -136,7 +134,7 @@ impl Renderer {
             dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
             usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
-            label: None,
+            label: Some("surface_texture"),
         };
         let texture = device.create_texture(&desc);
 
@@ -213,7 +211,7 @@ impl Renderer {
             dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
             usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
-            label: None,
+            label: Some("surface_texture"),
         };
         self.texture = self.device.create_texture(&desc);
     }

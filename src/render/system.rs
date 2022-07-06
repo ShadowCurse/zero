@@ -1,4 +1,4 @@
-use super::renderer::Renderer;
+use super::renderer::{CurrentFrameContext, Renderer};
 use super::{
     storage::{RenderStorage, ResourceId},
     wgpu_imports::*,
@@ -188,20 +188,7 @@ impl RenderSystem {
         storage: &RenderStorage,
     ) -> Result<(), SurfaceError> {
         let current_frame = renderer.current_frame()?;
-        let mut encoder = renderer.create_encoder();
-
-        let frame_storage = CurrentFrameStorage {
-            storage,
-            current_frame_view: current_frame.view(),
-        };
-
-        for p in self.order.iter() {
-            let phase = self.phases.get_mut(p).unwrap();
-            Self::execute_phase(Some(p), &mut encoder, phase, &frame_storage);
-            phase.commands.clear();
-        }
-
-        renderer.submit(std::iter::once(encoder.finish()));
+        self.run_system(renderer, storage, &current_frame);
         current_frame.present();
         Ok(())
     }
@@ -209,6 +196,15 @@ impl RenderSystem {
     #[cfg(feature = "headless")]
     pub fn run(&mut self, renderer: &Renderer, storage: &RenderStorage) {
         let current_frame = renderer.current_frame();
+        self.run_system(renderer, storage, &current_frame);
+    }
+
+    fn run_system(
+        &mut self,
+        renderer: &Renderer,
+        storage: &RenderStorage,
+        current_frame: &CurrentFrameContext,
+    ) {
         let mut encoder = renderer.create_encoder();
 
         let frame_storage = CurrentFrameStorage {
@@ -223,7 +219,6 @@ impl RenderSystem {
         }
 
         renderer.submit(std::iter::once(encoder.finish()));
-        current_frame.present();
     }
 
     fn execute_phase(
