@@ -5,6 +5,29 @@ use winit::{
 };
 use zero::prelude::*;
 
+struct FpsLogger {
+    last_log: std::time::Instant,
+}
+
+impl FpsLogger {
+    fn new() -> Self {
+        Self {
+            last_log: std::time::Instant::now(),
+        }
+    }
+
+    fn log(&mut self, now: std::time::Instant, dt: std::time::Duration) {
+        if 1.0 <= (now - self.last_log).as_secs_f32() {
+            println!(
+                "Frame time: {:.2}ms(FPS: {:.2})",
+                dt.as_secs_f64() * 1000.0,
+                1.0 / dt.as_secs_f64()
+            );
+            self.last_log = now;
+        }
+    }
+}
+
 fn main() {
     env_logger::init();
 
@@ -293,6 +316,7 @@ fn main() {
     let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
 
     let mut last_render_time = std::time::Instant::now();
+    let mut fps_logger = FpsLogger::new();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -354,6 +378,8 @@ fn main() {
                 let now = std::time::Instant::now();
                 let dt = now - last_render_time;
                 last_render_time = now;
+
+                fps_logger.log(now, dt);
 
                 camera_controller.update_camera(&mut camera, dt);
                 camera_handle.update(&renderer, &storage, &camera);

@@ -81,7 +81,7 @@ impl Renderer {
             format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
-            present_mode: PresentMode::Fifo,
+            present_mode: PresentMode::AutoNoVsync,
         };
         surface.configure(&device, &config);
 
