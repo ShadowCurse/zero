@@ -238,7 +238,6 @@ fn main() {
         vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/shadow_map.wgsl",
         write_depth: true,
-        color_targets: Some(vec![]),
         cull_mode: Face::Front,
         ..Default::default()
     }
@@ -255,6 +254,7 @@ fn main() {
         vertex_layouts: vec![TextureVertex::layout()],
         shader_path: "./shaders/lighting_pass.wgsl",
         depth_enabled: false,
+        color_targets: Some(vec![renderer.surface_format()]),
         ..Default::default()
     }
     .build(&renderer);
@@ -280,6 +280,7 @@ fn main() {
         vertex_layouts: vec![SkyboxVertex::layout()],
         shader_path: "./shaders/skybox.wgsl",
         write_depth: false,
+        color_targets: Some(vec![renderer.surface_format()]),
         ..Default::default()
     }
     .build(&renderer);

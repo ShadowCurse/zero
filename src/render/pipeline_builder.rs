@@ -63,9 +63,8 @@ impl<'a> PipelineBuilder<'a> {
         };
         let shader = renderer.device().create_shader_module(shader);
 
-        let targets = match self.color_targets {
-            Some(ct) => ct
-                .into_iter()
+        let targets = self.color_targets.map(|ct| {
+            ct.into_iter()
                 .map(|ct| {
                     Some(ColorTargetState {
                         format: ct,
@@ -73,16 +72,16 @@ impl<'a> PipelineBuilder<'a> {
                         write_mask: ColorWrites::ALL,
                     })
                 })
-                .collect(),
-            None => vec![Some(ColorTargetState {
-                format: renderer.surface_format(),
-                blend: Some(BlendState {
-                    alpha: BlendComponent::REPLACE,
-                    color: BlendComponent::REPLACE,
-                }),
-                write_mask: ColorWrites::ALL,
-            })],
-        };
+                .collect::<Vec<_>>()
+        });
+
+        let fragment = targets.as_ref().map(|targets| {
+            FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets,
+            }
+        });
 
         let strip_index_format = match self.primitive_topology {
             PrimitiveTopology::TriangleList => None,
@@ -130,11 +129,7 @@ impl<'a> PipelineBuilder<'a> {
                     entry_point: "vs_main",
                     buffers: &self.vertex_layouts,
                 },
-                fragment: Some(FragmentState {
-                    module: &shader,
-                    entry_point: "fs_main",
-                    targets: &targets,
-                }),
+                fragment,
                 primitive: PrimitiveState {
                     topology: self.primitive_topology,
                     strip_index_format,

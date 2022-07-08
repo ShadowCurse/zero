@@ -35,8 +35,3 @@ fn vs_main(
   out.clip_position = d_light.view_projection * world_position;
   return out;
 }
-
-// Fragment shader
-
-@fragment
-fn fs_main(vertex: VertexOutput) {}
