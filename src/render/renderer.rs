@@ -5,6 +5,8 @@ use winit::dpi::PhysicalSize;
 #[cfg(not(feature = "headless"))]
 use winit::window::Window;
 
+pub const MAX_BIND_GROUPS: u32 = 4;
+
 /// Contains the context of the current frame surface
 #[derive(Debug)]
 pub struct CurrentFrameContext {
@@ -64,7 +66,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     features: Features::empty(),
                     limits: Limits {
-                        max_bind_groups: 4,
+                        max_bind_groups: MAX_BIND_GROUPS,
                         ..Default::default()
                     },
                     label: Some("device_descriptor"),
@@ -109,7 +111,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     features: Features::empty(),
                     limits: Limits {
-                        max_bind_groups: 4,
+                        max_bind_groups: MAX_BIND_GROUPS,
                         ..Default::default()
                     },
                     label: Some("device_descriptor"),
