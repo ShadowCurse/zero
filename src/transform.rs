@@ -107,11 +107,11 @@ impl AssetBindGroup for TransformBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resources.buffer_id);
+        let buffer = storage.get_buffer(resource.buffer_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -123,5 +123,26 @@ impl AssetBindGroup for TransformBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let buffer = storage.get_buffer(resource.buffer_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("transform_bind_group"),
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }

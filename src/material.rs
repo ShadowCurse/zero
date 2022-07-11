@@ -170,13 +170,13 @@ impl AssetBindGroup for MaterialBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resources.buffer_id);
-        let diffuse_texture = storage.get_texture(resources.diffuse_texture_id);
-        let normal_texture = storage.get_texture(resources.normal_texture_id);
+        let buffer = storage.get_buffer(resource.buffer_id);
+        let diffuse_texture = storage.get_texture(resource.diffuse_texture_id);
+        let normal_texture = storage.get_texture(resource.normal_texture_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -206,6 +206,47 @@ impl AssetBindGroup for MaterialBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let buffer = storage.get_buffer(resource.buffer_id);
+        let diffuse_texture = storage.get_texture(resource.diffuse_texture_id);
+        let normal_texture = storage.get_texture(resource.normal_texture_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&diffuse_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&normal_texture.view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&normal_texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: buffer.as_entire_binding(),
+                },
+            ],
+            label: None,
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }
 
@@ -309,11 +350,11 @@ impl AssetBindGroup for ColorMaterialBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resources.buffer_id);
+        let buffer = storage.get_buffer(resource.buffer_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -325,5 +366,26 @@ impl AssetBindGroup for ColorMaterialBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let buffer = storage.get_buffer(resource.buffer_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }

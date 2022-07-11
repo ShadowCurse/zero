@@ -36,4 +36,10 @@ pub trait AssetBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self;
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    );
 }

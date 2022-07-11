@@ -76,9 +76,7 @@ pub struct ImageTexture {
 
 impl ImageTexture {
     pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
-        let path_copy = path.as_ref().to_path_buf();
-
-        info!("loading texture from {:#?}", path_copy);
+        info!("loading texture from {:#?}", path.as_ref().to_path_buf());
         let img = image::open(path)?;
 
         Ok(Self {

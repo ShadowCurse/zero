@@ -359,8 +359,7 @@ fn main() {
                         DepthTexture::default().build(&renderer),
                     );
                     g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
-                    g_buffer_bind_group =
-                        GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
+                    g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
                 }
                 WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     camera.resize(new_inner_size.width, new_inner_size.height);
@@ -370,8 +369,7 @@ fn main() {
                         DepthTexture::default().build(&renderer),
                     );
                     g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
-                    g_buffer_bind_group =
-                        GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
+                    g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
                 }
                 _ => {}
             },

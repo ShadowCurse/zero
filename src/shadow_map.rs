@@ -78,11 +78,11 @@ impl AssetBindGroup for ShadowMapBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let shadow_map = storage.get_texture(resources.texture_id);
+        let shadow_map = storage.get_texture(resource.texture_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -99,6 +99,32 @@ impl AssetBindGroup for ShadowMapBindGroup {
             label: None,
         });
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let shadow_map = storage.get_texture(resource.texture_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&shadow_map.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&shadow_map.sampler),
+                },
+            ],
+            label: None,
+        });
+        storage.replace_bind_group(self.0, bind_group);
     }
 }
 
@@ -248,11 +274,11 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resources.buffer_id);
+        let buffer = storage.get_buffer(resource.buffer_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -264,6 +290,27 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let buffer = storage.get_buffer(resource.buffer_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("shdow_map_bind_group"),
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }
 
@@ -312,12 +359,12 @@ impl AssetBindGroup for ShadowBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
 
-        let (shadow_map, shadow_d_light) = resources;
+        let (shadow_map, shadow_d_light) = resource;
         let texture = storage.get_texture(shadow_map.texture_id);
         let buffer = storage.get_buffer(shadow_d_light.buffer_id);
 
@@ -341,5 +388,39 @@ impl AssetBindGroup for ShadowBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+
+        let (shadow_map, shadow_d_light) = resource;
+        let texture = storage.get_texture(shadow_map.texture_id);
+        let buffer = storage.get_buffer(shadow_d_light.buffer_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&texture.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&texture.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: buffer.as_entire_binding(),
+                },
+            ],
+            label: Some("shadow_bind_group"),
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }

@@ -77,6 +77,12 @@ impl RenderStorage {
         };
     }
 
+    pub fn replace_bind_group(&mut self, bind_group_id: ResourceId, bind_group: BindGroup) {
+        if let Some(b) = self.bind_groups.get_mut(bind_group_id.0) {
+            *b = bind_group;
+        };
+    }
+
     pub fn register_bind_group_layout<A: AssetBindGroup>(&mut self, renderer: &Renderer) {
         let t_name = std::any::type_name::<A>();
         if !self.layouts.contains_key(t_name) {

@@ -137,11 +137,11 @@ impl AssetBindGroup for SkyboxBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let texture = storage.get_texture(resources.texture_id);
+        let texture = storage.get_texture(resource.texture_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -159,5 +159,32 @@ impl AssetBindGroup for SkyboxBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let texture = storage.get_texture(resource.texture_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&texture.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&texture.sampler),
+                },
+            ],
+            label: None,
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }

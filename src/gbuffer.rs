@@ -217,13 +217,13 @@ impl AssetBindGroup for GBufferBindGroup {
     fn new(
         renderer: &Renderer,
         storage: &mut RenderStorage,
-        resources: &Self::ResourceHandle,
+        resource: &Self::ResourceHandle,
     ) -> Self {
         storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
-        let position = storage.get_texture(resources.position_texture_id);
-        let normal = storage.get_texture(resources.normal_texture_id);
-        let albedo = storage.get_texture(resources.albedo_texture_id);
+        let position = storage.get_texture(resource.position_texture_id);
+        let normal = storage.get_texture(resource.normal_texture_id);
+        let albedo = storage.get_texture(resource.albedo_texture_id);
 
         let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
             layout,
@@ -257,5 +257,50 @@ impl AssetBindGroup for GBufferBindGroup {
         });
 
         Self(storage.insert_bind_group(bind_group))
+    }
+
+    fn replace(
+        &self,
+        renderer: &Renderer,
+        storage: &mut RenderStorage,
+        resource: &Self::ResourceHandle,
+    ) {
+        let layout = storage.get_bind_group_layout::<Self>();
+        let position = storage.get_texture(resource.position_texture_id);
+        let normal = storage.get_texture(resource.normal_texture_id);
+        let albedo = storage.get_texture(resource.albedo_texture_id);
+
+        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
+            layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&position.view),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&position.sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&normal.view),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::Sampler(&normal.sampler),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: BindingResource::TextureView(&albedo.view),
+                },
+                BindGroupEntry {
+                    binding: 5,
+                    resource: BindingResource::Sampler(&albedo.sampler),
+                },
+            ],
+            label: None,
+        });
+
+        storage.replace_bind_group(self.0, bind_group);
     }
 }

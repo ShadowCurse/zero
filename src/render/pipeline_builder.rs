@@ -75,12 +75,10 @@ impl<'a> PipelineBuilder<'a> {
                 .collect::<Vec<_>>()
         });
 
-        let fragment = targets.as_ref().map(|targets| {
-            FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets,
-            }
+        let fragment = targets.as_ref().map(|targets| FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets,
         });
 
         let strip_index_format = match self.primitive_topology {

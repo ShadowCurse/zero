@@ -4,6 +4,7 @@ use crate::prelude::{MaterialBindGroup, MaterialHandle};
 use crate::render::prelude::*;
 use crate::texture::{ImageTexture, TextureType};
 use anyhow::{Context, Ok, Result};
+use log::info;
 use tobj::{load_obj, LoadOptions};
 
 pub struct ModelHadle {
@@ -31,6 +32,7 @@ pub struct ModelMaterialHandle {
 
 impl Model {
     pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+        info!("loading model from {:#?}", path.as_ref());
         let (obj_models, obj_materials) = load_obj(
             path.as_ref(),
             &LoadOptions {
