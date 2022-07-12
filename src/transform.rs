@@ -109,7 +109,6 @@ impl AssetBindGroup for TransformBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 

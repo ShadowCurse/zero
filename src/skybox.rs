@@ -139,7 +139,6 @@ impl AssetBindGroup for SkyboxBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let texture = storage.get_texture(resource.texture_id);
 

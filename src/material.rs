@@ -172,7 +172,6 @@ impl AssetBindGroup for MaterialBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
         let diffuse_texture = storage.get_texture(resource.diffuse_texture_id);
@@ -352,7 +351,6 @@ impl AssetBindGroup for ColorMaterialBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 

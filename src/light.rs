@@ -131,7 +131,6 @@ impl AssetBindGroup for DirectionalLightBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 
@@ -261,7 +260,6 @@ impl AssetBindGroup for PointLightBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 
@@ -393,7 +391,6 @@ impl AssetBindGroup for PointLightsBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 

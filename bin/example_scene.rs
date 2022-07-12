@@ -38,13 +38,99 @@ fn main() {
     let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
+    storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
+    storage.register_bind_group_layout::<MaterialBindGroup>(&renderer);
+    storage.register_bind_group_layout::<ColorMaterialBindGroup>(&renderer);
+    storage.register_bind_group_layout::<GBufferBindGroup>(&renderer);
+    storage.register_bind_group_layout::<PointLightBindGroup>(&renderer);
+    storage.register_bind_group_layout::<PointLightsBindGroup>(&renderer);
+    storage.register_bind_group_layout::<ShadowMapBindGroup>(&renderer);
+    storage.register_bind_group_layout::<ShadowMapDLightBindGroup>(&renderer);
+    storage.register_bind_group_layout::<ShadowBindGroup>(&renderer);
+    storage.register_bind_group_layout::<SkyboxBindGroup>(&renderer);
+    storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
+
+    let g_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<MaterialBindGroup>(),
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
+        ],
+        vertex_layouts: vec![MeshVertex::layout()],
+        shader_path: "./shaders/geometry_pass.wgsl",
+        write_depth: true,
+        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        ..Default::default()
+    }
+    .build(&renderer);
+    let g_pipeline_id = storage.insert_pipeline(g_pipeline);
+
+    let g_color_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
+        ],
+        vertex_layouts: vec![MeshVertex::layout()],
+        shader_path: "./shaders/geometry_color_pass.wgsl",
+        write_depth: true,
+        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        ..Default::default()
+    }
+    .build(&renderer);
+    let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
+
+    let shadow_map_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<TransformBindGroup>(),
+            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
+        ],
+        vertex_layouts: vec![MeshVertex::layout()],
+        shader_path: "./shaders/shadow_map.wgsl",
+        write_depth: true,
+        cull_mode: Face::Front,
+        ..Default::default()
+    }
+    .build(&renderer);
+    let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
+
+    let lighting_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<GBufferBindGroup>(),
+            storage.get_bind_group_layout::<PointLightsBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
+            storage.get_bind_group_layout::<ShadowBindGroup>(),
+        ],
+        vertex_layouts: vec![TextureVertex::layout()],
+        shader_path: "./shaders/lighting_pass.wgsl",
+        depth_enabled: false,
+        color_targets: Some(vec![renderer.surface_format()]),
+        ..Default::default()
+    }
+    .build(&renderer);
+    let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
+
+    let skybox_pipeline = PipelineBuilder {
+        bind_group_layouts: vec![
+            storage.get_bind_group_layout::<SkyboxBindGroup>(),
+            storage.get_bind_group_layout::<CameraBindGroup>(),
+        ],
+        vertex_layouts: vec![SkyboxVertex::layout()],
+        shader_path: "./shaders/skybox.wgsl",
+        write_depth: false,
+        color_targets: Some(vec![renderer.surface_format()]),
+        ..Default::default()
+    }
+    .build(&renderer);
+    let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
+
     let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
     let shadow_map_handle =
         ShadowMapHandle::new(&mut storage, ShadowMap::default().build(&renderer));
 
     let g_buffer = GBuffer::new(TextureFormat::Rgba32Float);
     let g_buffer_handle = GBufferHandle::new(&mut storage, g_buffer.build(&renderer));
-    let mut g_buffer_bind_group = GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
+    let g_buffer_bind_group = GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
 
     let geometry_phase = RenderPhase::new(
         vec![
@@ -230,66 +316,6 @@ fn main() {
     let cube_transform_bind_group =
         TransformBindGroup::new(&renderer, &mut storage, &cube_transform_handle);
 
-    let g_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
-            storage.get_bind_group_layout::<MaterialBindGroup>(),
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
-        shader_path: "./shaders/geometry_pass.wgsl",
-        write_depth: true,
-        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
-        ..Default::default()
-    }
-    .build(&renderer);
-    let g_pipeline_id = storage.insert_pipeline(g_pipeline);
-
-    let g_color_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
-            storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
-        shader_path: "./shaders/geometry_color_pass.wgsl",
-        write_depth: true,
-        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
-        ..Default::default()
-    }
-    .build(&renderer);
-    let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
-
-    let shadow_map_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
-        shader_path: "./shaders/shadow_map.wgsl",
-        write_depth: true,
-        cull_mode: Face::Front,
-        ..Default::default()
-    }
-    .build(&renderer);
-    let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
-
-    let lighting_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
-            storage.get_bind_group_layout::<GBufferBindGroup>(),
-            storage.get_bind_group_layout::<PointLightsBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-            storage.get_bind_group_layout::<ShadowBindGroup>(),
-        ],
-        vertex_layouts: vec![TextureVertex::layout()],
-        shader_path: "./shaders/lighting_pass.wgsl",
-        depth_enabled: false,
-        color_targets: Some(vec![renderer.surface_format()]),
-        ..Default::default()
-    }
-    .build(&renderer);
-    let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
-
     let skybox = Skybox::load([
         "./res/skybox/right.jpg",
         "./res/skybox/left.jpg",
@@ -301,20 +327,6 @@ fn main() {
     .unwrap();
     let skybox_handle = SkyboxHandle::new(&mut storage, skybox.build(&renderer));
     let skybox_bind_group = SkyboxBindGroup::new(&renderer, &mut storage, &skybox_handle);
-
-    let skybox_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
-            storage.get_bind_group_layout::<SkyboxBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![SkyboxVertex::layout()],
-        shader_path: "./shaders/skybox.wgsl",
-        write_depth: false,
-        color_targets: Some(vec![renderer.surface_format()]),
-        ..Default::default()
-    }
-    .build(&renderer);
-    let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
 
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();

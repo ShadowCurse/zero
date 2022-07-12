@@ -80,7 +80,6 @@ impl AssetBindGroup for ShadowMapBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let shadow_map = storage.get_texture(resource.texture_id);
 
@@ -276,7 +275,6 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
         let buffer = storage.get_buffer(resource.buffer_id);
 
@@ -361,7 +359,6 @@ impl AssetBindGroup for ShadowBindGroup {
         storage: &mut RenderStorage,
         resource: &Self::ResourceHandle,
     ) -> Self {
-        storage.register_bind_group_layout::<Self>(renderer);
         let layout = storage.get_bind_group_layout::<Self>();
 
         let (shadow_map, shadow_d_light) = resource;
