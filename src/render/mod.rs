@@ -1,5 +1,4 @@
 pub mod pipeline_builder;
-pub mod pipeline;
 pub mod renderer;
 pub mod storage;
 pub mod system;
