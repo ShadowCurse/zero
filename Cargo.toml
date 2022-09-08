@@ -6,13 +6,13 @@ edition = "2021"
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "example_scene"
-path = "bin/example_scene.rs"
+[[example]]
+name = "scene"
+path = "examples/scene.rs"
 
-[[bin]]
-name = "example_scene_headless"
-path = "bin/example_scene_headless.rs"
+[[example]]
+name = "scene_headless"
+path = "examples/scene_headless.rs"
 required-features = ["headless"]
 
 [features]

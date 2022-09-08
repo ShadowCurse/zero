@@ -20,5 +20,5 @@ Main libraries on which Zero relies on:
 - [cgmath](https://github.com/rustgd/cgmath): A linear algebra and mathematics library for computer graphics
 
 ## Examples
-<img src="./examples/zero_v0.0.2.png" width="400">
-<img src="./examples/zero_v0.0.1.png" width="400">
+<img src="./img/zero_v0.0.2.png" width="400">
+<img src="./img/zero_v0.0.1.png" width="400">
