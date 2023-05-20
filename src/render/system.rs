@@ -5,13 +5,13 @@ use super::{
 };
 use std::{borrow::Cow, collections::HashMap, ops::Deref};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct BindGroupMeta {
     pub index: u32,
     pub bind_group_id: ResourceId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RenderCommand {
     pub pipeline_id: ResourceId,
     pub mesh_id: ResourceId,

@@ -213,7 +213,7 @@ impl GpuResource for ShadowMapDLight {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowMapDLightHandle {
     pub buffer_id: ResourceId,
 }
@@ -246,7 +246,7 @@ impl ResourceHandle for ShadowMapDLightHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowMapDLightBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ShadowMapDLightBindGroup {
@@ -312,7 +312,7 @@ impl AssetBindGroup for ShadowMapDLightBindGroup {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ShadowBindGroup {

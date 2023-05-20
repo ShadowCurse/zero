@@ -356,13 +356,13 @@ impl GpuResource for PointLights {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PointLightsHandle {
     pub buffer_id: ResourceId,
 }
 impl_resource_handle!(PointLightsHandle, PointLights, PointLightsResource);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PointLightsBindGroup(pub ResourceId);
 
 impl AssetBindGroup for PointLightsBindGroup {

@@ -289,7 +289,7 @@ impl GpuResource for ColorMaterial {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ColorMaterialHandle {
     pub buffer_id: ResourceId,
 }
@@ -322,7 +322,7 @@ impl ResourceHandle for ColorMaterialHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ColorMaterialBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ColorMaterialBindGroup {

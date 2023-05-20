@@ -114,7 +114,7 @@ impl GpuResource for Camera {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CameraHandle {
     pub buffer_id: ResourceId,
 }
@@ -147,7 +147,7 @@ impl ResourceHandle for CameraHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CameraBindGroup(pub ResourceId);
 
 impl AssetBindGroup for CameraBindGroup {
