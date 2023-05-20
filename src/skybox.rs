@@ -1,7 +1,7 @@
 use crate::mesh::GpuMesh;
 use crate::render::prelude::*;
 use crate::texture;
-use anyhow::{Ok, Result};
+use image::ImageError;
 use texture::GpuTexture;
 
 #[repr(C)]
@@ -32,7 +32,7 @@ pub struct Skybox {
 }
 
 impl Skybox {
-    pub fn load<P: AsRef<std::path::Path>>(paths: [P; 6]) -> Result<Self> {
+    pub fn load<P: AsRef<std::path::Path>>(paths: [P; 6]) -> Result<Self, ImageError> {
         let cube_map = texture::CubeMap::load(paths)?;
 
         let vertices: Vec<f32> = vec![

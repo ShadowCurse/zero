@@ -3,9 +3,17 @@ use crate::mesh::{Mesh, MeshVertex};
 use crate::prelude::{MaterialBindGroup, MaterialHandle};
 use crate::render::prelude::*;
 use crate::texture::{ImageTexture, TextureType};
-use anyhow::{Context, Ok, Result};
+use image::ImageError;
 use log::info;
-use tobj::{load_obj, LoadOptions};
+use tobj::{load_obj, LoadError, LoadOptions};
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Error loading model: {0}")]
+    ModelLoad(#[from] LoadError),
+    #[error("Error loading image: {0}")]
+    ImageLoad(#[from] ImageError),
+}
 
 pub struct ModelHadle {
     pub mesh_id: ResourceId,
@@ -31,7 +39,7 @@ pub struct ModelMaterialHandle {
 }
 
 impl Model {
-    pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+    pub fn load<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
         info!("loading model from {:#?}", path.as_ref());
         let (obj_models, obj_materials) = load_obj(
             path.as_ref(),
@@ -44,24 +52,24 @@ impl Model {
 
         let obj_materials = obj_materials?;
 
-        let containing_folder = path.as_ref().parent().context("Directory has no parent")?;
+        let containing_folder = path.as_ref().parent().expect("Directory has no parent");
 
         let mut materials = Vec::new();
         for mat in obj_materials {
-            let diffuse_path = containing_folder.join(mat.diffuse_texture);
+            let diffuse_path = containing_folder.join(mat.diffuse_texture.unwrap());
             let diffuse_texture = ImageTexture::load(diffuse_path, TextureType::Diffuse)?;
 
-            let normal_path = containing_folder.join(mat.normal_texture);
+            let normal_path = containing_folder.join(mat.normal_texture.unwrap());
             let normal_texture = ImageTexture::load(normal_path, TextureType::Normal)?;
 
             materials.push(Material {
                 name: mat.name,
                 diffuse_texture,
                 normal_texture,
-                ambient: mat.ambient,
-                diffuse: mat.diffuse,
-                specular: mat.specular,
-                shininess: mat.shininess,
+                ambient: mat.ambient.unwrap(),
+                diffuse: mat.diffuse.unwrap(),
+                specular: mat.specular.unwrap(),
+                shininess: mat.shininess.unwrap(),
             });
         }
 

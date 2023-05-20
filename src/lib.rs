@@ -31,6 +31,8 @@ pub mod prelude {
     pub use transform::*;
 
     pub use cgmath_imports::*;
+    pub use wgpu;
+    pub use winit;
 }
 
 pub mod cgmath_imports {

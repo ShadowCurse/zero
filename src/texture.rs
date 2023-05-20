@@ -1,6 +1,5 @@
 use crate::render::prelude::*;
-use anyhow::{Ok, Result};
-use image::GenericImageView;
+use image::{GenericImageView, ImageError};
 use log::info;
 use std::path::Path;
 
@@ -75,7 +74,7 @@ pub struct ImageTexture {
 }
 
 impl ImageTexture {
-    pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(path: P, texture_type: TextureType) -> Result<Self, ImageError> {
         info!("loading texture from {:#?}", path.as_ref().to_path_buf());
         let img = image::open(path)?;
 
@@ -114,6 +113,10 @@ impl GpuResource for ImageTexture {
                 TextureType::Diffuse => TextureFormat::Rgba8UnormSrgb,
                 TextureType::Normal => TextureFormat::Rgba8Unorm,
             },
+            view_formats: match self.texture_type {
+                TextureType::Diffuse => &[TextureFormat::Rgba8UnormSrgb],
+                TextureType::Normal => &[TextureFormat::Rgba8Unorm],
+            },
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             label: Some("texture"),
         });
@@ -140,8 +143,8 @@ impl GpuResource for ImageTexture {
                 data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * texture_size.width),
-                    rows_per_image: std::num::NonZeroU32::new(texture_size.height),
+                    bytes_per_row: Some(4 * texture_size.width),
+                    rows_per_image: Some(texture_size.height),
                 },
                 texture_size,
             );
@@ -187,6 +190,7 @@ impl GpuResource for DepthTexture {
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
+            view_formats: &[Self::DEPTH_FORMAT],
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             label: Some("depth_texture"),
         };
@@ -201,7 +205,7 @@ impl GpuResource for DepthTexture {
             min_filter: FilterMode::Linear,
             mipmap_filter: FilterMode::Nearest,
             compare: None, //Some(CompareFunction::LessEqual),
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             ..Default::default()
         });
@@ -222,7 +226,7 @@ pub struct CubeMap {
 }
 
 impl CubeMap {
-    pub fn load<P: AsRef<Path>>(paths: [P; 6]) -> Result<Self> {
+    pub fn load<P: AsRef<Path>>(paths: [P; 6]) -> Result<Self, ImageError> {
         let mut texture_data = Vec::new();
         let mut dimensions = (0, 0);
         for path in paths {
@@ -265,6 +269,7 @@ impl GpuResource for CubeMap {
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.format,
+            view_formats: &[self.format],
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             label: Some("cube_texture"),
         });
@@ -294,8 +299,8 @@ impl GpuResource for CubeMap {
                 data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: std::num::NonZeroU32::new(4 * texture_size.width),
-                    rows_per_image: std::num::NonZeroU32::new(texture_size.height),
+                    bytes_per_row: Some(4 * texture_size.width),
+                    rows_per_image: Some(texture_size.height),
                 },
                 texture_size,
             );

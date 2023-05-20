@@ -29,6 +29,7 @@ impl GpuResource for GBufferTexture {
             sample_count: 1,
             dimension: TextureDimension::D2,
             format: self.format,
+            view_formats: &[self.format],
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
             label: Some("gbuffer_texture"),
         });

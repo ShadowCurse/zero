@@ -47,10 +47,15 @@ impl Renderer {
     /// Creates new [`Renderer`] instance attached to the provided window
     #[cfg(not(feature = "headless"))]
     pub async fn new(window: &Window) -> Self {
-        let instance = Instance::new(Backends::VULKAN);
+        use wgpu::{CompositeAlphaMode, InstanceDescriptor};
+
+        let instance = Instance::new(InstanceDescriptor {
+            backends: Backends::VULKAN,
+            ..Default::default()
+        });
 
         let size = window.inner_size();
-        let surface = unsafe { instance.create_surface(window) };
+        let surface = unsafe { instance.create_surface(window) }.unwrap();
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -78,12 +83,16 @@ impl Renderer {
 
         info!("Renderer device: {:#?}, queue: {:#?}", device, queue);
 
+        let formats = surface.get_capabilities(&adapter).formats;
+
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: formats[0],
             width: size.width,
             height: size.height,
             present_mode: PresentMode::AutoNoVsync,
+            alpha_mode: CompositeAlphaMode::Auto,
+            view_formats: vec![formats[0]],
         };
         surface.configure(&device, &config);
 
