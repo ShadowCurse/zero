@@ -70,7 +70,7 @@ impl GpuResource for Material {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MaterialHandle {
     pub buffer_id: ResourceId,
     pub diffuse_texture_id: ResourceId,

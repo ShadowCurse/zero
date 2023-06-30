@@ -79,7 +79,7 @@ impl GpuResource for Skybox {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SkyboxHandle {
     pub texture_id: ResourceId,
     pub mesh_id: ResourceId,
@@ -102,7 +102,7 @@ impl ResourceHandle for SkyboxHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SkyboxBindGroup(pub ResourceId);
 
 impl AssetBindGroup for SkyboxBindGroup {

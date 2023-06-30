@@ -23,7 +23,7 @@ impl GpuResource for ShadowMap {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowMapHandle {
     pub texture_id: ResourceId,
 }
@@ -43,7 +43,7 @@ impl ResourceHandle for ShadowMapHandle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ShadowMapBindGroup(pub ResourceId);
 
 impl AssetBindGroup for ShadowMapBindGroup {

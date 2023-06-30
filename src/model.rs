@@ -32,7 +32,7 @@ pub struct Model {
     pub materials: Vec<Material>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ModelMaterialHandle {
     pub material_handle: MaterialHandle,
     pub material_bind_group: MaterialBindGroup,
