@@ -1,12 +1,15 @@
-use super::{renderer::Renderer, wgpu_imports::*};
-use crate::texture::DepthTexture;
+use super::{
+    renderer::{Renderer, MAX_BIND_GROUPS, MAX_COLOR_ATTACHMENTS},
+    wgpu_imports::*,
+};
+use crate::{const_vec, prelude::ConstVec, texture::DepthTexture};
 use log::info;
 use std::{fs::File, io::Read};
 
 /// Builder for the pipelines
 #[derive(Debug)]
 pub struct PipelineBuilder<'a> {
-    pub bind_group_layouts: Vec<&'a BindGroupLayout>,
+    pub bind_group_layouts: ConstVec<MAX_BIND_GROUPS, &'a BindGroupLayout>,
     pub vertex_layouts: Vec<VertexBufferLayout<'a>>,
     pub shader_path: &'a str,
     pub primitive_topology: PrimitiveTopology,
@@ -16,14 +19,14 @@ pub struct PipelineBuilder<'a> {
     pub stencil_read_mask: u32,
     pub stencil_write_mask: u32,
     pub write_depth: bool,
-    pub color_targets: Option<Vec<TextureFormat>>,
+    pub color_targets: Option<ConstVec<MAX_COLOR_ATTACHMENTS, TextureFormat>>,
     pub cull_mode: Face,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {
     fn default() -> Self {
         Self {
-            bind_group_layouts: vec![],
+            bind_group_layouts: const_vec![],
             vertex_layouts: vec![],
             shader_path: "",
             primitive_topology: PrimitiveTopology::TriangleList,
@@ -46,7 +49,7 @@ impl<'a> PipelineBuilder<'a> {
             .device()
             .create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("render_pipeline_descriptor"),
-                bind_group_layouts: &self.bind_group_layouts,
+                bind_group_layouts: self.bind_group_layouts.as_slice(),
                 push_constant_ranges: &[],
             });
 
@@ -64,21 +67,19 @@ impl<'a> PipelineBuilder<'a> {
         let shader = renderer.device().create_shader_module(shader);
 
         let targets = self.color_targets.map(|ct| {
-            ct.into_iter()
-                .map(|ct| {
-                    Some(ColorTargetState {
-                        format: ct,
-                        blend: None,
-                        write_mask: ColorWrites::ALL,
-                    })
+            ct.map(|ct| {
+                Some(ColorTargetState {
+                    format: ct,
+                    blend: None,
+                    write_mask: ColorWrites::ALL,
                 })
-                .collect::<Vec<_>>()
+            })
         });
 
         let fragment = targets.as_ref().map(|targets| FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            targets,
+            targets: targets.as_slice(),
         });
 
         let strip_index_format = match self.primitive_topology {

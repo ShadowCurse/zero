@@ -29,6 +29,7 @@ pub mod prelude {
     pub use texture::*;
     pub use texture_buffer::*;
     pub use transform::*;
+    pub use utils::*;
 
     pub use cgmath_imports::*;
     pub use wgpu;

@@ -5,7 +5,8 @@ use winit::dpi::PhysicalSize;
 #[cfg(not(feature = "headless"))]
 use winit::window::Window;
 
-pub const MAX_BIND_GROUPS: u32 = 4;
+pub const MAX_BIND_GROUPS: usize = 4;
+pub const MAX_COLOR_ATTACHMENTS: usize = 8;
 
 /// Contains the context of the current frame surface
 #[derive(Debug)]
@@ -71,7 +72,7 @@ impl Renderer {
                 &DeviceDescriptor {
                     features: Features::empty(),
                     limits: Limits {
-                        max_bind_groups: MAX_BIND_GROUPS,
+                        max_bind_groups: MAX_BIND_GROUPS as u32,
                         ..Default::default()
                     },
                     label: Some("device_descriptor"),

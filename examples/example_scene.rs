@@ -3,7 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use zero::prelude::*;
+use zero::{const_vec, prelude::*};
 
 struct FpsLogger {
     last_log: std::time::Instant,
@@ -51,7 +51,7 @@ fn main() {
     storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
 
     let g_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
+        bind_group_layouts: const_vec![
             storage.get_bind_group_layout::<MaterialBindGroup>(),
             storage.get_bind_group_layout::<TransformBindGroup>(),
             storage.get_bind_group_layout::<CameraBindGroup>(),
@@ -59,14 +59,14 @@ fn main() {
         vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/geometry_pass.wgsl",
         write_depth: true,
-        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        color_targets: Some(const_vec![TextureFormat::Rgba32Float; 3]),
         ..Default::default()
     }
     .build(&renderer);
     let g_pipeline_id = storage.insert_pipeline(g_pipeline);
 
     let g_color_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
+        bind_group_layouts: const_vec![
             storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
             storage.get_bind_group_layout::<TransformBindGroup>(),
             storage.get_bind_group_layout::<CameraBindGroup>(),
@@ -74,14 +74,14 @@ fn main() {
         vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/geometry_color_pass.wgsl",
         write_depth: true,
-        color_targets: Some(vec![TextureFormat::Rgba32Float; 3]),
+        color_targets: Some(const_vec![TextureFormat::Rgba32Float; 3]),
         ..Default::default()
     }
     .build(&renderer);
     let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
 
     let shadow_map_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
+        bind_group_layouts: const_vec![
             storage.get_bind_group_layout::<TransformBindGroup>(),
             storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
         ],
@@ -95,7 +95,7 @@ fn main() {
     let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
 
     let lighting_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
+        bind_group_layouts: const_vec![
             storage.get_bind_group_layout::<GBufferBindGroup>(),
             storage.get_bind_group_layout::<PointLightsBindGroup>(),
             storage.get_bind_group_layout::<CameraBindGroup>(),
@@ -104,21 +104,21 @@ fn main() {
         vertex_layouts: vec![TextureVertex::layout()],
         shader_path: "./shaders/lighting_pass.wgsl",
         depth_enabled: false,
-        color_targets: Some(vec![renderer.surface_format()]),
+        color_targets: Some(const_vec![renderer.surface_format()]),
         ..Default::default()
     }
     .build(&renderer);
     let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
 
     let skybox_pipeline = PipelineBuilder {
-        bind_group_layouts: vec![
+        bind_group_layouts: const_vec![
             storage.get_bind_group_layout::<SkyboxBindGroup>(),
             storage.get_bind_group_layout::<CameraBindGroup>(),
         ],
         vertex_layouts: vec![SkyboxVertex::layout()],
         shader_path: "./shaders/skybox.wgsl",
         write_depth: false,
-        color_targets: Some(vec![renderer.surface_format()]),
+        color_targets: Some(const_vec![renderer.surface_format()]),
         ..Default::default()
     }
     .build(&renderer);
@@ -133,7 +133,7 @@ fn main() {
     let g_buffer_bind_group = GBufferBindGroup::new(&renderer, &mut storage, &g_buffer_handle);
 
     let geometry_phase = RenderPhase::new(
-        vec![
+        const_vec![
             ColorAttachment {
                 view_id: g_buffer_handle.position_texture_id,
                 ops: Operations {
@@ -168,7 +168,7 @@ fn main() {
     render_system.add_phase("geometry", geometry_phase);
 
     let shadow_phase = RenderPhase::new(
-        vec![],
+        const_vec![],
         Some(DepthStencil {
             view_id: shadow_map_handle.texture_id,
             depth_ops: Some(Operations {
@@ -181,7 +181,7 @@ fn main() {
     render_system.add_phase("shadow", shadow_phase);
 
     let lighting_phase = RenderPhase::new(
-        vec![ColorAttachment {
+        const_vec![ColorAttachment {
             view_id: ResourceId::WINDOW_VIEW_ID,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(Color::BLACK),
@@ -193,7 +193,7 @@ fn main() {
     render_system.add_phase("lighting", lighting_phase);
 
     let skybox_phase = RenderPhase::new(
-        vec![ColorAttachment {
+        const_vec![ColorAttachment {
             view_id: ResourceId::WINDOW_VIEW_ID,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Load,
@@ -405,7 +405,7 @@ fn main() {
                 let box1 = RenderCommand::new(
                     g_color_pipeline_id,
                     box_id,
-                    vec![
+                    const_vec![
                         grey_material_bind_group.0,
                         box_transform_bind_group.0,
                         camera_bind_group.0,
@@ -414,7 +414,7 @@ fn main() {
                 let box2 = RenderCommand::new(
                     g_color_pipeline_id,
                     box2_id,
-                    vec![
+                    const_vec![
                         green_material_bind_group.0,
                         box2_transform_bind_group.0,
                         camera_bind_group.0,
@@ -423,7 +423,7 @@ fn main() {
                 let cube = RenderCommand::new(
                     g_pipeline_id,
                     cube_model_handler[0].mesh_id,
-                    vec![
+                    const_vec![
                         cube_model_handler[0].material_bind_group.0,
                         cube_transform_bind_group.0,
                         camera_bind_group.0,
@@ -434,24 +434,24 @@ fn main() {
                 let box1 = RenderCommand::new(
                     shadow_map_pipeline_id,
                     box_id,
-                    vec![box_transform_bind_group.0, shadow_d_light_bind_group.0],
+                    const_vec![box_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 let box2 = RenderCommand::new(
                     shadow_map_pipeline_id,
                     box2_id,
-                    vec![box2_transform_bind_group.0, shadow_d_light_bind_group.0],
+                    const_vec![box2_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 let cube = RenderCommand::new(
                     shadow_map_pipeline_id,
                     cube_model_handler[0].mesh_id,
-                    vec![cube_transform_bind_group.0, shadow_d_light_bind_group.0],
+                    const_vec![cube_transform_bind_group.0, shadow_d_light_bind_group.0],
                 );
                 render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
 
                 let command = RenderCommand::new(
                     lighting_pipeline_id,
                     g_buffer_handle.mesh_id,
-                    vec![
+                    const_vec![
                         g_buffer_bind_group.0,
                         lights_bind_group.0,
                         camera_bind_group.0,
@@ -463,7 +463,7 @@ fn main() {
                 let command = RenderCommand::new(
                     skybox_pipeline_id,
                     skybox_handle.mesh_id,
-                    vec![skybox_bind_group.0, camera_bind_group.0],
+                    const_vec![skybox_bind_group.0, camera_bind_group.0],
                 );
                 render_system.add_phase_commands("skybox", vec![command]);
 
