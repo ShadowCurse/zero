@@ -120,7 +120,7 @@ pub struct CameraHandle {
 }
 
 impl ResourceHandle for CameraHandle {
-    type OriginalResource = Camera;
+    type OriginalResource<'a> = Camera;
     type ResourceType = CameraResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -137,7 +137,7 @@ impl ResourceHandle for CameraHandle {
         &self,
         renderer: &Renderer,
         storage: &RenderStorage,
-        original: &Self::OriginalResource,
+        original: &Self::OriginalResource<'_>,
     ) {
         renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),

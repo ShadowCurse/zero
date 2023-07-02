@@ -110,6 +110,10 @@ impl RenderStorage {
         self.meshes.get(id.0).unwrap()
     }
 
+    pub fn get_mesh_mut(&mut self, id: ResourceId) -> &mut GpuMesh {
+        self.meshes.get_mut(id.0).unwrap()
+    }
+
     pub fn get_bind_group(&self, id: ResourceId) -> &BindGroup {
         self.bind_groups.get(id.0).unwrap()
     }

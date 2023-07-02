@@ -21,6 +21,7 @@ pub struct PipelineBuilder<'a> {
     pub write_depth: bool,
     pub color_targets: Option<ConstVec<MAX_COLOR_ATTACHMENTS, TextureFormat>>,
     pub cull_mode: Face,
+    pub fragment_entry_point: &'static str,
 }
 
 impl<'a> std::default::Default for PipelineBuilder<'a> {
@@ -38,6 +39,7 @@ impl<'a> std::default::Default for PipelineBuilder<'a> {
             write_depth: true,
             color_targets: None,
             cull_mode: Face::Back,
+            fragment_entry_point: "fs_main",
         }
     }
 }
@@ -78,7 +80,7 @@ impl<'a> PipelineBuilder<'a> {
 
         let fragment = targets.as_ref().map(|targets| FragmentState {
             module: &shader,
-            entry_point: "fs_main",
+            entry_point: self.fragment_entry_point,
             targets: targets.as_slice(),
         });
 

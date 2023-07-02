@@ -78,7 +78,7 @@ pub struct MaterialHandle {
 }
 
 impl ResourceHandle for MaterialHandle {
-    type OriginalResource = Material;
+    type OriginalResource<'a> = Material;
     type ResourceType = MaterialResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -99,7 +99,7 @@ impl ResourceHandle for MaterialHandle {
         &self,
         renderer: &Renderer,
         storage: &RenderStorage,
-        original: &Self::OriginalResource,
+        original: &Self::OriginalResource<'_>,
     ) {
         renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),
@@ -295,7 +295,7 @@ pub struct ColorMaterialHandle {
 }
 
 impl ResourceHandle for ColorMaterialHandle {
-    type OriginalResource = ColorMaterial;
+    type OriginalResource<'a> = ColorMaterial;
     type ResourceType = ColorMaterialResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -312,7 +312,7 @@ impl ResourceHandle for ColorMaterialHandle {
         &self,
         renderer: &Renderer,
         storage: &RenderStorage,
-        original: &Self::OriginalResource,
+        original: &Self::OriginalResource<'_>,
     ) {
         renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),

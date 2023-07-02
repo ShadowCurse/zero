@@ -86,7 +86,7 @@ pub struct SkyboxHandle {
 }
 
 impl ResourceHandle for SkyboxHandle {
-    type OriginalResource = Skybox;
+    type OriginalResource<'a> = Skybox;
     type ResourceType = SkyboxResources;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {

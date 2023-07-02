@@ -53,7 +53,7 @@ pub struct TransformHandle {
 }
 
 impl ResourceHandle for TransformHandle {
-    type OriginalResource = Transform;
+    type OriginalResource<'a> = Transform;
     type ResourceType = TransformResources;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -70,7 +70,7 @@ impl ResourceHandle for TransformHandle {
         &self,
         renderer: &Renderer,
         storage: &RenderStorage,
-        original: &Self::OriginalResource,
+        original: &Self::OriginalResource<'_>,
     ) {
         renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),

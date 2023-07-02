@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod egui;
 pub mod gbuffer;
 pub mod light;
 pub mod material;

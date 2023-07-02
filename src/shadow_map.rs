@@ -29,7 +29,7 @@ pub struct ShadowMapHandle {
 }
 
 impl ResourceHandle for ShadowMapHandle {
-    type OriginalResource = ShadowMap;
+    type OriginalResource<'a> = ShadowMap;
     type ResourceType = ShadowMapResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -219,7 +219,7 @@ pub struct ShadowMapDLightHandle {
 }
 
 impl ResourceHandle for ShadowMapDLightHandle {
-    type OriginalResource = ShadowMapDLight;
+    type OriginalResource<'a> = ShadowMapDLight;
     type ResourceType = ShadowMapDLightResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -236,7 +236,7 @@ impl ResourceHandle for ShadowMapDLightHandle {
         &self,
         renderer: &Renderer,
         storage: &RenderStorage,
-        original: &Self::OriginalResource,
+        original: &Self::OriginalResource<'_>,
     ) {
         renderer.queue().write_buffer(
             storage.get_buffer(self.buffer_id),

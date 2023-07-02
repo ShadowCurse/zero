@@ -131,7 +131,7 @@ pub struct GBufferHandle {
 }
 
 impl ResourceHandle for GBufferHandle {
-    type OriginalResource = GBuffer;
+    type OriginalResource<'a> = GBuffer;
     type ResourceType = GBufferResource;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {

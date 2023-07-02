@@ -13,7 +13,7 @@ pub trait GpuResource {
 
 /// Trait for types that combine multiple GpuResources
 pub trait ResourceHandle {
-    type OriginalResource;
+    type OriginalResource<'a>;
     type ResourceType;
 
     fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self;
@@ -22,7 +22,7 @@ pub trait ResourceHandle {
         &self,
         _renderer: &Renderer,
         _storage: &RenderStorage,
-        _original: &Self::OriginalResource,
+        _original: &Self::OriginalResource<'_>,
     ) {
     }
 }

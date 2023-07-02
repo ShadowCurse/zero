@@ -25,7 +25,7 @@ macro_rules! impl_gpu_resource {
 macro_rules! impl_resource_handle {
     ($handle_type:ty, $original_type:ty, $resource_type:ty) => {
         impl ResourceHandle for $handle_type {
-            type OriginalResource = $original_type;
+            type OriginalResource<'a> = $original_type;
             type ResourceType = $resource_type;
 
             fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
@@ -42,7 +42,7 @@ macro_rules! impl_resource_handle {
                 &self,
                 renderer: &Renderer,
                 storage: &RenderStorage,
-                original: &Self::OriginalResource,
+                original: &Self::OriginalResource<'_>,
             ) {
                 renderer.queue().write_buffer(
                     storage.get_buffer(self.buffer_id),
