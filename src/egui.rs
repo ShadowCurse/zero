@@ -21,7 +21,7 @@ impl ZeroEguiContext {
         let egui_buffer = EguiBuffer {
             screen_size: [renderer.size().width as f32, renderer.size().height as f32],
         };
-        let buffer_handle = EguiBufferHandle::new(storage, egui_buffer.build(&renderer));
+        let buffer_handle = EguiBufferHandle::new(storage, egui_buffer.build(renderer));
         let buffer_bind_group = EguiBufferBindGroup::new(renderer, storage, &buffer_handle);
 
         Self {
@@ -95,7 +95,6 @@ impl ZeroEguiContext {
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         if let Some(pos) = image_delta.pos {
-            println!("updating texture: {:?}", texture_id);
             // update the existing texture
             let (texture_handle, _texture_bind_group) = self
                 .textures
@@ -162,9 +161,10 @@ impl ZeroEguiContext {
             let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
             if mesh.index_buffer.as_ref().unwrap().size() < required_index_buffer_size {
                 // Resize index buffer if needed.
-                let size =
-                    (mesh.index_buffer.as_ref().unwrap().size() * 2).max(required_index_buffer_size);
-                mesh.index_buffer = Some(EguiMeshBuffer { size }.build(renderer).buffer);
+                let size = (mesh.index_buffer.as_ref().unwrap().size() * 2)
+                    .max(required_index_buffer_size);
+                mesh.index_buffer = Some(EguiIndexBuffer { size }.build(renderer).buffer);
+                mesh.num_elements = index_count as u32;
             }
 
             let mut index_buffer_staging = renderer
@@ -197,7 +197,7 @@ impl ZeroEguiContext {
             if mesh.vertex_buffer.size() < required_vertex_buffer_size {
                 // Resize vertex buffer if needed.
                 let size = (mesh.vertex_buffer.size() * 2).max(required_vertex_buffer_size);
-                mesh.vertex_buffer = EguiMeshBuffer { size }.build(renderer).buffer;
+                mesh.vertex_buffer = EguiVertexBuffer { size }.build(renderer).buffer;
             }
 
             let mut vertex_buffer_staging = renderer
@@ -250,11 +250,11 @@ impl ZeroEguiContext {
                             let (_, texture_bind_group) =
                                 self.textures.get(&mesh.texture_id).unwrap();
 
-                                let rect = ScissorRect::new(clip_rect, 1.0, self.screen_size);
-                                if rect.width == 0 || rect.height == 0 {
-                                    // Skip rendering zero-sized clip areas.
-                                    return None;
-                                }
+                            let rect = ScissorRect::new(clip_rect, 1.0, self.screen_size);
+                            if rect.width == 0 || rect.height == 0 {
+                                // Skip rendering zero-sized clip areas.
+                                return None;
+                            }
 
                             Some(RenderCommand {
                                 pipeline_id,
@@ -534,7 +534,7 @@ impl AssetBindGroup for EguiTextureBindGroup {
 }
 
 #[derive(Debug, Clone)]
-pub struct EguiMeshBuffer {
+pub struct EguiIndexBuffer {
     pub size: u64,
 }
 
@@ -543,13 +543,32 @@ pub struct EguiMeshBufferResources {
     buffer: Buffer,
 }
 
-impl GpuResource for EguiMeshBuffer {
+impl GpuResource for EguiIndexBuffer {
     type ResourceType = EguiMeshBufferResources;
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
         let buffer = renderer.device().create_buffer(&BufferDescriptor {
-            label: Some("egui_mesh_buffer"),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST | BufferUsages::VERTEX | BufferUsages::INDEX,
+            label: Some("egui_index_buffer"),
+            usage: BufferUsages::COPY_DST | BufferUsages::INDEX,
+            size: self.size,
+            mapped_at_creation: false,
+        });
+        Self::ResourceType { buffer }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EguiVertexBuffer {
+    pub size: u64,
+}
+
+impl GpuResource for EguiVertexBuffer {
+    type ResourceType = EguiMeshBufferResources;
+
+    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
+        let buffer = renderer.device().create_buffer(&BufferDescriptor {
+            label: Some("egui_vertex_buffer"),
+            usage: BufferUsages::COPY_DST | BufferUsages::VERTEX,
             size: self.size,
             mapped_at_creation: false,
         });

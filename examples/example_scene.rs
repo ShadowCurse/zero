@@ -1,3 +1,4 @@
+use wgpu::{BlendFactor, BlendOperation};
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -55,75 +56,224 @@ fn main() {
     storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
 
     let g_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<MaterialBindGroup>(),
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/geometry_pass.wgsl",
-        write_depth: true,
-        color_targets: Some(const_vec![TextureFormat::Rgba32Float; 3]),
-        ..Default::default()
+        label: Some("g_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<MaterialBindGroup>(),
+                storage.get_bind_group_layout::<TransformBindGroup>(),
+                storage.get_bind_group_layout::<CameraBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[MeshVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: Some(&[
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+        ]),
+        fragment_entry_point: "fs_main",
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: DepthTexture::DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: StencilState::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let g_pipeline_id = storage.insert_pipeline(g_pipeline);
 
     let g_color_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/geometry_color_pass.wgsl",
-        write_depth: true,
-        color_targets: Some(const_vec![TextureFormat::Rgba32Float; 3]),
-        ..Default::default()
+        label: Some("g_color_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<ColorMaterialBindGroup>(),
+                storage.get_bind_group_layout::<TransformBindGroup>(),
+                storage.get_bind_group_layout::<CameraBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[MeshVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: Some(&[
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+            Some(ColorTargetState {
+                format: TextureFormat::Rgba32Float,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            }),
+        ]),
+        fragment_entry_point: "fs_main",
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: DepthTexture::DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: StencilState::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
 
     let shadow_map_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<TransformBindGroup>(),
-            storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
-        ],
-        vertex_layouts: vec![MeshVertex::layout()],
         shader_path: "./shaders/shadow_map.wgsl",
-        write_depth: true,
-        cull_mode: Face::Front,
-        ..Default::default()
+        label: Some("shadow_map_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<TransformBindGroup>(),
+                storage.get_bind_group_layout::<ShadowMapDLightBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[MeshVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: None,
+        fragment_entry_point: "fs_main",
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: DepthTexture::DEPTH_FORMAT,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: StencilState::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
 
     let lighting_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<GBufferBindGroup>(),
-            storage.get_bind_group_layout::<PointLightsBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-            storage.get_bind_group_layout::<ShadowBindGroup>(),
-        ],
-        vertex_layouts: vec![TextureVertex::layout()],
         shader_path: "./shaders/lighting_pass.wgsl",
-        depth_enabled: false,
-        color_targets: Some(const_vec![renderer.surface_format()]),
-        ..Default::default()
+        label: Some("lighting_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<GBufferBindGroup>(),
+                storage.get_bind_group_layout::<PointLightsBindGroup>(),
+                storage.get_bind_group_layout::<CameraBindGroup>(),
+                storage.get_bind_group_layout::<ShadowBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[TextureVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: Some(&[Some(ColorTargetState {
+            format: renderer.surface_format(),
+            blend: None,
+            write_mask: ColorWrites::ALL,
+        })]),
+        fragment_entry_point: "fs_main",
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
 
     let skybox_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<SkyboxBindGroup>(),
-            storage.get_bind_group_layout::<CameraBindGroup>(),
-        ],
-        vertex_layouts: vec![SkyboxVertex::layout()],
         shader_path: "./shaders/skybox.wgsl",
-        write_depth: false,
-        color_targets: Some(const_vec![renderer.surface_format()]),
-        ..Default::default()
+        label: Some("skybox_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<SkyboxBindGroup>(),
+                storage.get_bind_group_layout::<CameraBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[SkyboxVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: Some(&[Some(ColorTargetState {
+            format: renderer.surface_format(),
+            blend: None,
+            write_mask: ColorWrites::ALL,
+        })]),
+        fragment_entry_point: "fs_main",
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: DepthTexture::DEPTH_FORMAT,
+            depth_write_enabled: false,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: StencilState::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
@@ -337,21 +487,57 @@ fn main() {
     storage.register_bind_group_layout::<EguiTextureBindGroup>(&renderer);
 
     let egui_pipeline = PipelineBuilder {
-        bind_group_layouts: const_vec![
-            storage.get_bind_group_layout::<EguiBufferBindGroup>(),
-            storage.get_bind_group_layout::<EguiTextureBindGroup>(),
-        ],
-        vertex_layouts: vec![EguiVertex::layout()],
         shader_path: "./shaders/egui.wgsl",
-        write_depth: false,
-        color_targets: Some(const_vec![renderer.surface_format()]),
+        label: Some("egui_pipeline"),
+        layout_descriptor: Some(&PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                storage.get_bind_group_layout::<EguiBufferBindGroup>(),
+                storage.get_bind_group_layout::<EguiTextureBindGroup>(),
+            ],
+            push_constant_ranges: &[],
+        }),
+        vertex_layouts: &[EguiVertex::layout()],
+        vertex_entry_point: "vs_main",
+        color_targets: Some(&[Some(ColorTargetState {
+            format: renderer.surface_format(),
+            blend: Some(BlendState {
+                color: BlendComponent {
+                    src_factor: BlendFactor::One,
+                    dst_factor: BlendFactor::OneMinusSrcAlpha,
+                    operation: BlendOperation::Add,
+                },
+                alpha: BlendComponent {
+                    src_factor: BlendFactor::One,
+                    dst_factor: BlendFactor::OneMinusSrcAlpha,
+                    operation: BlendOperation::Add,
+                },
+            }),
+            write_mask: ColorWrites::ALL,
+        })]),
         fragment_entry_point: if renderer.surface_format().is_srgb() {
-            println!("srgb egui");
             "fs_main_linear_framebuffer"
         } else {
             "fs_main_gamma_framebuffer"
         },
-        ..Default::default()
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Cw,
+            cull_mode: Some(Face::Back),
+            polygon_mode: PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: DepthTexture::DEPTH_FORMAT,
+            depth_write_enabled: false,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: StencilState::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        multiview: None,
     }
     .build(&renderer);
     let egui_pipeline_id = storage.insert_pipeline(egui_pipeline);
@@ -377,6 +563,7 @@ fn main() {
     render_system.add_phase("egui", egui_phase);
 
     let mut zero_egui_context = ZeroEguiContext::new(&renderer, &mut storage);
+    let egui_ctx = egui::Context::default();
 
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
@@ -551,11 +738,16 @@ fn main() {
                 render_system.add_phase_commands("skybox", vec![command]);
 
                 // EGUI
-                let mut egui_ctx = egui::Context::default();
-                let egui_input = egui::RawInput::default();
+                let egui_input = egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::pos2(0.0, 0.0),
+                        egui::vec2(renderer.size().width as f32, renderer.size().height as f32),
+                    )),
+                    ..Default::default()
+                };
                 let egui_out = egui_ctx.run(egui_input, |ctx| {
-                    egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.heading("LOL");
+                    egui::Window::new("Window").show(ctx, |ui| {
+                        ui.label("Some Label");
                     });
                 });
                 // handle_non_render_out(egui_out.platform_output)

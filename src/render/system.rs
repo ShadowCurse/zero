@@ -46,10 +46,15 @@ impl RenderCommand {
             if let Some(index_slice) = &self.index_slice {
                 render_pass
                     .set_index_buffer(index_buffer.slice(index_slice.clone()), IndexFormat::Uint32);
+                // slice is in bytes so we divide by size of u32 to get
+                // number of actual indices
+                let s = (index_slice.end - index_slice.start) as u32;
+                let s = s / std::mem::size_of::<u32>() as u32;
+                render_pass.draw_indexed(0..s, 0, 0..1);
             } else {
                 render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint32);
+                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
             }
-            render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
         } else {
             render_pass.draw(0..mesh.num_elements, 0..1);
         }
