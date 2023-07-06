@@ -529,13 +529,7 @@ fn main() {
             unclipped_depth: false,
             conservative: false,
         },
-        depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
-            depth_write_enabled: false,
-            depth_compare: CompareFunction::LessEqual,
-            stencil: StencilState::default(),
-            bias: DepthBiasState::default(),
-        }),
+        depth_stencil: None,
         multisample: MultisampleState::default(),
         multiview: None,
     }
@@ -550,20 +544,15 @@ fn main() {
                 store: true,
             },
         }],
-        Some(DepthStencil {
-            view_id: depth_texture_id,
-            depth_ops: Some(wgpu::Operations {
-                load: wgpu::LoadOp::Load,
-                store: true,
-            }),
-            stencil_ops: None,
-        }),
+        None,
     );
 
     render_system.add_phase("egui", egui_phase);
 
     let mut zero_egui_context = ZeroEguiContext::new(&renderer, &mut storage);
     let egui_ctx = egui::Context::default();
+    let mut name = String::new();
+    let mut age = 0;
 
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
@@ -747,7 +736,16 @@ fn main() {
                 };
                 let egui_out = egui_ctx.run(egui_input, |ctx| {
                     egui::Window::new("Window").show(ctx, |ui| {
-                        ui.label("Some Label");
+                        ui.heading("My egui Application");
+                        ui.horizontal(|ui| {
+                            ui.label("Your name: ");
+                            ui.text_edit_singleline(&mut name);
+                        });
+                        ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+                        if ui.button("Click each year").clicked() {
+                            age += 1;
+                        }
+                        ui.label(format!("Hello '{name}', age {age}"));
                     });
                 });
                 // handle_non_render_out(egui_out.platform_output)
