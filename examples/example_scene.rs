@@ -521,13 +521,9 @@ fn main() {
             "fs_main_gamma_framebuffer"
         },
         primitive: PrimitiveState {
-            topology: PrimitiveTopology::TriangleList,
-            strip_index_format: None,
             front_face: FrontFace::Cw,
-            cull_mode: Some(Face::Back),
-            polygon_mode: PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
+            cull_mode: None,
+            ..Default::default()
         },
         depth_stencil: None,
         multisample: MultisampleState::default(),
@@ -550,6 +546,7 @@ fn main() {
     render_system.add_phase("egui", egui_phase);
 
     let mut zero_egui_context = ZeroEguiContext::new(&renderer, &mut storage);
+    let mut winit_egui = egui_winit::State::new(&window);
     let egui_ctx = egui::Context::default();
     let mut name = String::new();
     let mut age = 0;
@@ -578,39 +575,42 @@ fn main() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => match event {
-                WindowEvent::CloseRequested
-                | WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
-                            ..
-                        },
-                    ..
-                } => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(physical_size) => {
-                    camera.resize(physical_size.width, physical_size.height);
-                    renderer.resize(Some(*physical_size));
-                    storage.replace_texture(
-                        depth_texture_id,
-                        DepthTexture::default().build(&renderer),
-                    );
-                    g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
-                    g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
+            } if window_id == window.id() => {
+                let _response = winit_egui.on_event(&egui_ctx, &event);
+                match event {
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                ..
+                            },
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::Resized(physical_size) => {
+                        camera.resize(physical_size.width, physical_size.height);
+                        renderer.resize(Some(*physical_size));
+                        storage.replace_texture(
+                            depth_texture_id,
+                            DepthTexture::default().build(&renderer),
+                        );
+                        g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
+                        g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
+                    }
+                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                        camera.resize(new_inner_size.width, new_inner_size.height);
+                        renderer.resize(Some(**new_inner_size));
+                        storage.replace_texture(
+                            depth_texture_id,
+                            DepthTexture::default().build(&renderer),
+                        );
+                        g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
+                        g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
+                    }
+                    _ => {}
                 }
-                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                    camera.resize(new_inner_size.width, new_inner_size.height);
-                    renderer.resize(Some(**new_inner_size));
-                    storage.replace_texture(
-                        depth_texture_id,
-                        DepthTexture::default().build(&renderer),
-                    );
-                    g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
-                    g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
-                }
-                _ => {}
-            },
+            }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 let now = std::time::Instant::now();
                 let dt = now - last_render_time;
@@ -727,13 +727,7 @@ fn main() {
                 render_system.add_phase_commands("skybox", vec![command]);
 
                 // EGUI
-                let egui_input = egui::RawInput {
-                    screen_rect: Some(egui::Rect::from_min_size(
-                        egui::pos2(0.0, 0.0),
-                        egui::vec2(renderer.size().width as f32, renderer.size().height as f32),
-                    )),
-                    ..Default::default()
-                };
+                let egui_input = winit_egui.take_egui_input(&window);
                 let egui_out = egui_ctx.run(egui_input, |ctx| {
                     egui::Window::new("Window").show(ctx, |ui| {
                         ui.heading("My egui Application");
@@ -748,7 +742,7 @@ fn main() {
                         ui.label(format!("Hello '{name}', age {age}"));
                     });
                 });
-                // handle_non_render_out(egui_out.platform_output)
+                winit_egui.handle_platform_output(&window, &egui_ctx, egui_out.platform_output);
                 zero_egui_context.update_textures(&renderer, &mut storage, egui_out.textures_delta);
 
                 let clipped = egui_ctx.tessellate(egui_out.shapes);
