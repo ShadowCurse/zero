@@ -2,7 +2,10 @@ use std::{borrow::Cow, collections::HashMap, num::NonZeroU64};
 
 use wgpu::BufferDescriptor;
 
-use crate::{const_vec, mesh::Mesh, render::prelude::*, texture::GpuTexture, utils::ConstVec};
+use crate::{
+    const_vec, impl_simple_buffer, impl_simple_sized_gpu_buffer, impl_simple_texture_bind_group,
+    mesh::Mesh, render::prelude::*, texture::GpuTexture, utils::ConstVec,
+};
 
 pub struct ZeroEguiContext {
     mesh_id: ResourceId,
@@ -447,134 +450,19 @@ impl ResourceHandle for EguiTextureHandle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct EguiTextureBindGroup(pub ResourceId);
+impl_simple_texture_bind_group!(
+    EguiTextureHandle,
+    EguiTextureBindGroup,
+    { TextureViewDimension::D2 },
+    { TextureSampleType::Float { filterable: true } }
+);
 
-impl AssetBindGroup for EguiTextureBindGroup {
-    type ResourceHandle = EguiTextureHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: TextureViewDimension::D2,
-                            sample_type: TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("egui_texture_bind_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let texture = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&texture.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-            label: None,
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let texture = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&texture.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-            label: None,
-        });
-
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EguiIndexBuffer {
-    pub size: u64,
-}
-
-#[derive(Debug)]
-pub struct EguiMeshBufferResources {
-    buffer: Buffer,
-}
-
-impl GpuResource for EguiIndexBuffer {
-    type ResourceType = EguiMeshBufferResources;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let buffer = renderer.device().create_buffer(&BufferDescriptor {
-            label: Some("egui_index_buffer"),
-            usage: BufferUsages::COPY_DST | BufferUsages::INDEX,
-            size: self.size,
-            mapped_at_creation: false,
-        });
-        Self::ResourceType { buffer }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EguiVertexBuffer {
-    pub size: u64,
-}
-
-impl GpuResource for EguiVertexBuffer {
-    type ResourceType = EguiMeshBufferResources;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let buffer = renderer.device().create_buffer(&BufferDescriptor {
-            label: Some("egui_vertex_buffer"),
-            usage: BufferUsages::COPY_DST | BufferUsages::VERTEX,
-            size: self.size,
-            mapped_at_creation: false,
-        });
-        Self::ResourceType { buffer }
-    }
-}
+impl_simple_sized_gpu_buffer!(EguiIndexBuffer, EguiIndexBufferResources, {
+    BufferUsages::COPY_DST | BufferUsages::INDEX
+});
+impl_simple_sized_gpu_buffer!(EguiVertexBuffer, EguiVertexBufferResources, {
+    BufferUsages::COPY_DST | BufferUsages::VERTEX
+});
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -583,134 +471,27 @@ pub struct EguiBufferUniform {
     pub _padding: [u32; 2],
 }
 
-#[derive(Debug, Clone)]
-pub struct EguiBuffer {
-    pub screen_size: [f32; 2],
-}
-
-impl EguiBuffer {
-    fn to_uniform(&self) -> EguiBufferUniform {
+impl From<&EguiBuffer> for EguiBufferUniform {
+    fn from(value: &EguiBuffer) -> Self {
         EguiBufferUniform {
-            screen_size: self.screen_size,
+            screen_size: value.screen_size,
             _padding: Default::default(),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct EguiBufferResources {
-    buffer: Buffer,
+#[derive(Debug, Clone)]
+pub struct EguiBuffer {
+    pub screen_size: [f32; 2],
 }
 
-impl GpuResource for EguiBuffer {
-    type ResourceType = EguiBufferResources;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("egui_buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        Self::ResourceType { buffer }
-    }
-}
-
-#[derive(Debug)]
-pub struct EguiBufferHandle {
-    buffer_id: ResourceId,
-}
-
-impl ResourceHandle for EguiBufferHandle {
-    type OriginalResource<'a> = EguiBuffer;
-    type ResourceType = EguiBufferResources;
-
-    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource<'_>,
-    ) {
-        renderer.queue().write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
-
-#[derive(Debug)]
-pub struct EguiBufferBindGroup(pub ResourceId);
-
-impl AssetBindGroup for EguiBufferBindGroup {
-    type ResourceHandle = EguiBufferHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("transform_bind_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("transform_bind_group"),
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("transform_bind_group"),
-        });
-
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
+impl_simple_buffer!(
+    EguiBuffer,
+    EguiBufferUniform,
+    EguiBufferResources,
+    EguiBufferHandle,
+    EguiBufferBindGroup,
+    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
+    { ShaderStages::VERTEX },
+    { BufferBindingType::Uniform }
+);

@@ -1,3 +1,4 @@
+use crate::impl_simple_buffer;
 use crate::prelude::GpuTexture;
 use crate::render::prelude::*;
 use crate::texture::ImageTexture;
@@ -249,6 +250,18 @@ impl AssetBindGroup for MaterialBindGroup {
     }
 }
 
+impl From<&ColorMaterial> for MaterialPropertiesUniform {
+    fn from(value: &ColorMaterial) -> Self {
+        Self {
+            ambient: value.ambient,
+            diffuse: value.diffuse,
+            specular: value.specular,
+            shininess: value.shininess,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ColorMaterial {
     pub ambient: [f32; 3],
@@ -257,133 +270,13 @@ pub struct ColorMaterial {
     pub shininess: f32,
 }
 
-impl ColorMaterial {
-    fn to_uniform(&self) -> MaterialPropertiesUniform {
-        MaterialPropertiesUniform {
-            ambient: self.ambient,
-            diffuse: self.diffuse,
-            specular: self.specular,
-            shininess: self.shininess,
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ColorMaterialResource {
-    buffer: Buffer,
-}
-
-impl GpuResource for ColorMaterial {
-    type ResourceType = ColorMaterialResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("color_material_params_buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        Self::ResourceType { buffer }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ColorMaterialHandle {
-    pub buffer_id: ResourceId,
-}
-
-impl ResourceHandle for ColorMaterialHandle {
-    type OriginalResource<'a> = ColorMaterial;
-    type ResourceType = ColorMaterialResource;
-
-    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource<'_>,
-    ) {
-        renderer.queue().write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ColorMaterialBindGroup(pub ResourceId);
-
-impl AssetBindGroup for ColorMaterialBindGroup {
-    type ResourceHandle = ColorMaterialHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("color_material_bind_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: None,
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: None,
-        });
-
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
+impl_simple_buffer!(
+    ColorMaterial,
+    MaterialPropertiesUniform,
+    ColorMaterialResources,
+    ColorMaterialHandle,
+    ColorMaterialBindGroup,
+    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
+    { ShaderStages::FRAGMENT },
+    { BufferBindingType::Uniform }
+);

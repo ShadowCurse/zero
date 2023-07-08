@@ -1,8 +1,8 @@
 use crate::camera::OPENGL_TO_WGPU_MATRIX;
-use crate::cgmath_imports::*;
 use crate::prelude::GpuTexture;
 use crate::render::prelude::*;
 use crate::texture::DepthTexture;
+use crate::{cgmath_imports::*, impl_simple_buffer, impl_simple_texture_bind_group};
 
 #[derive(Debug, Default)]
 pub struct ShadowMap {
@@ -43,94 +43,25 @@ impl ResourceHandle for ShadowMapHandle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ShadowMapBindGroup(pub ResourceId);
-
-impl AssetBindGroup for ShadowMapBindGroup {
-    type ResourceHandle = ShadowMapHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: TextureViewDimension::D2,
-                            sample_type: TextureSampleType::Depth,
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("shadow_map_bind_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let shadow_map = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&shadow_map.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&shadow_map.sampler),
-                },
-            ],
-            label: None,
-        });
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let shadow_map = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&shadow_map.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&shadow_map.sampler),
-                },
-            ],
-            label: None,
-        });
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
+impl_simple_texture_bind_group!(
+    ShadowMapHandle,
+    ShadowMapBindGroup,
+    { TextureViewDimension::D2 },
+    { TextureSampleType::Depth }
+);
 
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ShadowMapDLightUniform {
     view_projection: [[f32; 4]; 4],
+}
+
+impl From<&ShadowMapDLight> for ShadowMapDLightUniform {
+    fn from(value: &ShadowMapDLight) -> Self {
+        Self {
+            view_projection: (value.projection() * value.view()).into(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -185,132 +116,18 @@ impl ShadowMapDLight {
                 self.far,
             )
     }
-
-    fn to_uniform(&self) -> ShadowMapDLightUniform {
-        ShadowMapDLightUniform {
-            view_projection: (self.projection() * self.view()).into(),
-        }
-    }
 }
 
-#[derive(Debug)]
-pub struct ShadowMapDLightResource {
-    buffer: Buffer,
-}
-
-impl GpuResource for ShadowMapDLight {
-    type ResourceType = ShadowMapDLightResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("shadow_map_dlight_buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        Self::ResourceType { buffer }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ShadowMapDLightHandle {
-    pub buffer_id: ResourceId,
-}
-
-impl ResourceHandle for ShadowMapDLightHandle {
-    type OriginalResource<'a> = ShadowMapDLight;
-    type ResourceType = ShadowMapDLightResource;
-
-    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource<'_>,
-    ) {
-        renderer.queue().write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ShadowMapDLightBindGroup(pub ResourceId);
-
-impl AssetBindGroup for ShadowMapDLightBindGroup {
-    type ResourceHandle = ShadowMapDLightHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("shadow_map_binding_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("shdow_map_bind_group"),
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("shdow_map_bind_group"),
-        });
-
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
+impl_simple_buffer!(
+    ShadowMapDLight,
+    ShadowMapDLightUniform,
+    ShadowMapDLightResources,
+    ShadowMapDLightHandle,
+    ShadowMapDLightBindGroup,
+    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
+    { ShaderStages::VERTEX },
+    { BufferBindingType::Uniform }
+);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ShadowBindGroup(pub ResourceId);

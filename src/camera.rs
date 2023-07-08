@@ -1,17 +1,8 @@
-use crate::cgmath_imports::*;
 use crate::render::prelude::*;
+use crate::{cgmath_imports::*, impl_simple_buffer};
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use winit::event::{ElementState, VirtualKeyCode};
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniform {
-    position: [f32; 3],
-    _pad: f32,
-    view_projection: [[f32; 4]; 4],
-    vp_without_translation: [[f32; 4]; 4],
-}
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
@@ -22,6 +13,27 @@ pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
 );
 
 const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
+
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraUniform {
+    position: [f32; 3],
+    _pad: f32,
+    view_projection: [[f32; 4]; 4],
+    vp_without_translation: [[f32; 4]; 4],
+}
+
+impl From<&Camera> for CameraUniform {
+    fn from(value: &Camera) -> Self {
+        let projection = value.projection();
+        Self {
+            position: value.position.into(),
+            view_projection: (projection * value.view()).into(),
+            vp_without_translation: (projection * value.view_without_translation()).into(),
+            ..Default::default()
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Camera {
@@ -82,136 +94,18 @@ impl Camera {
     fn projection(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
-
-    fn to_uniform(&self) -> CameraUniform {
-        let projection = self.projection();
-        CameraUniform {
-            position: self.position.into(),
-            view_projection: (projection * self.view()).into(),
-            vp_without_translation: (projection * self.view_without_translation()).into(),
-            ..Default::default()
-        }
-    }
 }
 
-#[derive(Debug)]
-pub struct CameraResource {
-    pub buffer: Buffer,
-}
-
-impl GpuResource for Camera {
-    type ResourceType = CameraResource;
-
-    fn build(&self, renderer: &Renderer) -> Self::ResourceType {
-        let uniform = self.to_uniform();
-
-        let buffer = renderer.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("Camera buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-        Self::ResourceType { buffer }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CameraHandle {
-    pub buffer_id: ResourceId,
-}
-
-impl ResourceHandle for CameraHandle {
-    type OriginalResource<'a> = Camera;
-    type ResourceType = CameraResource;
-
-    fn new(storage: &mut RenderStorage, resource: Self::ResourceType) -> Self {
-        Self {
-            buffer_id: storage.insert_buffer(resource.buffer),
-        }
-    }
-
-    fn replace(&self, storage: &mut RenderStorage, resource: Self::ResourceType) {
-        storage.replace_buffer(self.buffer_id, resource.buffer);
-    }
-
-    fn update(
-        &self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        original: &Self::OriginalResource<'_>,
-    ) {
-        renderer.queue().write_buffer(
-            storage.get_buffer(self.buffer_id),
-            0,
-            bytemuck::cast_slice(&[original.to_uniform()]),
-        );
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CameraBindGroup(pub ResourceId);
-
-impl AssetBindGroup for CameraBindGroup {
-    type ResourceHandle = CameraHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_binding_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("comera_bind_group"),
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let buffer = storage.get_buffer(resource.buffer_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("comera_bind_group"),
-        });
-
-        storage.replace_bind_group(self.0, bind_group)
-    }
-}
+impl_simple_buffer!(
+    Camera,
+    CameraUniform,
+    CameraResources,
+    CameraHandle,
+    CameraBindGroup,
+    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
+    { ShaderStages::VERTEX | ShaderStages::FRAGMENT },
+    { BufferBindingType::Uniform }
+);
 
 #[derive(Debug, Default)]
 pub struct CameraController {

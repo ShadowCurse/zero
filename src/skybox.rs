@@ -1,6 +1,6 @@
 use crate::mesh::GpuMesh;
 use crate::render::prelude::*;
-use crate::texture;
+use crate::{impl_simple_texture_bind_group, texture};
 use image::ImageError;
 use texture::GpuTexture;
 
@@ -102,88 +102,9 @@ impl ResourceHandle for SkyboxHandle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct SkyboxBindGroup(pub ResourceId);
-
-impl AssetBindGroup for SkyboxBindGroup {
-    type ResourceHandle = SkyboxHandle;
-
-    fn bind_group_layout(renderer: &Renderer) -> BindGroupLayout {
-        renderer
-            .device()
-            .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: TextureViewDimension::Cube,
-                            sample_type: TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::FRAGMENT,
-                        ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("skybox_bind_group_layout"),
-            })
-    }
-
-    fn new(
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) -> Self {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let texture = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&texture.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-            label: None,
-        });
-
-        Self(storage.insert_bind_group(bind_group))
-    }
-
-    fn replace(
-        &self,
-        renderer: &Renderer,
-        storage: &mut RenderStorage,
-        resource: &Self::ResourceHandle,
-    ) {
-        let layout = storage.get_bind_group_layout::<Self>();
-        let texture = storage.get_texture(resource.texture_id);
-
-        let bind_group = renderer.device().create_bind_group(&BindGroupDescriptor {
-            layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&texture.view),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-            label: None,
-        });
-
-        storage.replace_bind_group(self.0, bind_group);
-    }
-}
+impl_simple_texture_bind_group!(
+    SkyboxHandle,
+    SkyboxBindGroup,
+    { TextureViewDimension::Cube },
+    { TextureSampleType::Float { filterable: true } }
+);
