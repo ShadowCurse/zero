@@ -9,6 +9,7 @@ path = "src/lib.rs"
 [[example]]
 name = "scene"
 path = "examples/scene.rs"
+required-features = ["egui"]
 
 [[example]]
 name = "scene_headless"
@@ -18,23 +19,23 @@ required-features = ["headless"]
 [features]
 default = ["x11"]
 headless = []
-
+egui = ["dep:egui"]
 wayland = ["winit/wayland"]
 x11 = ["winit/x11"]
 
 [dependencies]
-winit = { version = "0.28", default-features = false }
-wgpu = { version = "0.16" }
+egui = { version = "0.22.0", features = ["bytemuck"], optional = true }
 bytemuck = { version = "1.13", features = [ "derive" ] }
+winit = { version = "0.28", default-features = false }
 tobj = { version = "4.0", features = [ "log" ] }
+wgpu = { version = "0.16" }
 hexasphere = "9.0"
 thiserror = "1.0.40"
 env_logger = "0.10"
 cgmath = "0.18"
 image = "0.24"
 log = "0.4"
-egui = { version = "0.22.0", features = ["bytemuck"] }
-egui-winit = { version = "0.22.0", default-features = false }
 
 [dev-dependencies]
 pollster = "0.2"
+egui-winit = { version = "0.22.0", default-features = false }

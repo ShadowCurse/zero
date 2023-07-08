@@ -6,7 +6,7 @@ use winit::{
 };
 use zero::{
     const_vec,
-    egui::{EguiBufferBindGroup, EguiTextureBindGroup, EguiVertex, ZeroEguiContext},
+    egui::{EguiBufferBindGroup, EguiRenderContext, EguiTextureBindGroup, EguiVertex},
     prelude::*,
 };
 
@@ -545,7 +545,7 @@ fn main() {
 
     render_system.add_phase("egui", egui_phase);
 
-    let mut zero_egui_context = ZeroEguiContext::new(&renderer, &mut storage);
+    let mut egui_render_context = EguiRenderContext::new(&renderer, &mut storage);
     let mut winit_egui = egui_winit::State::new(&window);
     let egui_ctx = egui::Context::default();
     let mut name = String::new();
@@ -743,11 +743,15 @@ fn main() {
                     });
                 });
                 winit_egui.handle_platform_output(&window, &egui_ctx, egui_out.platform_output);
-                zero_egui_context.update_textures(&renderer, &mut storage, egui_out.textures_delta);
+                egui_render_context.update_textures(
+                    &renderer,
+                    &mut storage,
+                    egui_out.textures_delta,
+                );
 
                 let clipped = egui_ctx.tessellate(egui_out.shapes);
-                zero_egui_context.update_meshes(&renderer, &mut storage, &clipped);
-                let commands = zero_egui_context.create_commands(egui_pipeline_id, &clipped);
+                egui_render_context.update_meshes(&renderer, &mut storage, &clipped);
+                let commands = egui_render_context.create_commands(egui_pipeline_id, &clipped);
 
                 render_system.add_phase_commands("egui", commands);
 

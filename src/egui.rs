@@ -7,7 +7,7 @@ use crate::{
     mesh::Mesh, render::prelude::*, texture::GpuTexture, utils::ConstVec,
 };
 
-pub struct ZeroEguiContext {
+pub struct EguiRenderContext {
     mesh_id: ResourceId,
     index_buffer_slices: Vec<std::ops::Range<u64>>,
     vertex_buffer_slices: Vec<std::ops::Range<u64>>,
@@ -19,7 +19,7 @@ pub struct ZeroEguiContext {
     uniform_buffer_bind_group: EguiBufferBindGroup,
 }
 
-impl ZeroEguiContext {
+impl EguiRenderContext {
     pub fn new(renderer: &Renderer, storage: &mut RenderStorage) -> Self {
         let egui_buffer = EguiBuffer {
             screen_size: [renderer.size().width as f32, renderer.size().height as f32],

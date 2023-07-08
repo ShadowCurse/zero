@@ -1,4 +1,5 @@
 pub mod camera;
+#[cfg(feature = "egui")]
 pub mod egui;
 pub mod gbuffer;
 pub mod light;
