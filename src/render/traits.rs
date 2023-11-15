@@ -189,7 +189,7 @@ macro_rules! impl_simple_buffer {
             }
         }
 
-        #[derive(Debug)]
+        #[derive(Debug, Clone, Copy)]
         pub struct $handle {
             buffer_id: ResourceId,
         }
@@ -223,7 +223,7 @@ macro_rules! impl_simple_buffer {
             }
         }
 
-        #[derive(Debug)]
+        #[derive(Debug, Clone, Copy)]
         pub struct $bind_group(pub ResourceId);
 
         impl AssetBindGroup for $bind_group {
