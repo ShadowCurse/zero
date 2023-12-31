@@ -7,14 +7,14 @@ edition = "2021"
 path = "src/lib.rs"
 
 [[example]]
-name = "scene"
-path = "examples/scene.rs"
+name = "defered"
+path = "examples/defered/scene.rs"
 required-features = ["egui"]
 
 [[example]]
-name = "scene_headless"
-path = "examples/scene_headless.rs"
-required-features = ["headless"]
+name = "headless"
+path = "examples/headless/scene.rs"
+required-features = ["egui"]
 
 [features]
 default = ["x11"]
