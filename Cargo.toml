@@ -9,7 +9,6 @@ path = "src/lib.rs"
 [[example]]
 name = "defered"
 path = "examples/defered/scene.rs"
-required-features = ["egui"]
 
 [[example]]
 name = "egui"

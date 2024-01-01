@@ -1,15 +1,11 @@
-use wgpu::{BlendFactor, BlendOperation, StoreOp};
+use wgpu::StoreOp;
 use winit::{
     event::{DeviceEvent, ElementState, Event, KeyEvent, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
     window::WindowBuilder,
 };
-use zero::{
-    const_vec,
-    egui::{EguiBufferBindGroup, EguiRenderContext, EguiTextureBindGroup, EguiVertex},
-    prelude::*,
-};
+use zero::{const_vec, prelude::*};
 
 struct FpsLogger {
     last_log: std::time::Instant,
@@ -57,7 +53,7 @@ fn main() {
     storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
 
     let g_pipeline = PipelineBuilder {
-        shader_path: "./shaders/geometry_pass.wgsl",
+        shader_path: "./examples/defered/geometry_pass.wgsl",
         label: Some("g_pipeline"),
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
@@ -111,7 +107,7 @@ fn main() {
     let g_pipeline_id = storage.insert_pipeline(g_pipeline);
 
     let g_color_pipeline = PipelineBuilder {
-        shader_path: "./shaders/geometry_color_pass.wgsl",
+        shader_path: "./examples/defered/geometry_color_pass.wgsl",
         label: Some("g_color_pipeline"),
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
@@ -165,7 +161,7 @@ fn main() {
     let g_color_pipeline_id = storage.insert_pipeline(g_color_pipeline);
 
     let shadow_map_pipeline = PipelineBuilder {
-        shader_path: "./shaders/shadow_map.wgsl",
+        shader_path: "./examples/defered/shadow_map.wgsl",
         label: Some("shadow_map_pipeline"),
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
@@ -202,7 +198,7 @@ fn main() {
     let shadow_map_pipeline_id = storage.insert_pipeline(shadow_map_pipeline);
 
     let lighting_pipeline = PipelineBuilder {
-        shader_path: "./shaders/lighting_pass.wgsl",
+        shader_path: "./examples/defered/lighting_pass.wgsl",
         label: Some("lighting_pipeline"),
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
@@ -239,7 +235,7 @@ fn main() {
     let lighting_pipeline_id = storage.insert_pipeline(lighting_pipeline);
 
     let skybox_pipeline = PipelineBuilder {
-        shader_path: "./shaders/skybox.wgsl",
+        shader_path: "./examples/defered/skybox.wgsl",
         label: Some("skybox_pipeline"),
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
@@ -490,81 +486,6 @@ fn main() {
     let skybox_handle = SkyboxHandle::new(&mut storage, skybox.build(&renderer));
     let skybox_bind_group = SkyboxBindGroup::new(&renderer, &mut storage, &skybox_handle);
 
-    // EGUI
-    storage.register_bind_group_layout::<EguiBufferBindGroup>(&renderer);
-    storage.register_bind_group_layout::<EguiTextureBindGroup>(&renderer);
-
-    let egui_pipeline = PipelineBuilder {
-        shader_path: "./shaders/egui.wgsl",
-        label: Some("egui_pipeline"),
-        layout_descriptor: Some(&PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[
-                storage.get_bind_group_layout::<EguiBufferBindGroup>(),
-                storage.get_bind_group_layout::<EguiTextureBindGroup>(),
-            ],
-            push_constant_ranges: &[],
-        }),
-        vertex_layouts: &[EguiVertex::layout()],
-        vertex_entry_point: "vs_main",
-        color_targets: Some(&[Some(ColorTargetState {
-            format: renderer.surface_format(),
-            blend: Some(BlendState {
-                color: BlendComponent {
-                    src_factor: BlendFactor::One,
-                    dst_factor: BlendFactor::OneMinusSrcAlpha,
-                    operation: BlendOperation::Add,
-                },
-                alpha: BlendComponent {
-                    src_factor: BlendFactor::One,
-                    dst_factor: BlendFactor::OneMinusSrcAlpha,
-                    operation: BlendOperation::Add,
-                },
-            }),
-            write_mask: ColorWrites::ALL,
-        })]),
-        fragment_entry_point: if renderer.surface_format().is_srgb() {
-            "fs_main_linear_framebuffer"
-        } else {
-            "fs_main_gamma_framebuffer"
-        },
-        primitive: PrimitiveState {
-            front_face: FrontFace::Cw,
-            cull_mode: None,
-            ..Default::default()
-        },
-        depth_stencil: None,
-        multisample: MultisampleState::default(),
-        multiview: None,
-    }
-    .build(&renderer);
-    let egui_pipeline_id = storage.insert_pipeline(egui_pipeline);
-
-    let egui_phase = RenderPhase::new(
-        const_vec![ColorAttachment {
-            view_id: ResourceId::WINDOW_VIEW_ID,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Load,
-                store: StoreOp::Store,
-            },
-        }],
-        None,
-    );
-
-    render_system.add_phase("egui", egui_phase);
-
-    let mut egui_render_context = EguiRenderContext::new(&renderer, &mut storage);
-    let egui_ctx = egui::Context::default();
-    let mut winit_egui = egui_winit::State::new(
-        egui_ctx.clone(),
-        egui_winit::egui::ViewportId::ROOT,
-        &window,
-        None,
-        None,
-    );
-    let mut name = String::new();
-    let mut age = 0;
-
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
     _ = event_loop.run(move |event, target| {
@@ -579,192 +500,159 @@ fn main() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => {
-                let _response = winit_egui.on_window_event(&window, event);
-                match event {
-                    WindowEvent::CloseRequested => target.exit(),
-                    WindowEvent::MouseInput {
-                        state,
-                        button: MouseButton::Left,
-                        ..
-                    } => camera_controller.set_mouse_active(*state == ElementState::Pressed),
-                    WindowEvent::KeyboardInput {
-                        event:
-                            KeyEvent {
-                                logical_key: key,
-                                state,
-                                ..
-                            },
-                        ..
-                    } => match key {
-                        Key::Named(NamedKey::Escape) => target.exit(),
-                        k => _ = camera_controller.process_key(k.clone(), *state),
-                    },
-                    WindowEvent::Resized(physical_size) => {
-                        camera.resize(physical_size.width, physical_size.height);
-                        renderer.resize(Some(*physical_size));
-                        storage.replace_texture(
-                            depth_texture_id,
-                            DepthTexture::default().build(&renderer),
-                        );
-                        g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
-                        g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
-                    }
-                    WindowEvent::RedrawRequested => {
-                        let now = std::time::Instant::now();
-                        let dt = now - last_render_time;
-                        last_render_time = now;
-
-                        fps_logger.log(now, dt);
-
-                        camera_controller.update_camera(&mut camera, dt);
-                        camera_handle.update(&renderer, &storage, &camera);
-
-                        cube_transform.rotation = cube_transform.rotation
-                            * cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_y(),
-                                cgmath::Deg(-dt.as_secs_f32() * 30.0),
-                            );
-                        cube_transform_handle.update(&renderer, &storage, &cube_transform);
-
-                        let box1 = RenderCommand {
-                            pipeline_id: g_color_pipeline_id,
-                            mesh_id: box_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                grey_material_bind_group.0,
-                                box_transform_bind_group.0,
-                                camera_bind_group.0,
-                            ],
-                        };
-                        let box2 = RenderCommand {
-                            pipeline_id: g_color_pipeline_id,
-                            mesh_id: box2_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                green_material_bind_group.0,
-                                box2_transform_bind_group.0,
-                                camera_bind_group.0,
-                            ],
-                        };
-                        let cube = RenderCommand {
-                            pipeline_id: g_pipeline_id,
-                            mesh_id: cube_model_handler[0].mesh_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                cube_model_handler[0].material_bind_group.0,
-                                cube_transform_bind_group.0,
-                                camera_bind_group.0,
-                            ],
-                        };
-                        render_system.add_phase_commands("geometry", vec![box1, box2, cube]);
-
-                        let box1 = RenderCommand {
-                            pipeline_id: shadow_map_pipeline_id,
-                            mesh_id: box_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                box_transform_bind_group.0,
-                                shadow_d_light_bind_group.0
-                            ],
-                        };
-                        let box2 = RenderCommand {
-                            pipeline_id: shadow_map_pipeline_id,
-                            mesh_id: box2_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                box2_transform_bind_group.0,
-                                shadow_d_light_bind_group.0
-                            ],
-                        };
-                        let cube = RenderCommand {
-                            pipeline_id: shadow_map_pipeline_id,
-                            mesh_id: cube_model_handler[0].mesh_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                cube_transform_bind_group.0,
-                                shadow_d_light_bind_group.0
-                            ],
-                        };
-                        render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
-
-                        let command = RenderCommand {
-                            pipeline_id: lighting_pipeline_id,
-                            mesh_id: g_buffer_handle.mesh_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![
-                                g_buffer_bind_group.0,
-                                lights_bind_group.0,
-                                camera_bind_group.0,
-                                shadow_bind_group.0,
-                            ],
-                        };
-                        render_system.add_phase_commands("lighting", vec![command]);
-
-                        let command = RenderCommand {
-                            pipeline_id: skybox_pipeline_id,
-                            mesh_id: skybox_handle.mesh_id,
-                            index_slice: None,
-                            vertex_slice: None,
-                            scissor_rect: None,
-                            bind_groups: const_vec![skybox_bind_group.0, camera_bind_group.0],
-                        };
-                        render_system.add_phase_commands("skybox", vec![command]);
-
-                        // EGUI
-                        let egui_input = winit_egui.take_egui_input(&window);
-                        let egui_out = egui_ctx.run(egui_input, |ctx| {
-                            egui::Window::new("Window").show(ctx, |ui| {
-                                ui.heading("My egui Application");
-                                ui.horizontal(|ui| {
-                                    ui.label("Your name: ");
-                                    ui.text_edit_singleline(&mut name);
-                                });
-                                ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-                                if ui.button("Click each year").clicked() {
-                                    age += 1;
-                                }
-                                ui.label(format!("Hello '{name}', age {age}"));
-                            });
-                        });
-                        winit_egui.handle_platform_output(&window, egui_out.platform_output);
-                        egui_render_context.update_textures(
-                            &renderer,
-                            &mut storage,
-                            egui_out.textures_delta,
-                        );
-
-                        let clipped = egui_ctx.tessellate(egui_out.shapes, 1.0);
-                        egui_render_context.update_meshes(&renderer, &mut storage, &clipped);
-                        let commands =
-                            egui_render_context.create_commands(egui_pipeline_id, &clipped);
-
-                        render_system.add_phase_commands("egui", commands);
-
-                        match render_system.run(&renderer, &storage) {
-                            Ok(_) => {}
-                            Err(SurfaceError::Lost) => renderer.resize(None),
-                            Err(SurfaceError::OutOfMemory) => target.exit(),
-                            Err(e) => eprintln!("{:?}", e),
-                        }
-                    }
-                    _ => {}
+            } if window_id == window.id() => match event {
+                WindowEvent::CloseRequested => target.exit(),
+                WindowEvent::MouseInput {
+                    state,
+                    button: MouseButton::Left,
+                    ..
+                } => camera_controller.set_mouse_active(*state == ElementState::Pressed),
+                WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            logical_key: key,
+                            state,
+                            ..
+                        },
+                    ..
+                } => match key {
+                    Key::Named(NamedKey::Escape) => target.exit(),
+                    k => _ = camera_controller.process_key(k.clone(), *state),
+                },
+                WindowEvent::Resized(physical_size) => {
+                    camera.resize(physical_size.width, physical_size.height);
+                    renderer.resize(Some(*physical_size));
+                    storage.replace_texture(
+                        depth_texture_id,
+                        DepthTexture::default().build(&renderer),
+                    );
+                    g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
+                    g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);
                 }
-            }
+                WindowEvent::RedrawRequested => {
+                    let now = std::time::Instant::now();
+                    let dt = now - last_render_time;
+                    last_render_time = now;
+
+                    fps_logger.log(now, dt);
+
+                    camera_controller.update_camera(&mut camera, dt);
+                    camera_handle.update(&renderer, &storage, &camera);
+
+                    cube_transform.rotation = cube_transform.rotation
+                        * cgmath::Quaternion::from_axis_angle(
+                            cgmath::Vector3::unit_y(),
+                            cgmath::Deg(-dt.as_secs_f32() * 30.0),
+                        );
+                    cube_transform_handle.update(&renderer, &storage, &cube_transform);
+
+                    let box1 = RenderCommand {
+                        pipeline_id: g_color_pipeline_id,
+                        mesh_id: box_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            grey_material_bind_group.0,
+                            box_transform_bind_group.0,
+                            camera_bind_group.0,
+                        ],
+                    };
+                    let box2 = RenderCommand {
+                        pipeline_id: g_color_pipeline_id,
+                        mesh_id: box2_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            green_material_bind_group.0,
+                            box2_transform_bind_group.0,
+                            camera_bind_group.0,
+                        ],
+                    };
+                    let cube = RenderCommand {
+                        pipeline_id: g_pipeline_id,
+                        mesh_id: cube_model_handler[0].mesh_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            cube_model_handler[0].material_bind_group.0,
+                            cube_transform_bind_group.0,
+                            camera_bind_group.0,
+                        ],
+                    };
+                    render_system.add_phase_commands("geometry", vec![box1, box2, cube]);
+
+                    let box1 = RenderCommand {
+                        pipeline_id: shadow_map_pipeline_id,
+                        mesh_id: box_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            box_transform_bind_group.0,
+                            shadow_d_light_bind_group.0
+                        ],
+                    };
+                    let box2 = RenderCommand {
+                        pipeline_id: shadow_map_pipeline_id,
+                        mesh_id: box2_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            box2_transform_bind_group.0,
+                            shadow_d_light_bind_group.0
+                        ],
+                    };
+                    let cube = RenderCommand {
+                        pipeline_id: shadow_map_pipeline_id,
+                        mesh_id: cube_model_handler[0].mesh_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            cube_transform_bind_group.0,
+                            shadow_d_light_bind_group.0
+                        ],
+                    };
+                    render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
+
+                    let command = RenderCommand {
+                        pipeline_id: lighting_pipeline_id,
+                        mesh_id: g_buffer_handle.mesh_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![
+                            g_buffer_bind_group.0,
+                            lights_bind_group.0,
+                            camera_bind_group.0,
+                            shadow_bind_group.0,
+                        ],
+                    };
+                    render_system.add_phase_commands("lighting", vec![command]);
+
+                    let command = RenderCommand {
+                        pipeline_id: skybox_pipeline_id,
+                        mesh_id: skybox_handle.mesh_id,
+                        index_slice: None,
+                        vertex_slice: None,
+                        scissor_rect: None,
+                        bind_groups: const_vec![skybox_bind_group.0, camera_bind_group.0],
+                    };
+                    render_system.add_phase_commands("skybox", vec![command]);
+
+                    match render_system.run(&renderer, &storage) {
+                        Ok(_) => {}
+                        Err(SurfaceError::Lost) => renderer.resize(None),
+                        Err(SurfaceError::OutOfMemory) => target.exit(),
+                        Err(e) => eprintln!("{:?}", e),
+                    }
+                }
+                _ => {}
+            },
             Event::AboutToWait => window.request_redraw(),
             _ => {}
         }
