@@ -20,6 +20,10 @@ name = "headless"
 path = "examples/headless/scene.rs"
 required-features = ["egui"]
 
+[[example]]
+name = "skybox"
+path = "examples/skybox/scene.rs"
+
 [features]
 default = ["wayland"]
 headless = []
