@@ -2,7 +2,8 @@ use crate::render::prelude::*;
 use crate::{cgmath_imports::*, impl_simple_buffer};
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
-use winit::event::{ElementState, VirtualKeyCode};
+use winit::event::ElementState;
+use winit::keyboard::{Key, NamedKey};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
@@ -131,33 +132,36 @@ impl CameraController {
         }
     }
 
-    pub fn process_key(&mut self, keycode: VirtualKeyCode, state: ElementState) -> bool {
+    pub fn process_key(&mut self, key: Key, state: ElementState) -> bool {
         let pressed = if state == ElementState::Pressed { 1 } else { 0 };
-        match keycode {
-            VirtualKeyCode::W => {
-                self.forward = pressed;
-                true
-            }
-            VirtualKeyCode::S => {
-                self.backward = pressed;
-                true
-            }
-            VirtualKeyCode::A => {
-                self.left = pressed;
-                true
-            }
-            VirtualKeyCode::D => {
-                self.right = pressed;
-                true
-            }
-            VirtualKeyCode::Space => {
+        match key {
+            Key::Named(NamedKey::Space) => {
                 self.up = pressed;
                 true
             }
-            VirtualKeyCode::LShift => {
+            Key::Named(NamedKey::Shift) => {
                 self.down = pressed;
                 true
             }
+            Key::Character(c) => match c.as_str() {
+                "w" | "W" => {
+                    self.forward = pressed;
+                    true
+                }
+                "s" | "S" => {
+                    self.backward = pressed;
+                    true
+                }
+                "a" | "A" => {
+                    self.left = pressed;
+                    true
+                }
+                "d" | "D" => {
+                    self.right = pressed;
+                    true
+                }
+                _ => false,
+            },
             _ => false,
         }
     }

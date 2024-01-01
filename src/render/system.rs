@@ -233,6 +233,7 @@ impl RenderSystem {
             label: name,
             color_attachments: &phase.color_attachments(storage),
             depth_stencil_attachment: phase.depth_stencil_attachment(storage),
+            ..Default::default()
         });
 
         for command in phase.commands() {

@@ -15,6 +15,7 @@ pub enum Error {
     ImageLoad(#[from] ImageError),
 }
 
+#[derive(Debug)]
 pub struct ModelHadle {
     pub mesh_id: ResourceId,
     pub material_bind_group: MaterialBindGroup,

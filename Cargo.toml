@@ -17,25 +17,28 @@ path = "examples/headless/scene.rs"
 required-features = ["egui"]
 
 [features]
-default = ["x11"]
+default = ["wayland"]
 headless = []
 egui = ["dep:egui"]
-wayland = ["winit/wayland"]
+wayland = ["winit/wayland", "egui-winit/wayland"]
 x11 = ["winit/x11"]
 
 [dependencies]
-egui = { version = "0.22.0", features = ["bytemuck"], optional = true }
-bytemuck = { version = "1.13", features = [ "derive" ] }
-winit = { version = "0.28", default-features = false }
-tobj = { version = "4.0", features = [ "log" ] }
-wgpu = { version = "0.16" }
-hexasphere = "9.0"
-thiserror = "1.0.40"
-env_logger = "0.10"
+# upstream egui uses new winit, remove git when it is updated
+egui = { git = "https://github.com/emilk/egui", features = ["bytemuck"], optional = true }
+bytemuck = { version = "1.14", features = [ "derive" ] }
+# rwh_05 is needed because wgpu is 0.18 and not 0.18.1
+winit = { version = "0.29", default-features = false, features = ["rwh_05"] }
+tobj = { version = "4", features = [ "log" ] }
+wgpu = { version = "0.18" }
+hexasphere = "9"
+thiserror = "1"
 cgmath = "0.18"
 image = "0.24"
 log = "0.4"
 
 [dev-dependencies]
 pollster = "0.2"
-egui-winit = { version = "0.22.0", default-features = false }
+env_logger = "0.10"
+# upstream egui uses new winit, remove git when it is updated
+egui-winit = { git = "https://github.com/emilk/egui", default-features = false }
