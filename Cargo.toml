@@ -16,6 +16,10 @@ path = "examples/egui/scene.rs"
 required-features = ["egui"]
 
 [[example]]
+name = "forward"
+path = "examples/forward/scene.rs"
+
+[[example]]
 name = "headless"
 path = "examples/headless/scene.rs"
 required-features = ["egui"]
