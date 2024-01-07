@@ -7,7 +7,7 @@ pub struct ConstVec<const S: usize, T> {
 impl<const S: usize, T> ConstVec<S, T> {
     pub fn push(&mut self, item: T) {
         if self.len == S {
-            return;
+            panic!("the const vector size limit is exceeded")
         }
         let _ = std::mem::replace(&mut self.data[self.len], item);
         self.len += 1;
@@ -36,6 +36,7 @@ impl<const S: usize, T> ConstVec<S, T> {
 impl<const S: usize, T> Default for ConstVec<S, T> {
     fn default() -> Self {
         ConstVec {
+            #[allow(clippy::uninit_assumed_init)]
             data: unsafe { std::mem::MaybeUninit::uninit().assume_init() },
             len: 0,
         }
@@ -71,4 +72,57 @@ macro_rules! const_vec {
             v
         }
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn const_vec_default() {
+        _ = ConstVec::<10, u32>::default();
+    }
+
+    #[test]
+    fn const_vec_from_vec() {
+        let test_vec: [u32; 3] = [1, 2, 3];
+        let _ = ConstVec::<5, u32>::from_iter(test_vec);
+    }
+
+    #[test]
+    #[should_panic]
+    fn const_vec_from_vec_panic() {
+        let test_vec: [u32; 3] = [1, 2, 3];
+        let _ = ConstVec::<2, u32>::from_iter(test_vec);
+    }
+
+    #[test]
+    fn const_vec_push() {
+        let mut cv = ConstVec::<1, u32>::default();
+        cv.push(1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn const_vec_push_panic() {
+        let mut cv = ConstVec::<1, u32>::default();
+        cv.push(1);
+        cv.push(2);
+    }
+
+    #[test]
+    fn const_vec_as_slice() {
+        let mut cv = ConstVec::<1, u32>::default();
+        cv.push(1);
+        assert_eq!(&[1], cv.as_slice());
+    }
+
+    #[test]
+    fn const_vec_iter() {
+        let mut cv = ConstVec::<1, u32>::default();
+        cv.push(1);
+
+        let from_iter = cv.iter().copied().collect::<Vec<u32>>();
+        assert_eq!(&from_iter, &[1]);
+    }
 }
