@@ -1,3 +1,4 @@
+use crate::prelude::SparseSet;
 use crate::utils::ConstVec;
 
 use super::renderer::{CurrentFrameContext, Renderer, MAX_BIND_GROUPS, MAX_COLOR_ATTACHMENTS};
@@ -5,8 +6,8 @@ use super::{
     storage::{RenderStorage, ResourceId},
     wgpu_imports::*,
 };
+use std::ops::Deref;
 use std::ops::Range;
-use std::{borrow::Cow, collections::HashMap, ops::Deref};
 
 #[derive(Debug, Clone)]
 pub struct RenderCommand {
@@ -74,7 +75,7 @@ pub struct DepthStencil {
     pub stencil_ops: Option<Operations<u32>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct RenderPhase {
     color_attachments: ConstVec<MAX_COLOR_ATTACHMENTS, ColorAttachment>,
     depth_stencil: Option<DepthStencil>,
@@ -163,28 +164,23 @@ impl<'a> Deref for CurrentFrameStorage<'a> {
 
 #[derive(Debug, Default)]
 pub struct RenderSystem {
-    pub phases: HashMap<Cow<'static, str>, RenderPhase>,
-    pub order: Vec<Cow<'static, str>>,
+    pub phases: SparseSet<RenderPhase>,
+    pub order: Vec<usize>,
 }
 
 impl RenderSystem {
-    pub fn add_phase(&mut self, name: impl Into<Cow<'static, str>>, phase: RenderPhase) {
-        let name = name.into();
-        self.order.push(name.clone());
-        self.phases.insert(name, phase);
+    pub fn add_phase(&mut self, phase: RenderPhase) -> usize {
+        let phase_id = self.phases.insert(phase);
+        self.order.push(phase_id);
+        phase_id
     }
 
-    pub fn add_phase_commands(
-        &mut self,
-        name: impl Into<Cow<'static, str>>,
-        commands: Vec<RenderCommand>,
-    ) {
-        let name = name.into();
+    pub fn add_phase_command(&mut self, phase_id: usize, command: RenderCommand) {
         self.phases
-            .get_mut(&name)
-            .unwrap_or_else(|| panic!("Setting commands for non existed phase: {name}"))
+            .get_mut(phase_id)
+            .unwrap_or_else(|| panic!("Setting commands for non existed phase with id: {phase_id}"))
             .commands
-            .extend(commands);
+            .push(command)
     }
 
     #[cfg(not(feature = "headless"))]
@@ -218,9 +214,9 @@ impl RenderSystem {
             current_frame_view: current_frame.view(),
         };
 
-        for p in self.order.iter() {
-            let phase = self.phases.get_mut(p).unwrap();
-            Self::execute_phase(Some(p), &mut encoder, phase, &frame_storage);
+        for phase_id in self.order.iter() {
+            let phase = self.phases.get_mut(*phase_id).unwrap();
+            Self::execute_phase(&mut encoder, phase, &frame_storage);
             phase.clear();
         }
 
@@ -228,13 +224,12 @@ impl RenderSystem {
     }
 
     fn execute_phase(
-        name: Option<&str>,
         encoder: &mut CommandEncoder,
         phase: &RenderPhase,
         storage: &CurrentFrameStorage,
     ) {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: name,
+            label: None,
             color_attachments: &phase.color_attachments(storage),
             depth_stencil_attachment: phase.depth_stencil_attachment(storage),
             ..Default::default()

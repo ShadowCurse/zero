@@ -104,7 +104,7 @@ fn main() {
         None,
     );
 
-    render_system.add_phase("egui", egui_phase);
+    let egui_phase_id = render_system.add_phase(egui_phase);
 
     let mut egui_render_context = EguiRenderContext::new(&renderer, &mut storage);
     let egui_ctx = egui::Context::default();
@@ -175,7 +175,9 @@ fn main() {
                         let commands =
                             egui_render_context.create_commands(egui_pipeline_id, &clipped);
 
-                        render_system.add_phase_commands("egui", commands);
+                        for c in commands.into_iter() {
+                            render_system.add_phase_command(egui_phase_id, c);
+                        }
 
                         match render_system.run(&renderer, &storage) {
                             Ok(_) => {}

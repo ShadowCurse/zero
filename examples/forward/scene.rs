@@ -150,7 +150,7 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    render_system.add_phase("phase", phase);
+    let phase_id = render_system.add_phase(phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -324,7 +324,9 @@ fn main() {
                             light_bind_group.0,
                         ],
                     };
-                    render_system.add_phase_commands("phase", vec![box1, box2, cube]);
+                    for c in [box1, box2, cube] {
+                        render_system.add_phase_command(phase_id, c);
+                    }
 
                     match render_system.run(&renderer, &storage) {
                         Ok(_) => {}

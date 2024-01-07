@@ -316,7 +316,7 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    render_system.add_phase("geometry", geometry_phase);
+    let geometry_phase_id = render_system.add_phase(geometry_phase);
 
     let shadow_phase = RenderPhase::new(
         const_vec![],
@@ -329,7 +329,7 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    render_system.add_phase("shadow", shadow_phase);
+    let shadow_phase_id = render_system.add_phase(shadow_phase);
 
     let lighting_phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -341,7 +341,7 @@ fn main() {
         }],
         None,
     );
-    render_system.add_phase("lighting", lighting_phase);
+    let lighting_phase_id = render_system.add_phase(lighting_phase);
 
     let skybox_phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -360,8 +360,7 @@ fn main() {
             stencil_ops: None,
         }),
     );
-
-    render_system.add_phase("skybox", skybox_phase);
+    let skybox_phase_id = render_system.add_phase(skybox_phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -582,7 +581,9 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    render_system.add_phase_commands("geometry", vec![box1, box2, cube]);
+                    for c in [box1, box2, cube] {
+                        render_system.add_phase_command(geometry_phase_id, c);
+                    }
 
                     let box1 = RenderCommand {
                         pipeline_id: shadow_map_pipeline_id,
@@ -617,7 +618,9 @@ fn main() {
                             shadow_d_light_bind_group.0
                         ],
                     };
-                    render_system.add_phase_commands("shadow", vec![box1, box2, cube]);
+                    for c in [box1, box2, cube] {
+                        render_system.add_phase_command(shadow_phase_id, c);
+                    }
 
                     let command = RenderCommand {
                         pipeline_id: lighting_pipeline_id,
@@ -632,7 +635,7 @@ fn main() {
                             shadow_bind_group.0,
                         ],
                     };
-                    render_system.add_phase_commands("lighting", vec![command]);
+                    render_system.add_phase_command(lighting_phase_id, command);
 
                     let command = RenderCommand {
                         pipeline_id: skybox_pipeline_id,
@@ -642,7 +645,7 @@ fn main() {
                         scissor_rect: None,
                         bind_groups: const_vec![skybox_bind_group.0, camera_bind_group.0],
                     };
-                    render_system.add_phase_commands("skybox", vec![command]);
+                    render_system.add_phase_command(skybox_phase_id, command);
 
                     match render_system.run(&renderer, &storage) {
                         Ok(_) => {}

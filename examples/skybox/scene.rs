@@ -90,7 +90,7 @@ fn main() {
         None,
     );
 
-    render_system.add_phase("skybox", skybox_phase);
+    let skybox_phase_id = render_system.add_phase(skybox_phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -174,7 +174,7 @@ fn main() {
                         scissor_rect: None,
                         bind_groups: const_vec![skybox_bind_group.0, camera_bind_group.0],
                     };
-                    render_system.add_phase_commands("skybox", vec![command]);
+                    render_system.add_phase_command(skybox_phase_id, command);
 
                     match render_system.run(&renderer, &storage) {
                         Ok(_) => {}
