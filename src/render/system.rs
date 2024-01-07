@@ -96,6 +96,10 @@ impl RenderPhase {
     pub fn add_command(&mut self, command: RenderCommand) {
         self.commands.push(command);
     }
+
+    pub fn clear(&mut self) {
+        self.commands.clear()
+    }
 }
 
 impl RenderPhase {
@@ -217,7 +221,7 @@ impl RenderSystem {
         for p in self.order.iter() {
             let phase = self.phases.get_mut(p).unwrap();
             Self::execute_phase(Some(p), &mut encoder, phase, &frame_storage);
-            phase.commands.clear();
+            phase.clear();
         }
 
         renderer.submit(std::iter::once(encoder.finish()));
