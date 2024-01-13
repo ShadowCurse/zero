@@ -15,6 +15,12 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct TimeUniform {
+  time: f32,
+};
+@group(2) @binding(0)
+var<uniform> time: TimeUniform;
+
 struct VertexInput {
   @location(0) position: vec3<f32>,
   @location(1) tex_coords: vec2<f32>,
@@ -66,7 +72,7 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 fn sdf(point: vec3<f32>) -> f32 {
-    let sphere_pos = vec3<f32>(0.0, 0.0, 0.0);
+    let sphere_pos = vec3<f32>(0.0, 0.0, 2.0) * sin(time.time);
     let sphere_radius = 1.0;
     let sphere = sphere(point - sphere_pos, sphere_radius);
 

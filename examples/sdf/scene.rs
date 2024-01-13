@@ -5,7 +5,7 @@ use winit::{
     keyboard::{Key, NamedKey},
     window::WindowBuilder,
 };
-use zero::{const_vec, prelude::*};
+use zero::{const_vec, impl_simple_buffer, prelude::*};
 
 struct FpsLogger {
     last_log: std::time::Instant,
@@ -30,6 +30,34 @@ impl FpsLogger {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TimeUniform {
+    time: f32,
+}
+
+impl From<&Time> for TimeUniform {
+    fn from(value: &Time) -> Self {
+        Self { time: value.time }
+    }
+}
+
+#[derive(Debug)]
+pub struct Time {
+    time: f32,
+}
+
+impl_simple_buffer!(
+    Time,
+    TimeUniform,
+    TimeResources,
+    TimeHandle,
+    TimeBindGroup,
+    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
+    { ShaderStages::VERTEX | ShaderStages::FRAGMENT },
+    { BufferBindingType::Uniform }
+);
+
 fn main() {
     env_logger::init();
 
@@ -42,6 +70,7 @@ fn main() {
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
     storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
+    storage.register_bind_group_layout::<TimeBindGroup>(&renderer);
 
     let pipeline = PipelineBuilder {
         shader_path: "./examples/sdf/sdf.wgsl",
@@ -51,6 +80,7 @@ fn main() {
             bind_group_layouts: &[
                 storage.get_bind_group_layout::<TransformBindGroup>(),
                 storage.get_bind_group_layout::<CameraBindGroup>(),
+                storage.get_bind_group_layout::<TimeBindGroup>(),
             ],
             push_constant_ranges: &[],
         }),
@@ -120,6 +150,10 @@ fn main() {
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
+    let mut time = Time { time: 0.0 };
+    let time_handle = TimeHandle::new(&mut storage, time.build(&renderer));
+    let time_bind_group = TimeBindGroup::new(&renderer, &mut storage, &time_handle);
+
     let mesh: Mesh = Cube::new(10.0, 10.0, 10.0).into();
     let mesh_id = storage.insert_mesh(mesh.build(&renderer));
 
@@ -179,6 +213,9 @@ fn main() {
 
                     fps_logger.log(now, dt);
 
+                    time.time += dt.as_secs_f32();
+                    time_handle.update(&renderer, &storage, &time);
+
                     camera_controller.update_camera(&mut camera, dt);
                     camera_handle.update(&renderer, &storage, &camera);
 
@@ -188,7 +225,11 @@ fn main() {
                         index_slice: None,
                         vertex_slice: None,
                         scissor_rect: None,
-                        bind_groups: const_vec![mesh_transform_bind_group.0, camera_bind_group.0,],
+                        bind_groups: const_vec![
+                            mesh_transform_bind_group.0,
+                            camera_bind_group.0,
+                            time_bind_group.0
+                        ],
                     };
                     render_system.add_phase_command(phase_id, box1);
 
