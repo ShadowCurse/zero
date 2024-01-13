@@ -15,12 +15,6 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
-struct ScreenInfoUniform {
-  size: vec2<f32>,
-};
-@group(2) @binding(0)
-var<uniform> screen_info: ScreenInfoUniform;
-
 struct VertexInput {
   @location(0) position: vec3<f32>,
   @location(1) tex_coords: vec2<f32>,
@@ -31,6 +25,7 @@ struct VertexInput {
 
 struct VertexOutput {
   @builtin(position) clip_position: vec4<f32>,
+  @location(0) world_position: vec4<f32>,
 };
 
 @vertex
@@ -41,38 +36,39 @@ fn vs_main(
 
   var out: VertexOutput;
   out.clip_position = camera.view_projection * world_position;
+  out.world_position = world_position;
   return out;
 }
 
 // Fragment shader
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-  let uv = (vertex.clip_position.xy * 2.0 - screen_info.size) / screen_info.size.y;
+  let world_position = vertex.world_position;
 
-  let ro = vec3<f32>(0.0, 0.0, -3.0);
-  let rd = normalize(vec3<f32>(uv, 1.0));
-  var col = vec3<f32>(0.0);
+  let camera_position = vec4<f32>(camera.position, 1.0);
+  let ray_direction = normalize(world_position - camera_position);
+  var color = vec3<f32>(0.0);
 
   var t: f32 = 0.0;
 
-  for (var i: i32 = 0; i < 80; i = i + 1) {
-      let p = ro + rd * t;
-      let d = sdf(p);
-      t += d;
-      if (d < 0.001 || t > 100.0) {
+  for (var i: i32 = 0; i < 100; i = i + 1) {
+      let point = camera_position + ray_direction * t;
+      let distance = sdf(point.xyz);
+      t += distance;
+      if (distance < 0.001 || t > 100.0) {
         break;
       }
   }
 
-  col = vec3<f32>(t * 0.2);
+  color = vec3<f32>(t * 0.01);
 
-  return vec4<f32>(col, 1.0); 
+  return vec4<f32>(color, 1.0); 
 }
 
 fn sdf(point: vec3<f32>) -> f32 {
-    let sphere_pos = vec3<f32>(0.0, 0.0, 1.0);
+    let sphere_pos = vec3<f32>(0.0, 0.0, 0.0);
     let sphere_radius = 1.0;
-    let sphere = sphere(point -sphere_pos, sphere_radius);
+    let sphere = sphere(point - sphere_pos, sphere_radius);
 
     return sphere;
 }

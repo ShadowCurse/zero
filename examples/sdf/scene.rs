@@ -5,7 +5,7 @@ use winit::{
     keyboard::{Key, NamedKey},
     window::WindowBuilder,
 };
-use zero::{const_vec, impl_simple_buffer, prelude::*};
+use zero::{const_vec, prelude::*};
 
 struct FpsLogger {
     last_log: std::time::Instant,
@@ -30,37 +30,6 @@ impl FpsLogger {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ScreenInfoUniform {
-    size: [f32; 2],
-}
-
-impl From<&ScreenInfo> for ScreenInfoUniform {
-    fn from(value: &ScreenInfo) -> Self {
-        Self {
-            size: [value.width, value.height],
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ScreenInfo {
-    width: f32,
-    height: f32,
-}
-
-impl_simple_buffer!(
-    ScreenInfo,
-    ScreenInfoUniform,
-    ScreenInfoResources,
-    ScreenInfoHandle,
-    ScreenInfoBindGroup,
-    { BufferUsages::UNIFORM | BufferUsages::COPY_DST },
-    { ShaderStages::VERTEX | ShaderStages::FRAGMENT },
-    { BufferBindingType::Uniform }
-);
-
 fn main() {
     env_logger::init();
 
@@ -73,7 +42,6 @@ fn main() {
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
     storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
-    storage.register_bind_group_layout::<ScreenInfoBindGroup>(&renderer);
 
     let pipeline = PipelineBuilder {
         shader_path: "./examples/sdf/sdf.wgsl",
@@ -83,7 +51,6 @@ fn main() {
             bind_group_layouts: &[
                 storage.get_bind_group_layout::<TransformBindGroup>(),
                 storage.get_bind_group_layout::<CameraBindGroup>(),
-                storage.get_bind_group_layout::<ScreenInfoBindGroup>(),
             ],
             push_constant_ranges: &[],
         }),
@@ -153,14 +120,6 @@ fn main() {
 
     let mut camera_controller = CameraController::new(5.0, 0.7);
 
-    let mut screen_info = ScreenInfo {
-        width: 400.0,
-        height: 400.0,
-    };
-    let screen_info_handle = ScreenInfoHandle::new(&mut storage, screen_info.build(&renderer));
-    let screen_info_bind_group =
-        ScreenInfoBindGroup::new(&renderer, &mut storage, &screen_info_handle);
-
     let mesh: Mesh = Cube::new(10.0, 10.0, 10.0).into();
     let mesh_id = storage.insert_mesh(mesh.build(&renderer));
 
@@ -212,9 +171,6 @@ fn main() {
                         depth_texture_id,
                         DepthTexture::default().build(&renderer),
                     );
-                    screen_info.height = physical_size.height as f32;
-                    screen_info.width = physical_size.width as f32;
-                    screen_info_handle.update(&renderer, &storage, &screen_info);
                 }
                 WindowEvent::RedrawRequested => {
                     let now = std::time::Instant::now();
@@ -232,11 +188,7 @@ fn main() {
                         index_slice: None,
                         vertex_slice: None,
                         scissor_rect: None,
-                        bind_groups: const_vec![
-                            mesh_transform_bind_group.0,
-                            camera_bind_group.0,
-                            screen_info_bind_group.0
-                        ],
+                        bind_groups: const_vec![mesh_transform_bind_group.0, camera_bind_group.0,],
                     };
                     render_system.add_phase_command(phase_id, box1);
 
