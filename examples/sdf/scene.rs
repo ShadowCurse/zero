@@ -1,6 +1,5 @@
 use wgpu::StoreOp;
 use winit::{
-    dpi::LogicalSize,
     event::{DeviceEvent, ElementState, Event, KeyEvent, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
@@ -162,17 +161,17 @@ fn main() {
     let screen_info_bind_group =
         ScreenInfoBindGroup::new(&renderer, &mut storage, &screen_info_handle);
 
-    let quad_mesh: Mesh = Quad::flipped((10.0, 10.0)).into();
-    let quad_id = storage.insert_mesh(quad_mesh.build(&renderer));
+    let mesh: Mesh = Cube::new(10.0, 10.0, 10.0).into();
+    let mesh_id = storage.insert_mesh(mesh.build(&renderer));
 
-    let quad_transform = Transform {
+    let mesh_transform = Transform {
         translation: (0.0, 0.0, 0.0).into(),
         rotation: Quaternion::from_axis_angle(Vector3::unit_y(), Deg(90.0)),
         scale: (1.0, 1.0, 1.0).into(),
     };
-    let quad_transform_handle = TransformHandle::new(&mut storage, quad_transform.build(&renderer));
-    let quad_transform_bind_group =
-        TransformBindGroup::new(&renderer, &mut storage, &quad_transform_handle);
+    let mesh_transform_handle = TransformHandle::new(&mut storage, mesh_transform.build(&renderer));
+    let mesh_transform_bind_group =
+        TransformBindGroup::new(&renderer, &mut storage, &mesh_transform_handle);
 
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
@@ -229,12 +228,12 @@ fn main() {
 
                     let box1 = RenderCommand {
                         pipeline_id,
-                        mesh_id: quad_id,
+                        mesh_id,
                         index_slice: None,
                         vertex_slice: None,
                         scissor_rect: None,
                         bind_groups: const_vec![
-                            quad_transform_bind_group.0,
+                            mesh_transform_bind_group.0,
                             camera_bind_group.0,
                             screen_info_bind_group.0
                         ],
