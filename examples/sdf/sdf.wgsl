@@ -76,10 +76,24 @@ fn sdf(point: vec3<f32>) -> f32 {
     let sphere_radius = 1.0;
     let sphere = sphere(point - sphere_pos, sphere_radius);
 
-    return sphere;
+    let box_pos = vec3<f32>(0.0, -1.0, 0.0);
+    let box_dimentions = vec3<f32>(5.0, 0.5, 5.0);
+    let box = box(point - box_pos, box_dimentions);
+
+    return smooth_union(sphere, box, 0.5);
 }
 
 fn sphere(point: vec3<f32>, radius: f32) -> f32 {
     return length(point) - radius;
 }
 
+fn box(point: vec3<f32>, dimentioins: vec3<f32>) -> f32 {
+  let q = abs(point) - dimentioins;
+  return length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+
+fn smooth_union(distance_1: f32, distance_2: f32, k: f32) -> f32 {
+    let h = clamp(0.5 + 0.5 * (distance_2 - distance_1) / k, 0.0, 1.0);
+    return mix(distance_2, distance_1, h) - k * h * (1.0 - h);
+}
