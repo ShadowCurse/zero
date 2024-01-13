@@ -15,6 +15,12 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct ScreenInfoUniform {
+  size: vec2<f32>,
+};
+@group(2) @binding(0)
+var<uniform> screen_info: ScreenInfoUniform;
+
 struct VertexInput {
   @location(0) position: vec3<f32>,
   @location(1) tex_coords: vec2<f32>,
@@ -41,7 +47,7 @@ fn vs_main(
 // Fragment shader
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-  let uv = (vertex.clip_position.xy * 2.0 - vec2<f32>(400.0, 400.0)) / 400.0;
+  let uv = (vertex.clip_position.xy * 2.0 - screen_info.size) / screen_info.size.y;
 
   let ro = vec3<f32>(0.0, 0.0, -3.0);
   let rd = normalize(vec3<f32>(uv, 1.0));
