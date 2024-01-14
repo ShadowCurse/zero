@@ -161,19 +161,19 @@ fn closest(object1: vec4<f32>, object2: vec4<f32>) -> vec4<f32> {
 }
 
 fn sdf(point: vec3<f32>) -> vec4<f32> {
-    let sphere_pos = vec3<f32>(0.0, 0.0, 2.0) * sin(time.time);
+    let sphere_pos = vec3<f32>(0.0, 0.0, 5.0) * sin(time.time);
     let sphere_radius = 1.0;
     let sphere_color = vec3<f32>(1.0, 0.0, 0.0);
     let sphere_distance = sphere(point - sphere_pos, sphere_radius);
     let sphere = vec4<f32>(sphere_color, sphere_distance);
 
-    let box_pos = vec3<f32>(0.0, 0.0, -2.0);
+    let box_pos = vec3<f32>(0.0, 0.0, 2.0);
     let box_dimentions = vec3<f32>(1.0, 1.0, 1.0);
     let box_color = vec3<f32>(0.0, 1.0, 0.0);
     let box_distance = box(point - box_pos, box_dimentions);
     let box = vec4<f32>(box_color, box_distance);
 
-    let torus_pos = vec3<f32>(2.0, 0.0, -2.0);
+    let torus_pos = vec3<f32>(0.0, 0.0, -2.0);
     let torus_dimenttions = vec2<f32>(0.7, 0.3);
     let torus_color = vec3<f32>(0.79, 0.4, 0.1);
     let torus_distance = torus(point - torus_pos, torus_dimenttions);
@@ -184,8 +184,9 @@ fn sdf(point: vec3<f32>) -> vec4<f32> {
     let plane_distance = plane(point, plane_level);
     let plane = vec4<f32>(plane_color, plane_distance);
 
-    let u = smooth_union(sphere, box, 0.5);
-    return closest(u, closest(torus, plane));
+    let smooth_box_sphere = smooth_union(sphere, box, 0.5);
+    let smooth_torus_sphere = smooth_subtraction(sphere, torus, 0.5);
+    return closest(plane, closest(smooth_box_sphere, smooth_torus_sphere));
 }
 
 fn plane(point: vec3<f32>, level: f32) -> f32 {
@@ -209,4 +210,9 @@ fn torus(point: vec3<f32>, dimentioins: vec2<f32>) -> f32 {
 fn smooth_union(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
     let h = clamp(0.5 + 0.5 * (object2.a - object1.a) / k, 0.0, 1.0);
     return mix(object2, object1, h) - k * h * (1.0 - h);
+}
+
+fn smooth_subtraction(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
+    let h = clamp(0.5 - 0.5 * (object2.a + object1.a) / k, 0.0, 1.0);
+    return mix(object2, -object1, h) + k * h * (1.0 - h);
 }
