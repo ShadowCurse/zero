@@ -152,6 +152,14 @@ fn soft_shadow(ray_origin: vec3<f32>, ray_direction: vec3<f32>, t_min: f32, t_ma
     return result * result * (3.0 - 2.0 * result);
 }
 
+fn closest(object1: vec4<f32>, object2: vec4<f32>) -> vec4<f32> {
+    if (object1.a < object2.a) {
+        return object1;
+    } else {
+        return object2;
+    }
+}
+
 fn sdf(point: vec3<f32>) -> vec4<f32> {
     let sphere_pos = vec3<f32>(0.0, 0.0, 2.0) * sin(time.time);
     let sphere_radius = 1.0;
@@ -165,17 +173,19 @@ fn sdf(point: vec3<f32>) -> vec4<f32> {
     let box_distance = box(point - box_pos, box_dimentions);
     let box = vec4<f32>(box_color, box_distance);
 
+    let torus_pos = vec3<f32>(2.0, 0.0, -2.0);
+    let torus_dimenttions = vec2<f32>(0.7, 0.3);
+    let torus_color = vec3<f32>(0.79, 0.4, 0.1);
+    let torus_distance = torus(point - torus_pos, torus_dimenttions);
+    let torus = vec4<f32>(torus_color, torus_distance);
+
     let plane_level = -1.0;
     let plane_color = vec3<f32>(0.1, 0.1, 0.1);
     let plane_distance = plane(point, plane_level);
     let plane = vec4<f32>(plane_color, plane_distance);
 
     let u = smooth_union(sphere, box, 0.5);
-    if (plane.a < u.a) {
-        return plane;
-    } else {
-        return u;
-    }
+    return closest(u, closest(torus, plane));
 }
 
 fn plane(point: vec3<f32>, level: f32) -> f32 {
@@ -189,6 +199,11 @@ fn sphere(point: vec3<f32>, radius: f32) -> f32 {
 fn box(point: vec3<f32>, dimentioins: vec3<f32>) -> f32 {
   let q = abs(point) - dimentioins;
   return length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+fn torus(point: vec3<f32>, dimentioins: vec2<f32>) -> f32 {
+  let q = vec2<f32>(length(point.zy) - dimentioins.x, point.x);
+  return length(q) - dimentioins.y;
 }
 
 fn smooth_union(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
