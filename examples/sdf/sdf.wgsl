@@ -161,23 +161,30 @@ fn closest(object1: vec4<f32>, object2: vec4<f32>) -> vec4<f32> {
 }
 
 fn sdf(point: vec3<f32>) -> vec4<f32> {
-    let sphere_pos = vec3<f32>(0.0, 0.0, 5.0) * sin(time.time);
-    let sphere_radius = 1.0;
+    let sphere_pos = vec3<f32>(0.0, 0.0, 5.0) * sin(time.time * 0.25);
+    let sphere_radius = 0.6;
     let sphere_color = vec3<f32>(1.0, 0.0, 0.0);
     let sphere_distance = sphere(point - sphere_pos, sphere_radius);
     let sphere = vec4<f32>(sphere_color, sphere_distance);
 
-    let box_pos = vec3<f32>(0.0, 0.0, 2.0);
-    let box_dimentions = vec3<f32>(1.0, 1.0, 1.0);
+    let box_pos = vec3<f32>(0.0, 0.0, 2.5);
+    let box_dimentions = vec3<f32>(0.6, 0.6, 0.6);
     let box_color = vec3<f32>(0.0, 1.0, 0.0);
     let box_distance = box(point - box_pos, box_dimentions);
     let box = vec4<f32>(box_color, box_distance);
 
-    let torus_pos = vec3<f32>(0.0, 0.0, -2.0);
-    let torus_dimenttions = vec2<f32>(0.7, 0.3);
+    let torus_pos = vec3<f32>(0.0, 0.0, -2.5);
+    let torus_dimenttions = vec2<f32>(0.5, 0.18);
     let torus_color = vec3<f32>(0.79, 0.4, 0.1);
     let torus_distance = torus(point - torus_pos, torus_dimenttions);
     let torus = vec4<f32>(torus_color, torus_distance);
+
+    let box_frame_pos = vec3<f32>(0.0, 0.0, 0.0);
+    let box_frame_dimenttions = vec3<f32>(0.6, 0.6, 0.6);
+    let box_frame_thickness = 0.08;
+    let box_frame_color = vec3<f32>(0.89, 0.44, 0.44);
+    let box_frame_distance = box_frame(point - box_frame_pos, box_frame_dimenttions, box_frame_thickness);
+    let box_frame = vec4<f32>(box_frame_color, box_frame_distance);
 
     let plane_level = -1.0;
     let plane_color = vec3<f32>(0.1, 0.1, 0.1);
@@ -186,7 +193,9 @@ fn sdf(point: vec3<f32>) -> vec4<f32> {
 
     let smooth_box_sphere = smooth_union(sphere, box, 0.5);
     let smooth_torus_sphere = smooth_subtraction(sphere, torus, 0.5);
-    return closest(plane, closest(smooth_box_sphere, smooth_torus_sphere));
+    let smooth_box_frame_sphere = smooth_intersection(sphere, box_frame, 0.5);
+
+    return closest(plane, closest(smooth_box_sphere, closest(smooth_torus_sphere, smooth_box_frame_sphere)));
 }
 
 fn plane(point: vec3<f32>, level: f32) -> f32 {
@@ -207,6 +216,15 @@ fn torus(point: vec3<f32>, dimentioins: vec2<f32>) -> f32 {
   return length(q) - dimentioins.y;
 }
 
+fn box_frame(point: vec3<f32>, dimentioins: vec3<f32>, thickness: f32) -> f32 {
+  let p = abs(point) - dimentioins;
+  let q = abs(p + thickness) - thickness;
+  return min(min(
+      length(max(vec3<f32>(p.x, q.y, q.z), vec3<f32>(0.0))) + min(max(p.x, max(q.y, q.z)), 0.0),
+      length(max(vec3<f32>(q.x, p.y, q.z), vec3<f32>(0.0))) + min(max(q.x, max(p.y, q.z)), 0.0)),
+      length(max(vec3<f32>(q.x, q.y, p.z), vec3<f32>(0.0))) + min(max(q.x, max(q.y, p.z)), 0.0));
+}
+
 fn smooth_union(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
     let h = clamp(0.5 + 0.5 * (object2.a - object1.a) / k, 0.0, 1.0);
     return mix(object2, object1, h) - k * h * (1.0 - h);
@@ -215,4 +233,9 @@ fn smooth_union(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
 fn smooth_subtraction(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
     let h = clamp(0.5 - 0.5 * (object2.a + object1.a) / k, 0.0, 1.0);
     return mix(object2, -object1, h) + k * h * (1.0 - h);
+}
+
+fn smooth_intersection(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
+    let h = clamp(0.5 - 0.5 * (object2.a - object1.a) / k, 0.0, 1.0);
+    return mix(object2, object1, h) - k * h * (1.0 - h);
 }
