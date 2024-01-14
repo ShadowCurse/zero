@@ -51,8 +51,8 @@ fn vs_main(
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   let world_position = vertex.world_position;
 
-  let camera_position = vec4<f32>(camera.position, 1.0);
-  let ray_direction = normalize(world_position - camera_position);
+  let ray_origin = vec4<f32>(camera.position, 1.0);
+  let ray_direction = normalize(world_position - ray_origin);
 
   let t_min: f32 = 1.0;
   let t_max: f32 = 20.0;
@@ -61,7 +61,7 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   var material_color = vec3<f32>(0.0);
 
   for (var i: i32 = 0; i < 100 && t < t_max; i = i + 1) {
-      let point = camera_position + ray_direction * t;
+      let point = ray_origin + ray_direction * t;
       let result = sdf(point.xyz);
       t += result.a;
       if (abs(result.a) < (0.001 * t)) {
@@ -72,7 +72,7 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 
   var final_color = vec3<f32>(0.0);
 
-  let point = camera_position + ray_direction * t;
+  let point = ray_origin + ray_direction * t;
   let normal = normal(point.xyz);
 
   let ao_color = vec3<f32>(0.1, 0.1, 0.1);
@@ -81,10 +81,10 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   var ao_diff = sqrt(clamp(0.5 + 0.5 * normal.y, 0.0, 1.0 ));
   ao_diff *= ao;
 
-  let light_direction = normalize(vec3<f32>(-0.5, 0.5, -0.3));
-  let shadow = soft_shadow(camera_position.xyz, light_direction, 0.02, 0.25);
+  let light_direction = normalize(vec3<f32>(-0.5, 1.0, -1.3));
+  let shadow = soft_shadow(point.xyz, light_direction, 0.02, 0.25);
 
-  let light_color = vec3<f32>(0.1, 0.1, 0.1);
+  let light_color = vec3<f32>(1.5, 1.0, 0.7);
   var light_diff = clamp(dot(normal, light_direction), 0.0, 1.0);
   light_diff *= shadow;
 
@@ -93,6 +93,8 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 
   // ao
   final_color += material_color * 0.6 * ao_diff * ao_color;
+
+  final_color = clamp(final_color, vec3<f32>(0.0), vec3<f32>(1.0));
 
   return vec4<f32>(final_color, 1.0); 
 }
@@ -128,7 +130,7 @@ fn soft_shadow(ray_origin: vec3<f32>, ray_direction: vec3<f32>, t_min: f32, t_ma
     var t = t_min;
     for (var i: i32 = 0; i < 24 && t < t_max; i = i + 1) {
         let distance = sdf(ray_origin + ray_direction * t).a;
-        let s = clamp(distance / t, 0.0, 1.0);
+        let s = clamp(8.0 * distance / t, 0.0, 1.0);
         result = min(s, result);
         t += clamp(distance, 0.01, 0.2);
         if (result < 0.005) {
