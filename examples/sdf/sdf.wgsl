@@ -53,34 +53,54 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 
   let camera_position = vec4<f32>(camera.position, 1.0);
   let ray_direction = normalize(world_position - camera_position);
+
+  let t_min: f32 = 1.0;
+  let t_max: f32 = 20.0;
+
+  var t: f32 = t_min;
   var color = vec3<f32>(0.0);
 
-  var t: f32 = 0.0;
-
-  for (var i: i32 = 0; i < 100; i = i + 1) {
+  for (var i: i32 = 0; i < 100 && t < t_max; i = i + 1) {
       let point = camera_position + ray_direction * t;
-      let distance = sdf(point.xyz);
-      t += distance;
-      if (distance < 0.001 || t > 100.0) {
+      let result = sdf(point.xyz);
+      t += result.a;
+      if (abs(result.a) < (0.001 * t)) {
+        color = result.rgb;
         break;
       }
   }
 
-  color = vec3<f32>(t * 0.01);
-
   return vec4<f32>(color, 1.0); 
 }
 
-fn sdf(point: vec3<f32>) -> f32 {
+fn sdf(point: vec3<f32>) -> vec4<f32> {
     let sphere_pos = vec3<f32>(0.0, 0.0, 2.0) * sin(time.time);
     let sphere_radius = 1.0;
-    let sphere = sphere(point - sphere_pos, sphere_radius);
+    let sphere_color = vec3<f32>(1.0, 0.0, 0.0);
+    let sphere_distance = sphere(point - sphere_pos, sphere_radius);
+    let sphere = vec4<f32>(sphere_color, sphere_distance);
 
-    let box_pos = vec3<f32>(0.0, -1.0, 0.0);
-    let box_dimentions = vec3<f32>(5.0, 0.5, 5.0);
-    let box = box(point - box_pos, box_dimentions);
+    let box_pos = vec3<f32>(0.0, 0.0, -2.0);
+    let box_dimentions = vec3<f32>(1.0, 1.0, 1.0);
+    let box_color = vec3<f32>(0.0, 1.0, 0.0);
+    let box_distance = box(point - box_pos, box_dimentions);
+    let box = vec4<f32>(box_color, box_distance);
 
-    return smooth_union(sphere, box, 0.5);
+    let plane_level = -1.0;
+    let plane_color = vec3<f32>(0.0, 0.0, 1.0);
+    let plane_distance = plane(point, plane_level);
+    let plane = vec4<f32>(plane_color, plane_distance);
+
+    let u = smooth_union(sphere, box, 0.5);
+    if (plane.a < u.a) {
+        return plane;
+    } else {
+        return u;
+    }
+}
+
+fn plane(point: vec3<f32>, level: f32) -> f32 {
+    return point.y - level;
 }
 
 fn sphere(point: vec3<f32>, radius: f32) -> f32 {
@@ -92,8 +112,7 @@ fn box(point: vec3<f32>, dimentioins: vec3<f32>) -> f32 {
   return length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
 }
 
-
-fn smooth_union(distance_1: f32, distance_2: f32, k: f32) -> f32 {
-    let h = clamp(0.5 + 0.5 * (distance_2 - distance_1) / k, 0.0, 1.0);
-    return mix(distance_2, distance_1, h) - k * h * (1.0 - h);
+fn smooth_union(object1: vec4<f32>, object2: vec4<f32>, k: f32) -> vec4<f32> {
+    let h = clamp(0.5 + 0.5 * (object2.a - object1.a) / k, 0.0, 1.0);
+    return mix(object2, object1, h) - k * h * (1.0 - h);
 }
