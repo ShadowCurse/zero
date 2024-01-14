@@ -70,7 +70,38 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
       }
   }
 
+  let point = camera_position + ray_direction * t;
+  let normal = normal(point.xyz);
+  let ao = ambient_occlusion(point.xyz, normal);
+  color *= ao;
+
   return vec4<f32>(color, 1.0); 
+}
+
+fn normal(point: vec3<f32>) -> vec3<f32> {
+    let delta = vec2<f32>(0.0001, 0.0);
+    return normalize(
+              vec3<f32>(
+                sdf(point + delta.xyy).a - sdf(point - delta.xyy).a,
+                sdf(point + delta.yxy).a - sdf(point - delta.yxy).a,
+                sdf(point + delta.yyx).a - sdf(point - delta.yyx).a,
+              )
+          );
+}
+
+fn ambient_occlusion(point: vec3<f32>, normal: vec3<f32>) -> f32 {
+    var occ: f32 = 0.0;
+    var sca: f32 = 1.0;
+    for (var i: i32 = 0; i < 5; i = i + 1) {
+        let h = 0.01 + 0.01 * f32(i);
+        let distance = sdf(point + normal * h).a;
+        occ += (h - distance) * sca;
+        sca *= 0.95;
+        if (occ > 0.35) {
+          break;
+        }
+    }
+    return clamp(1.0 - 3.0 * occ, 0.0, 1.0) * (0.5 + 0.5 * normal.y);
 }
 
 fn sdf(point: vec3<f32>) -> vec4<f32> {
