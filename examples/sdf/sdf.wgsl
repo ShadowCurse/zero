@@ -88,11 +88,22 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   var light_diff = clamp(dot(normal, light_direction), 0.0, 1.0);
   light_diff *= shadow;
 
+  let reflection = reflect(ray_direction.xyz, normal);
+  let reflectivness = 0.9;
+  let reflection_color = vec3<f32>(1.0, 1.0, 1.0);
+  var reflection_spe = smoothstep(-0.2, 0.2, reflection.y);
+  reflection_spe *= ao_diff;
+  reflection_spe *= 0.04 + 0.96 * pow(clamp(1.0 + dot(normal, ray_direction.xyz), 0.0, 1.0), 5.0);
+  reflection_spe *= soft_shadow(point.xyz, reflection, 0.02, 2.5);
+
   // shadow
   final_color += material_color * 2.2 * light_diff * light_color;
 
   // ao
   final_color += material_color * 0.6 * ao_diff * ao_color;
+
+  // reflection
+  final_color += material_color * 2.2 * reflection_spe * reflection_color * reflectivness;
 
   final_color = clamp(final_color, vec3<f32>(0.0), vec3<f32>(1.0));
 
@@ -155,7 +166,7 @@ fn sdf(point: vec3<f32>) -> vec4<f32> {
     let box = vec4<f32>(box_color, box_distance);
 
     let plane_level = -1.0;
-    let plane_color = vec3<f32>(0.0, 0.0, 1.0);
+    let plane_color = vec3<f32>(0.1, 0.1, 0.1);
     let plane_distance = plane(point, plane_level);
     let plane = vec4<f32>(plane_color, plane_distance);
 
