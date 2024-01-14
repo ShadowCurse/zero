@@ -58,24 +58,43 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   let t_max: f32 = 20.0;
 
   var t: f32 = t_min;
-  var color = vec3<f32>(0.0);
+  var material_color = vec3<f32>(0.0);
 
   for (var i: i32 = 0; i < 100 && t < t_max; i = i + 1) {
       let point = camera_position + ray_direction * t;
       let result = sdf(point.xyz);
       t += result.a;
       if (abs(result.a) < (0.001 * t)) {
-        color = result.rgb;
+        material_color = result.rgb;
         break;
       }
   }
 
+  var final_color = vec3<f32>(0.0);
+
   let point = camera_position + ray_direction * t;
   let normal = normal(point.xyz);
-  let ao = ambient_occlusion(point.xyz, normal);
-  color *= ao;
 
-  return vec4<f32>(color, 1.0); 
+  let ao_color = vec3<f32>(0.1, 0.1, 0.1);
+  let ao = ambient_occlusion(point.xyz, normal);
+
+  var ao_diff = sqrt(clamp(0.5 + 0.5 * normal.y, 0.0, 1.0 ));
+  ao_diff *= ao;
+
+  let light_direction = normalize(vec3<f32>(-0.5, 0.5, -0.3));
+  let shadow = soft_shadow(camera_position.xyz, light_direction, 0.02, 0.25);
+
+  let light_color = vec3<f32>(0.1, 0.1, 0.1);
+  var light_diff = clamp(dot(normal, light_direction), 0.0, 1.0);
+  light_diff *= shadow;
+
+  // shadow
+  final_color += material_color * 2.2 * light_diff * light_color;
+
+  // ao
+  final_color += material_color * 0.6 * ao_diff * ao_color;
+
+  return vec4<f32>(final_color, 1.0); 
 }
 
 fn normal(point: vec3<f32>) -> vec3<f32> {
@@ -102,6 +121,22 @@ fn ambient_occlusion(point: vec3<f32>, normal: vec3<f32>) -> f32 {
         }
     }
     return clamp(1.0 - 3.0 * occ, 0.0, 1.0) * (0.5 + 0.5 * normal.y);
+}
+
+fn soft_shadow(ray_origin: vec3<f32>, ray_direction: vec3<f32>, t_min: f32, t_max: f32) -> f32 {
+    var result = 1.0;
+    var t = t_min;
+    for (var i: i32 = 0; i < 24 && t < t_max; i = i + 1) {
+        let distance = sdf(ray_origin + ray_direction * t).a;
+        let s = clamp(distance / t, 0.0, 1.0);
+        result = min(s, result);
+        t += clamp(distance, 0.01, 0.2);
+        if (result < 0.005) {
+          break;
+        }
+    }
+    result = clamp(result, 0.0, 1.0);
+    return result * result * (3.0 - 2.0 * result);
 }
 
 fn sdf(point: vec3<f32>) -> vec4<f32> {
