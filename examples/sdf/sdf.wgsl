@@ -82,10 +82,11 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   ao_diff *= ao;
 
   let light_direction = normalize(vec3<f32>(-0.5, 1.0, -1.3));
-  let shadow = soft_shadow(point.xyz, light_direction, 0.02, 0.25);
-
+  let light_size = 0.5;
   let light_color = vec3<f32>(1.5, 1.0, 0.7);
   var light_diff = clamp(dot(normal, light_direction), 0.0, 1.0);
+
+  let shadow = soft_shadow(point.xyz, light_direction, 0.02, 0.25, light_size);
   light_diff *= shadow;
 
   let reflection = reflect(ray_direction.xyz, normal);
@@ -94,7 +95,7 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   var reflection_spe = smoothstep(-0.2, 0.2, reflection.y);
   reflection_spe *= ao_diff;
   reflection_spe *= 0.04 + 0.96 * pow(clamp(1.0 + dot(normal, ray_direction.xyz), 0.0, 1.0), 5.0);
-  reflection_spe *= soft_shadow(point.xyz, reflection, 0.02, 2.5);
+  reflection_spe *= soft_shadow(point.xyz, reflection, 0.02, 2.5, light_size);
 
   // shadow
   final_color += material_color * 2.2 * light_diff * light_color;
@@ -136,12 +137,12 @@ fn ambient_occlusion(point: vec3<f32>, normal: vec3<f32>) -> f32 {
     return clamp(1.0 - 3.0 * occ, 0.0, 1.0) * (0.5 + 0.5 * normal.y);
 }
 
-fn soft_shadow(ray_origin: vec3<f32>, ray_direction: vec3<f32>, t_min: f32, t_max: f32) -> f32 {
+fn soft_shadow(ray_origin: vec3<f32>, ray_direction: vec3<f32>, t_min: f32, t_max: f32, light_size: f32) -> f32 {
     var result = 1.0;
     var t = t_min;
     for (var i: i32 = 0; i < 24 && t < t_max; i = i + 1) {
         let distance = sdf(ray_origin + ray_direction * t).a;
-        let s = clamp(8.0 * distance / t, 0.0, 1.0);
+        let s = clamp(distance / (t * light_size), 0.0, 1.0);
         result = min(s, result);
         t += clamp(distance, 0.01, 0.2);
         if (result < 0.005) {
@@ -186,7 +187,7 @@ fn sdf(point: vec3<f32>) -> vec4<f32> {
     let box_frame_distance = box_frame(point - box_frame_pos, box_frame_dimenttions, box_frame_thickness);
     let box_frame = vec4<f32>(box_frame_color, box_frame_distance);
 
-    let plane_level = -1.0;
+    let plane_level = -0.7;
     let plane_color = vec3<f32>(0.1, 0.1, 0.1);
     let plane_distance = plane(point, plane_level);
     let plane = vec4<f32>(plane_color, plane_distance);
