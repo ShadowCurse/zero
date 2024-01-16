@@ -11,12 +11,16 @@ struct CameraUniform {
   position: vec3<f32>,
   view_projection: mat4x4<f32>,
   vp_without_translation: mat4x4<f32>,
+  view_inverse: mat4x4<f32>,
+  projection_inverse: mat4x4<f32>,
 };
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct TimeUniform {
   time: f32,
+  width: f32,
+  height: f32,
 };
 @group(2) @binding(0)
 var<uniform> time: TimeUniform;
@@ -38,20 +42,23 @@ struct VertexOutput {
 fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
-  let world_position = transform.transform * vec4<f32>(vertex.position, 1.0);
+  let p = vec4<f32>(vertex.position.xy, 1.0, 1.0);
 
   var out: VertexOutput;
-  out.clip_position = camera.view_projection * world_position;
-  out.world_position = world_position;
+  out.clip_position = p;
+
+  let world_pos = p * camera.projection_inverse * camera.view_inverse;
+  out.world_position = world_pos;
+
   return out;
 }
 
 // Fragment shader
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-  let world_position = vertex.world_position;
+  var world_position = vertex.world_position.xyz;
 
-  let ray_origin = vec4<f32>(camera.position, 1.0);
+  let ray_origin = camera.position;
   let ray_direction = normalize(world_position - ray_origin);
 
   let t_min: f32 = 1.0;
@@ -62,7 +69,7 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
 
   for (var i: i32 = 0; i < 100 && t < t_max; i = i + 1) {
       let point = ray_origin + ray_direction * t;
-      let result = sdf(point.xyz);
+      let result = sdf(point);
       t += result.a;
       if (abs(result.a) < (0.001 * t)) {
         material_color = result.rgb;
@@ -73,10 +80,10 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   var final_color = vec3<f32>(0.0);
 
   let point = ray_origin + ray_direction * t;
-  let normal = normal(point.xyz);
+  let normal = normal(point);
 
   let ao_color = vec3<f32>(0.1, 0.1, 0.1);
-  let ao = ambient_occlusion(point.xyz, normal);
+  let ao = ambient_occlusion(point, normal);
 
   var ao_diff = sqrt(clamp(0.5 + 0.5 * normal.y, 0.0, 1.0 ));
   ao_diff *= ao;
@@ -86,16 +93,16 @@ fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
   let light_color = vec3<f32>(1.5, 1.0, 0.7);
   var light_diff = clamp(dot(normal, light_direction), 0.0, 1.0);
 
-  let shadow = soft_shadow(point.xyz, light_direction, 0.02, 0.25, light_size);
+  let shadow = soft_shadow(point, light_direction, 0.02, 0.25, light_size);
   light_diff *= shadow;
 
-  let reflection = reflect(ray_direction.xyz, normal);
+  let reflection = reflect(ray_direction, normal);
   let reflectivness = 0.9;
   let reflection_color = vec3<f32>(1.0, 1.0, 1.0);
   var reflection_spe = smoothstep(-0.2, 0.2, reflection.y);
   reflection_spe *= ao_diff;
-  reflection_spe *= 0.04 + 0.96 * pow(clamp(1.0 + dot(normal, ray_direction.xyz), 0.0, 1.0), 5.0);
-  reflection_spe *= soft_shadow(point.xyz, reflection, 0.02, 2.5, light_size);
+  reflection_spe *= 0.04 + 0.96 * pow(clamp(1.0 + dot(normal, ray_direction), 0.0, 1.0), 5.0);
+  reflection_spe *= soft_shadow(point, reflection, 0.02, 2.5, light_size);
 
   // shadow
   final_color += material_color * 2.2 * light_diff * light_color;
