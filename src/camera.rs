@@ -1,5 +1,6 @@
 use crate::render::prelude::*;
 use crate::{cgmath_imports::*, impl_simple_buffer};
+use cgmath::SquareMatrix;
 use std::f32::consts::FRAC_PI_2;
 use std::time::Duration;
 use winit::event::ElementState;
@@ -22,15 +23,19 @@ pub struct CameraUniform {
     _pad: f32,
     view_projection: [[f32; 4]; 4],
     vp_without_translation: [[f32; 4]; 4],
+    vp_inverse: [[f32; 4]; 4],
 }
 
 impl From<&Camera> for CameraUniform {
     fn from(value: &Camera) -> Self {
+        let view = value.view();
         let projection = value.projection();
+        let vp = projection * view;
         Self {
             position: value.position.into(),
-            view_projection: (projection * value.view()).into(),
+            view_projection: vp.into(),
             vp_without_translation: (projection * value.view_without_translation()).into(),
+            vp_inverse: vp.invert().unwrap().into(),
             ..Default::default()
         }
     }
@@ -74,7 +79,7 @@ impl Camera {
         self.aspect = width as f32 / height as f32;
     }
 
-    fn view_without_translation(&self) -> Matrix4<f32> {
+    pub fn view_without_translation(&self) -> Matrix4<f32> {
         let view = self.view();
         Matrix4::from(Matrix3::from_cols(
             view[0].truncate(),
@@ -83,7 +88,7 @@ impl Camera {
         ))
     }
 
-    fn view(&self) -> Matrix4<f32> {
+    pub fn view(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX
             * Matrix4::look_to_rh(
                 self.position,
@@ -92,7 +97,7 @@ impl Camera {
             )
     }
 
-    fn projection(&self) -> Matrix4<f32> {
+    pub fn projection(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
