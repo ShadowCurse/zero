@@ -11,16 +11,13 @@ struct CameraUniform {
   position: vec3<f32>,
   view_projection: mat4x4<f32>,
   vp_without_translation: mat4x4<f32>,
-  view_inverse: mat4x4<f32>,
-  projection_inverse: mat4x4<f32>,
+  vp_inverse: mat4x4<f32>,
 };
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct TimeUniform {
   time: f32,
-  width: f32,
-  height: f32,
 };
 @group(2) @binding(0)
 var<uniform> time: TimeUniform;
@@ -42,13 +39,13 @@ struct VertexOutput {
 fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
-  let p = vec4<f32>(vertex.position.xy, 1.0, 1.0);
+  var p = vec4<f32>(vertex.position.xy, 1.0, 1.0);
 
   var out: VertexOutput;
   out.clip_position = p;
 
-  let world_pos = p * camera.projection_inverse * camera.view_inverse;
-  out.world_position = world_pos;
+  let world_pos = camera.vp_inverse * p;
+  out.world_position = world_pos / world_pos.w;
 
   return out;
 }
@@ -56,7 +53,7 @@ fn vs_main(
 // Fragment shader
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-  var world_position = vertex.world_position.xyz;
+  let world_position = vertex.world_position.xyz;
 
   let ray_origin = camera.position;
   let ray_direction = normalize(world_position - ray_origin);

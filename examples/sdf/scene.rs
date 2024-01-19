@@ -154,7 +154,7 @@ fn main() {
     let time_handle = TimeHandle::new(&mut storage, time.build(&renderer));
     let time_bind_group = TimeBindGroup::new(&renderer, &mut storage, &time_handle);
 
-    let mesh: Mesh = Cube::new(10.0, 10.0, 10.0).into();
+    let mesh: Mesh = Quad::new((2.0, 2.0)).into();
     let mesh_id = storage.insert_mesh(mesh.build(&renderer));
 
     let mesh_transform = Transform {
