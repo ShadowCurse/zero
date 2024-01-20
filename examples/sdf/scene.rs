@@ -69,7 +69,6 @@ fn main() {
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
-    storage.register_bind_group_layout::<TransformBindGroup>(&renderer);
     storage.register_bind_group_layout::<TimeBindGroup>(&renderer);
 
     let pipeline = PipelineBuilder {
@@ -78,7 +77,6 @@ fn main() {
         layout_descriptor: Some(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[
-                storage.get_bind_group_layout::<TransformBindGroup>(),
                 storage.get_bind_group_layout::<CameraBindGroup>(),
                 storage.get_bind_group_layout::<TimeBindGroup>(),
             ],
@@ -157,15 +155,6 @@ fn main() {
     let mesh: Mesh = Quad::new((2.0, 2.0)).into();
     let mesh_id = storage.insert_mesh(mesh.build(&renderer));
 
-    let mesh_transform = Transform {
-        translation: (0.0, 0.0, 0.0).into(),
-        rotation: Quaternion::from_axis_angle(Vector3::unit_y(), Deg(90.0)),
-        scale: (1.0, 1.0, 1.0).into(),
-    };
-    let mesh_transform_handle = TransformHandle::new(&mut storage, mesh_transform.build(&renderer));
-    let mesh_transform_bind_group =
-        TransformBindGroup::new(&renderer, &mut storage, &mesh_transform_handle);
-
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
     _ = event_loop.run(move |event, target| {
@@ -225,11 +214,7 @@ fn main() {
                         index_slice: None,
                         vertex_slice: None,
                         scissor_rect: None,
-                        bind_groups: const_vec![
-                            mesh_transform_bind_group.0,
-                            camera_bind_group.0,
-                            time_bind_group.0
-                        ],
+                        bind_groups: const_vec![camera_bind_group.0, time_bind_group.0],
                     };
                     render_system.add_phase_command(phase_id, box1);
 

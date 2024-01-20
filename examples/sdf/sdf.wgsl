@@ -1,25 +1,18 @@
 // Vertex shader
 
-struct TransformUniform {
-  transform: mat4x4<f32>,
-  rotate: mat4x4<f32>,
-};
-@group(0) @binding(0)
-var<uniform> transform: TransformUniform;
-
 struct CameraUniform {
   position: vec3<f32>,
   view_projection: mat4x4<f32>,
   vp_without_translation: mat4x4<f32>,
   vp_inverse: mat4x4<f32>,
 };
-@group(1) @binding(0)
+@group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct TimeUniform {
   time: f32,
 };
-@group(2) @binding(0)
+@group(1) @binding(0)
 var<uniform> time: TimeUniform;
 
 struct VertexInput {
