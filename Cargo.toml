@@ -25,8 +25,8 @@ path = "examples/headless/scene.rs"
 required-features = ["egui"]
 
 [[example]]
-name = "sdf"
-path = "examples/sdf/scene.rs"
+name = "raymarching"
+path = "examples/raymarching/scene.rs"
 
 [[example]]
 name = "skybox"
