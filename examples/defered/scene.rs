@@ -94,7 +94,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -148,7 +148,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -185,7 +185,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -263,7 +263,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: false,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -275,7 +275,7 @@ fn main() {
     .build(&renderer);
     let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
 
-    let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
+    let depth_texture_id = storage.insert_texture(EmptyTexture::new_depth().build(&renderer));
     let shadow_map_handle =
         ShadowMapHandle::new(&mut storage, ShadowMap::default().build(&renderer));
 
@@ -523,7 +523,7 @@ fn main() {
                     renderer.resize(Some(*physical_size));
                     storage.replace_texture(
                         depth_texture_id,
-                        DepthTexture::default().build(&renderer),
+                        EmptyTexture::new_depth().build(&renderer),
                     );
                     g_buffer_handle.replace(&mut storage, g_buffer.build(&renderer));
                     g_buffer_bind_group.replace(&renderer, &mut storage, &g_buffer_handle);

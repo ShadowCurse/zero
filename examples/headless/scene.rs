@@ -96,7 +96,7 @@ fn main() {
     .build(&renderer);
     let skybox_pipeline_id = storage.insert_pipeline(skybox_pipeline);
 
-    let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
+    let depth_texture_id = storage.insert_texture(EmptyTexture::default().build(&renderer));
     let shadow_map_handle =
         ShadowMapHandle::new(&mut storage, ShadowMap::default().build(&renderer));
 

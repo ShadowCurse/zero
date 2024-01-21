@@ -76,7 +76,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -119,7 +119,7 @@ fn main() {
             conservative: false,
         },
         depth_stencil: Some(DepthStencilState {
-            format: DepthTexture::DEPTH_FORMAT,
+            format: TextureFormat::Depth32Float,
             depth_write_enabled: true,
             depth_compare: CompareFunction::LessEqual,
             stencil: StencilState::default(),
@@ -131,7 +131,7 @@ fn main() {
     .build(&renderer);
     let texture_pipeline_id = storage.insert_pipeline(texture_pipeline);
 
-    let depth_texture_id = storage.insert_texture(DepthTexture::default().build(&renderer));
+    let depth_texture_id = storage.insert_texture(EmptyTexture::new_depth().build(&renderer));
 
     let phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -267,7 +267,7 @@ fn main() {
                     renderer.resize(Some(*physical_size));
                     storage.replace_texture(
                         depth_texture_id,
-                        DepthTexture::default().build(&renderer),
+                        EmptyTexture::new_depth().build(&renderer),
                     );
                 }
                 WindowEvent::RedrawRequested => {

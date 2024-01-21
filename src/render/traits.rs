@@ -75,7 +75,7 @@ macro_rules! impl_simple_sized_gpu_buffer {
 
 #[macro_export]
 macro_rules! impl_simple_texture_bind_group {
-    ($handle:ty, $bind_group:ident, $view_dimension:block, $sample_type:block) => {
+    ($handle:ty, $bind_group:ident, $view_dimension:block, $sample_type:block, $sampler_binding_type:block) => {
         #[derive(Debug, Clone, Copy)]
         pub struct $bind_group(pub ResourceId);
 
@@ -100,7 +100,7 @@ macro_rules! impl_simple_texture_bind_group {
                             BindGroupLayoutEntry {
                                 binding: 1,
                                 visibility: ShaderStages::FRAGMENT,
-                                ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                                ty: BindingType::Sampler($sampler_binding_type),
                                 count: None,
                             },
                         ],

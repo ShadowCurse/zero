@@ -454,7 +454,8 @@ impl_simple_texture_bind_group!(
     EguiTextureHandle,
     EguiTextureBindGroup,
     { TextureViewDimension::D2 },
-    { TextureSampleType::Float { filterable: true } }
+    { TextureSampleType::Float { filterable: true } },
+    { SamplerBindingType::Filtering }
 );
 
 impl_simple_sized_gpu_buffer!(EguiIndexBuffer, EguiIndexBufferResources, {

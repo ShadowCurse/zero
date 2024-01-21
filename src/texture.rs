@@ -159,16 +159,24 @@ impl GpuResource for ImageTexture {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct DepthTexture {
-    dimensions: Option<(u32, u32)>,
+#[derive(Debug)]
+pub struct EmptyTexture {
+    pub dimensions: Option<(u32, u32)>,
+    pub format: TextureFormat,
+    pub filtered: bool,
 }
 
-impl DepthTexture {
-    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+impl EmptyTexture {
+    pub fn new_depth() -> Self {
+        Self {
+            dimensions: None,
+            format: TextureFormat::Depth32Float,
+            filtered: true,
+        }
+    }
 }
 
-impl GpuResource for DepthTexture {
+impl GpuResource for EmptyTexture {
     type ResourceType = GpuTexture;
 
     fn build(&self, renderer: &Renderer) -> Self::ResourceType {
@@ -190,22 +198,28 @@ impl GpuResource for DepthTexture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: Self::DEPTH_FORMAT,
-            view_formats: &[Self::DEPTH_FORMAT],
+            format: self.format,
+            view_formats: &[self.format],
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            label: Some("depth_texture"),
+            label: None,
         };
         let texture = renderer.device().create_texture(&desc);
 
         let view = texture.create_view(&TextureViewDescriptor::default());
+
+        let filter_mode = if self.filtered {
+            FilterMode::Linear
+        } else {
+            FilterMode::Nearest
+        };
         let sampler = renderer.device().create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
+            mag_filter: filter_mode,
+            min_filter: filter_mode,
             mipmap_filter: FilterMode::Nearest,
-            compare: None, //Some(CompareFunction::LessEqual),
+            compare: None,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             ..Default::default()

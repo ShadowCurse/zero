@@ -106,5 +106,6 @@ impl_simple_texture_bind_group!(
     SkyboxHandle,
     SkyboxBindGroup,
     { TextureViewDimension::Cube },
-    { TextureSampleType::Float { filterable: true } }
+    { TextureSampleType::Float { filterable: true } },
+    { SamplerBindingType::Filtering }
 );

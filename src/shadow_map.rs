@@ -1,12 +1,24 @@
 use crate::camera::OPENGL_TO_WGPU_MATRIX;
 use crate::prelude::GpuTexture;
 use crate::render::prelude::*;
-use crate::texture::DepthTexture;
+use crate::texture::EmptyTexture;
 use crate::{cgmath_imports::*, impl_simple_buffer, impl_simple_texture_bind_group};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ShadowMap {
-    pub shadow_map: DepthTexture,
+    pub shadow_map: EmptyTexture,
+}
+
+impl Default for ShadowMap {
+    fn default() -> Self {
+        Self {
+            shadow_map: EmptyTexture {
+                dimensions: None,
+                format: TextureFormat::Depth32Float,
+                filtered: true,
+            },
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -47,7 +59,8 @@ impl_simple_texture_bind_group!(
     ShadowMapHandle,
     ShadowMapBindGroup,
     { TextureViewDimension::D2 },
-    { TextureSampleType::Depth }
+    { TextureSampleType::Depth },
+    { SamplerBindingType::Filtering }
 );
 
 #[repr(C)]
