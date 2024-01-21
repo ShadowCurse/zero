@@ -7,6 +7,10 @@ edition = "2021"
 path = "src/lib.rs"
 
 [[example]]
+name = "conemarching"
+path = "examples/conemarching/scene.rs"
+
+[[example]]
 name = "defered"
 path = "examples/defered/scene.rs"
 
