@@ -8,9 +8,12 @@ struct TransformUniform {
 var<uniform> transform: TransformUniform;
 
 struct CameraUniform {
-  position: vec3<f32>,
+  view: mat4x4<f32>,
+  projection: mat4x4<f32>,
   view_projection: mat4x4<f32>,
-  vp_without_translation: mat4x4<f32>,
+  view_projection_inverse: mat4x4<f32>,
+  view_projection_without_translation: mat4x4<f32>,
+  position: vec3<f32>,
 };
 @group(2) @binding(0)
 var<uniform> camera: CameraUniform;

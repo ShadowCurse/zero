@@ -1,9 +1,12 @@
 // Vertex shader
 
 struct CameraUniform {
-  position: vec4<f32>,
+  view: mat4x4<f32>,
+  projection: mat4x4<f32>,
   view_projection: mat4x4<f32>,
-  vp_without_translation: mat4x4<f32>,
+  view_projection_inverse: mat4x4<f32>,
+  view_projection_without_translation: mat4x4<f32>,
+  position: vec3<f32>,
 };
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
@@ -22,7 +25,7 @@ fn vs_main(
   vertex: VertexInput,
 ) -> VertexOutput {
 
-  let position = camera.vp_without_translation* vec4<f32>(vertex.position, 1.0);
+  let position = camera.view_projection_without_translation * vec4<f32>(vertex.position, 1.0);
   var out: VertexOutput;
   out.clip_position = position.xyww;
   out.uv = vertex.position.xyz;

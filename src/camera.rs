@@ -19,11 +19,13 @@ const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
+    view: [[f32; 4]; 4],
+    projection: [[f32; 4]; 4],
+    view_projection: [[f32; 4]; 4],
+    view_projection_inverse: [[f32; 4]; 4],
+    view_projection_without_translation: [[f32; 4]; 4],
     position: [f32; 3],
     _pad: f32,
-    view_projection: [[f32; 4]; 4],
-    vp_without_translation: [[f32; 4]; 4],
-    vp_inverse: [[f32; 4]; 4],
 }
 
 impl From<&Camera> for CameraUniform {
@@ -32,10 +34,13 @@ impl From<&Camera> for CameraUniform {
         let projection = value.projection();
         let vp = projection * view;
         Self {
-            position: value.position.into(),
+            view: view.into(),
+            projection: projection.into(),
             view_projection: vp.into(),
-            vp_without_translation: (projection * value.view_without_translation()).into(),
-            vp_inverse: vp.invert().unwrap().into(),
+            view_projection_inverse: vp.invert().unwrap().into(),
+            view_projection_without_translation: (projection * value.view_without_translation())
+                .into(),
+            position: value.position.into(),
             ..Default::default()
         }
     }
