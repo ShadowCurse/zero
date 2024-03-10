@@ -37,7 +37,6 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(Renderer::new(&window));
-    let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
@@ -316,7 +315,6 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    let geometry_phase_id = render_system.add_phase(geometry_phase);
 
     let shadow_phase = RenderPhase::new(
         const_vec![],
@@ -329,7 +327,6 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    let shadow_phase_id = render_system.add_phase(shadow_phase);
 
     let lighting_phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -341,7 +338,6 @@ fn main() {
         }],
         None,
     );
-    let lighting_phase_id = render_system.add_phase(lighting_phase);
 
     let skybox_phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -360,7 +356,6 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    let skybox_phase_id = render_system.add_phase(skybox_phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -545,7 +540,30 @@ fn main() {
                         );
                     cube_transform_handle.update(&renderer, &storage, &cube_transform);
 
-                    let box1 = RenderCommand {
+                    let current_frame_context = match renderer.current_frame() {
+                        Ok(cfc) => cfc,
+                        Err(SurfaceError::Lost) => {
+                            renderer.resize(None);
+                            return;
+                        }
+                        Err(SurfaceError::OutOfMemory) => {
+                            target.exit();
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!("{:?}", e);
+                            return;
+                        }
+                    };
+
+                    let current_frame_storage = CurrentFrameStorage {
+                        storage: &storage,
+                        current_frame_view: current_frame_context.view(),
+                    };
+
+                    let mut encoder = renderer.create_encoder();
+
+                    let box1 = MeshRenderCommand {
                         pipeline_id: g_color_pipeline_id,
                         mesh_id: box_id,
                         index_slice: None,
@@ -557,7 +575,7 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    let box2 = RenderCommand {
+                    let box2 = MeshRenderCommand {
                         pipeline_id: g_color_pipeline_id,
                         mesh_id: box2_id,
                         index_slice: None,
@@ -569,7 +587,7 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    let cube = RenderCommand {
+                    let cube = MeshRenderCommand {
                         pipeline_id: g_pipeline_id,
                         mesh_id: cube_model_handler[0].mesh_id,
                         index_slice: None,
@@ -581,11 +599,16 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    for c in [box1, box2, cube] {
-                        render_system.add_phase_command(geometry_phase_id, c);
+
+                    {
+                        let mut render_pass =
+                            geometry_phase.render_pass(&mut encoder, &current_frame_storage);
+                        for command in [box1, box2, cube] {
+                            command.execute(&mut render_pass, &current_frame_storage);
+                        }
                     }
 
-                    let box1 = RenderCommand {
+                    let box1 = MeshRenderCommand {
                         pipeline_id: shadow_map_pipeline_id,
                         mesh_id: box_id,
                         index_slice: None,
@@ -596,7 +619,7 @@ fn main() {
                             shadow_d_light_bind_group.0
                         ],
                     };
-                    let box2 = RenderCommand {
+                    let box2 = MeshRenderCommand {
                         pipeline_id: shadow_map_pipeline_id,
                         mesh_id: box2_id,
                         index_slice: None,
@@ -607,7 +630,7 @@ fn main() {
                             shadow_d_light_bind_group.0
                         ],
                     };
-                    let cube = RenderCommand {
+                    let cube = MeshRenderCommand {
                         pipeline_id: shadow_map_pipeline_id,
                         mesh_id: cube_model_handler[0].mesh_id,
                         index_slice: None,
@@ -618,11 +641,15 @@ fn main() {
                             shadow_d_light_bind_group.0
                         ],
                     };
-                    for c in [box1, box2, cube] {
-                        render_system.add_phase_command(shadow_phase_id, c);
+                    {
+                        let mut render_pass =
+                            shadow_phase.render_pass(&mut encoder, &current_frame_storage);
+                        for command in [box1, box2, cube] {
+                            command.execute(&mut render_pass, &current_frame_storage);
+                        }
                     }
 
-                    let command = RenderCommand {
+                    let command = MeshRenderCommand {
                         pipeline_id: lighting_pipeline_id,
                         mesh_id: g_buffer_handle.mesh_id,
                         index_slice: None,
@@ -635,9 +662,13 @@ fn main() {
                             shadow_bind_group.0,
                         ],
                     };
-                    render_system.add_phase_command(lighting_phase_id, command);
+                    {
+                        let mut render_pass =
+                            lighting_phase.render_pass(&mut encoder, &current_frame_storage);
+                        command.execute(&mut render_pass, &current_frame_storage);
+                    }
 
-                    let command = RenderCommand {
+                    let command = MeshRenderCommand {
                         pipeline_id: skybox_pipeline_id,
                         mesh_id: skybox_handle.mesh_id,
                         index_slice: None,
@@ -645,14 +676,15 @@ fn main() {
                         scissor_rect: None,
                         bind_groups: const_vec![skybox_bind_group.0, camera_bind_group.0],
                     };
-                    render_system.add_phase_command(skybox_phase_id, command);
-
-                    match render_system.run(&renderer, &storage) {
-                        Ok(_) => {}
-                        Err(SurfaceError::Lost) => renderer.resize(None),
-                        Err(SurfaceError::OutOfMemory) => target.exit(),
-                        Err(e) => eprintln!("{:?}", e),
+                    {
+                        let mut render_pass =
+                            skybox_phase.render_pass(&mut encoder, &current_frame_storage);
+                        command.execute(&mut render_pass, &current_frame_storage);
                     }
+
+                    let commands = encoder.finish();
+                    renderer.submit(std::iter::once(commands));
+                    current_frame_context.present();
                 }
                 _ => {}
             },

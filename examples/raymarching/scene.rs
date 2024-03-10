@@ -65,7 +65,6 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(Renderer::new(&window));
-    let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
@@ -131,7 +130,6 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    let phase_id = render_system.add_phase(phase);
 
     let mut camera = Camera::new(
         (-10.0, 0.0, 0.0),
@@ -208,7 +206,30 @@ fn main() {
                     camera_controller.update_camera(&mut camera, dt);
                     camera_handle.update(&renderer, &storage, &camera);
 
-                    let command = RenderCommand {
+                    let current_frame_context = match renderer.current_frame() {
+                        Ok(cfc) => cfc,
+                        Err(SurfaceError::Lost) => {
+                            renderer.resize(None);
+                            return;
+                        }
+                        Err(SurfaceError::OutOfMemory) => {
+                            target.exit();
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!("{:?}", e);
+                            return;
+                        }
+                    };
+
+                    let current_frame_storage = CurrentFrameStorage {
+                        storage: &storage,
+                        current_frame_view: current_frame_context.view(),
+                    };
+
+                    let mut encoder = renderer.create_encoder();
+
+                    let command = MeshRenderCommand {
                         pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -216,14 +237,16 @@ fn main() {
                         scissor_rect: None,
                         bind_groups: const_vec![camera_bind_group.0, time_bind_group.0],
                     };
-                    render_system.add_phase_command(phase_id, command);
 
-                    match render_system.run(&renderer, &storage) {
-                        Ok(_) => {}
-                        Err(SurfaceError::Lost) => renderer.resize(None),
-                        Err(SurfaceError::OutOfMemory) => target.exit(),
-                        Err(e) => eprintln!("{:?}", e),
+                    {
+                        let mut render_pass =
+                            phase.render_pass(&mut encoder, &current_frame_storage);
+                        command.execute(&mut render_pass, &current_frame_storage);
                     }
+
+                    let commands = encoder.finish();
+                    renderer.submit(std::iter::once(commands));
+                    current_frame_context.present();
                 }
                 _ => {}
             },

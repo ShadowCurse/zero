@@ -98,7 +98,6 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(Renderer::new(&window));
-    let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
@@ -253,7 +252,6 @@ fn main() {
         },],
         None,
     );
-    let phase_1_id = render_system.add_phase(phase_1);
 
     let phase_2 = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -265,7 +263,6 @@ fn main() {
         },],
         None,
     );
-    let phase_2_id = render_system.add_phase(phase_2);
 
     let phase_3 = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -277,7 +274,6 @@ fn main() {
         },],
         None,
     );
-    let phase_3_id = render_system.add_phase(phase_3);
 
     let phase_4 = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -289,7 +285,6 @@ fn main() {
         },],
         None,
     );
-    let phase_4_id = render_system.add_phase(phase_4);
 
     let phase_5 = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -301,7 +296,6 @@ fn main() {
         },],
         None,
     );
-    let phase_5_id = render_system.add_phase(phase_5);
 
     let final_phase = RenderPhase::new(
         const_vec![ColorAttachment {
@@ -313,7 +307,6 @@ fn main() {
         },],
         None,
     );
-    let final_phase_id = render_system.add_phase(final_phase);
 
     let mut camera = Camera::new(
         (-10.0, 0.0, 0.0),
@@ -386,7 +379,30 @@ fn main() {
                     camera_controller.update_camera(&mut camera, dt);
                     camera_handle.update(&renderer, &storage, &camera);
 
-                    let depth_1_command = RenderCommand {
+                    let current_frame_context = match renderer.current_frame() {
+                        Ok(cfc) => cfc,
+                        Err(SurfaceError::Lost) => {
+                            renderer.resize(None);
+                            return;
+                        }
+                        Err(SurfaceError::OutOfMemory) => {
+                            target.exit();
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!("{:?}", e);
+                            return;
+                        }
+                    };
+
+                    let current_frame_storage = CurrentFrameStorage {
+                        storage: &storage,
+                        current_frame_view: current_frame_context.view(),
+                    };
+
+                    let mut encoder = renderer.create_encoder();
+
+                    let depth_1_command = MeshRenderCommand {
                         pipeline_id: depth_prepass_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -398,9 +414,8 @@ fn main() {
                             depth_0_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(phase_1_id, depth_1_command);
 
-                    let depth_2_command = RenderCommand {
+                    let depth_2_command = MeshRenderCommand {
                         pipeline_id: depth_prepass_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -412,9 +427,8 @@ fn main() {
                             depth_1_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(phase_2_id, depth_2_command);
 
-                    let depth_3_command = RenderCommand {
+                    let depth_3_command = MeshRenderCommand {
                         pipeline_id: depth_prepass_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -426,9 +440,8 @@ fn main() {
                             depth_2_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(phase_3_id, depth_3_command);
 
-                    let depth_4_command = RenderCommand {
+                    let depth_4_command = MeshRenderCommand {
                         pipeline_id: depth_prepass_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -440,9 +453,8 @@ fn main() {
                             depth_3_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(phase_4_id, depth_4_command);
 
-                    let depth_5_command = RenderCommand {
+                    let depth_5_command = MeshRenderCommand {
                         pipeline_id: depth_prepass_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -454,9 +466,8 @@ fn main() {
                             depth_4_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(phase_5_id, depth_5_command);
 
-                    let command = RenderCommand {
+                    let final_command = MeshRenderCommand {
                         pipeline_id: final_pipeline_id,
                         mesh_id,
                         index_slice: None,
@@ -468,14 +479,25 @@ fn main() {
                             depth_5_bind_group.0
                         ],
                     };
-                    render_system.add_phase_command(final_phase_id, command);
 
-                    match render_system.run(&renderer, &storage) {
-                        Ok(_) => {}
-                        Err(SurfaceError::Lost) => renderer.resize(None),
-                        Err(SurfaceError::OutOfMemory) => target.exit(),
-                        Err(e) => eprintln!("{:?}", e),
+                    {
+                        for (phase, command) in [
+                            (&phase_1, depth_1_command),
+                            (&phase_2, depth_2_command),
+                            (&phase_3, depth_3_command),
+                            (&phase_4, depth_4_command),
+                            (&phase_5, depth_5_command),
+                            (&final_phase, final_command),
+                        ] {
+                            let mut render_pass =
+                                phase.render_pass(&mut encoder, &current_frame_storage);
+                            command.execute(&mut render_pass, &current_frame_storage);
+                        }
                     }
+
+                    let commands = encoder.finish();
+                    renderer.submit(std::iter::once(commands));
+                    current_frame_context.present();
                 }
                 _ => {}
             },

@@ -4,7 +4,10 @@ use wgpu::BufferDescriptor;
 
 use crate::{
     const_vec, impl_simple_buffer, impl_simple_sized_gpu_buffer, impl_simple_texture_bind_group,
-    mesh::Mesh, render::prelude::*, texture::GpuTexture, utils::ConstVec,
+    mesh::{Mesh, MeshRenderCommand},
+    render::prelude::*,
+    texture::GpuTexture,
+    utils::ConstVec,
 };
 
 pub struct EguiRenderContext {
@@ -232,7 +235,7 @@ impl EguiRenderContext {
         &self,
         pipeline_id: ResourceId,
         primitives: &[egui::epaint::ClippedPrimitive],
-    ) -> Vec<RenderCommand> {
+    ) -> Vec<MeshRenderCommand> {
         primitives
             .iter()
             .zip(self.index_buffer_slices.iter())
@@ -259,7 +262,7 @@ impl EguiRenderContext {
                                 return None;
                             }
 
-                            Some(RenderCommand {
+                            Some(MeshRenderCommand {
                                 pipeline_id,
                                 mesh_id: self.mesh_id,
                                 index_slice: Some(index_slice.clone()),

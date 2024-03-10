@@ -37,7 +37,6 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(Renderer::new(&window));
-    let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<CameraBindGroup>(&renderer);
@@ -150,7 +149,6 @@ fn main() {
             stencil_ops: None,
         }),
     );
-    let phase_id = render_system.add_phase(phase);
 
     let mut camera = Camera::new(
         (-10.0, 2.0, 0.0),
@@ -287,7 +285,30 @@ fn main() {
                         );
                     cube_transform_handle.update(&renderer, &storage, &cube_transform);
 
-                    let box1 = RenderCommand {
+                    let current_frame_context = match renderer.current_frame() {
+                        Ok(cfc) => cfc,
+                        Err(SurfaceError::Lost) => {
+                            renderer.resize(None);
+                            return;
+                        }
+                        Err(SurfaceError::OutOfMemory) => {
+                            target.exit();
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!("{:?}", e);
+                            return;
+                        }
+                    };
+
+                    let current_frame_storage = CurrentFrameStorage {
+                        storage: &storage,
+                        current_frame_view: current_frame_context.view(),
+                    };
+
+                    let mut encoder = renderer.create_encoder();
+
+                    let box1 = MeshRenderCommand {
                         pipeline_id: color_pipeline_id,
                         mesh_id: box_id,
                         index_slice: None,
@@ -299,7 +320,7 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    let box2 = RenderCommand {
+                    let box2 = MeshRenderCommand {
                         pipeline_id: color_pipeline_id,
                         mesh_id: box2_id,
                         index_slice: None,
@@ -311,7 +332,7 @@ fn main() {
                             camera_bind_group.0,
                         ],
                     };
-                    let cube = RenderCommand {
+                    let cube = MeshRenderCommand {
                         pipeline_id: texture_pipeline_id,
                         mesh_id: cube_model_handler[0].mesh_id,
                         index_slice: None,
@@ -324,16 +345,18 @@ fn main() {
                             light_bind_group.0,
                         ],
                     };
-                    for c in [box1, box2, cube] {
-                        render_system.add_phase_command(phase_id, c);
+
+                    {
+                        let mut render_pass =
+                            phase.render_pass(&mut encoder, &current_frame_storage);
+                        for command in [box1, box2, cube] {
+                            command.execute(&mut render_pass, &current_frame_storage);
+                        }
                     }
 
-                    match render_system.run(&renderer, &storage) {
-                        Ok(_) => {}
-                        Err(SurfaceError::Lost) => renderer.resize(None),
-                        Err(SurfaceError::OutOfMemory) => target.exit(),
-                        Err(e) => eprintln!("{:?}", e),
-                    }
+                    let commands = encoder.finish();
+                    renderer.submit(std::iter::once(commands));
+                    current_frame_context.present();
                 }
                 _ => {}
             },

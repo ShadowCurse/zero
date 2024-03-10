@@ -1,66 +1,11 @@
-use crate::prelude::SparseSet;
-use crate::utils::ConstVec;
+use std::ops::Deref;
 
-use super::renderer::{CurrentFrameContext, Renderer, MAX_BIND_GROUPS, MAX_COLOR_ATTACHMENTS};
+use super::renderer::MAX_COLOR_ATTACHMENTS;
 use super::{
     storage::{RenderStorage, ResourceId},
     wgpu_imports::*,
 };
-use std::ops::Deref;
-use std::ops::Range;
-
-#[derive(Debug, Clone)]
-pub struct RenderCommand {
-    pub pipeline_id: ResourceId,
-    pub mesh_id: ResourceId,
-    pub index_slice: Option<Range<u64>>,
-    pub vertex_slice: Option<Range<u64>>,
-    pub scissor_rect: Option<[u32; 4]>,
-    pub bind_groups: ConstVec<MAX_BIND_GROUPS, ResourceId>,
-}
-
-impl RenderCommand {
-    fn execute<'a>(&self, render_pass: &mut RenderPass<'a>, storage: &'a CurrentFrameStorage) {
-        render_pass.set_pipeline(storage.get_pipeline(self.pipeline_id));
-        for (i, bg) in self.bind_groups.iter().enumerate() {
-            render_pass.set_bind_group(i as u32, storage.get_bind_group(*bg), &[]);
-        }
-
-        if let Some(scissor_rect) = self.scissor_rect {
-            render_pass.set_scissor_rect(
-                scissor_rect[0],
-                scissor_rect[1],
-                scissor_rect[2],
-                scissor_rect[3],
-            )
-        }
-
-        let mesh = storage.get_mesh(self.mesh_id);
-
-        if let Some(vertex_slice) = &self.vertex_slice {
-            render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(vertex_slice.clone()));
-        } else {
-            render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        }
-
-        if let Some(index_buffer) = &mesh.index_buffer {
-            if let Some(index_slice) = &self.index_slice {
-                render_pass
-                    .set_index_buffer(index_buffer.slice(index_slice.clone()), IndexFormat::Uint32);
-                // slice is in bytes so we divide by size of u32 to get
-                // number of actual indices
-                let s = (index_slice.end - index_slice.start) as u32;
-                let s = s / std::mem::size_of::<u32>() as u32;
-                render_pass.draw_indexed(0..s, 0, 0..1);
-            } else {
-                render_pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint32);
-                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
-            }
-        } else {
-            render_pass.draw(0..mesh.num_elements, 0..1);
-        }
-    }
-}
+use crate::utils::ConstVec;
 
 #[derive(Debug)]
 pub struct ColorAttachment {
@@ -79,7 +24,6 @@ pub struct DepthStencil {
 pub struct RenderPhase {
     color_attachments: ConstVec<MAX_COLOR_ATTACHMENTS, ColorAttachment>,
     depth_stencil: Option<DepthStencil>,
-    commands: Vec<RenderCommand>,
 }
 
 impl RenderPhase {
@@ -90,16 +34,20 @@ impl RenderPhase {
         Self {
             color_attachments,
             depth_stencil,
-            commands: Vec::new(),
         }
     }
 
-    pub fn add_command(&mut self, command: RenderCommand) {
-        self.commands.push(command);
-    }
-
-    pub fn clear(&mut self) {
-        self.commands.clear()
+    pub fn render_pass<'a>(
+        &self,
+        encoder: &'a mut CommandEncoder,
+        current_frame_storage: &'a CurrentFrameStorage,
+    ) -> RenderPass<'a> {
+        encoder.begin_render_pass(&RenderPassDescriptor {
+            label: None,
+            color_attachments: &self.color_attachments(current_frame_storage),
+            depth_stencil_attachment: self.depth_stencil_attachment(current_frame_storage),
+            ..Default::default()
+        })
     }
 }
 
@@ -134,10 +82,6 @@ impl RenderPhase {
             }
         })
     }
-
-    fn commands(&self) -> &[RenderCommand] {
-        &self.commands
-    }
 }
 
 pub struct CurrentFrameStorage<'a> {
@@ -159,84 +103,5 @@ impl<'a> Deref for CurrentFrameStorage<'a> {
     type Target = RenderStorage;
     fn deref(&self) -> &Self::Target {
         self.storage
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct RenderSystem {
-    pub phases: SparseSet<RenderPhase>,
-    pub order: Vec<usize>,
-}
-
-impl RenderSystem {
-    pub fn add_phase(&mut self, phase: RenderPhase) -> usize {
-        let phase_id = self.phases.insert(phase);
-        self.order.push(phase_id);
-        phase_id
-    }
-
-    pub fn add_phase_command(&mut self, phase_id: usize, command: RenderCommand) {
-        self.phases
-            .get_mut(phase_id)
-            .unwrap_or_else(|| panic!("Setting commands for non existed phase with id: {phase_id}"))
-            .commands
-            .push(command)
-    }
-
-    #[cfg(not(feature = "headless"))]
-    pub fn run(
-        &mut self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-    ) -> Result<(), SurfaceError> {
-        let current_frame = renderer.current_frame()?;
-        self.run_system(renderer, storage, &current_frame);
-        current_frame.present();
-        Ok(())
-    }
-
-    #[cfg(feature = "headless")]
-    pub fn run(&mut self, renderer: &Renderer, storage: &RenderStorage) {
-        let current_frame = renderer.current_frame();
-        self.run_system(renderer, storage, &current_frame);
-    }
-
-    fn run_system(
-        &mut self,
-        renderer: &Renderer,
-        storage: &RenderStorage,
-        current_frame: &CurrentFrameContext,
-    ) {
-        let mut encoder = renderer.create_encoder();
-
-        let frame_storage = CurrentFrameStorage {
-            storage,
-            current_frame_view: current_frame.view(),
-        };
-
-        for phase_id in self.order.iter() {
-            let phase = self.phases.get_mut(*phase_id).unwrap();
-            Self::execute_phase(&mut encoder, phase, &frame_storage);
-            phase.clear();
-        }
-
-        renderer.submit(std::iter::once(encoder.finish()));
-    }
-
-    fn execute_phase(
-        encoder: &mut CommandEncoder,
-        phase: &RenderPhase,
-        storage: &CurrentFrameStorage,
-    ) {
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: None,
-            color_attachments: &phase.color_attachments(storage),
-            depth_stencil_attachment: phase.depth_stencil_attachment(storage),
-            ..Default::default()
-        });
-
-        for command in phase.commands() {
-            command.execute(&mut render_pass, storage);
-        }
     }
 }

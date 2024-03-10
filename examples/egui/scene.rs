@@ -41,7 +41,6 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
     let mut renderer = pollster::block_on(Renderer::new(&window));
-    let mut render_system = RenderSystem::default();
     let mut storage = RenderStorage::default();
 
     storage.register_bind_group_layout::<EguiBufferBindGroup>(&renderer);
@@ -103,8 +102,6 @@ fn main() {
         }],
         None,
     );
-
-    let egui_phase_id = render_system.add_phase(egui_phase);
 
     let mut egui_render_context = EguiRenderContext::new(&renderer, &mut storage);
     let egui_ctx = egui::Context::default();
@@ -172,19 +169,43 @@ fn main() {
                         let clipped = egui_ctx.tessellate(egui_out.shapes, 1.0);
                         egui_render_context.update_meshes(&renderer, &mut storage, &clipped);
 
+                        let current_frame_context = match renderer.current_frame() {
+                            Ok(cfc) => cfc,
+                            Err(SurfaceError::Lost) => {
+                                renderer.resize(None);
+                                return;
+                            }
+                            Err(SurfaceError::OutOfMemory) => {
+                                target.exit();
+                                return;
+                            }
+                            Err(e) => {
+                                eprintln!("{:?}", e);
+                                return;
+                            }
+                        };
+
+                        let current_frame_storage = CurrentFrameStorage {
+                            storage: &storage,
+                            current_frame_view: current_frame_context.view(),
+                        };
+
+                        let mut encoder = renderer.create_encoder();
+
                         let commands =
                             egui_render_context.create_commands(egui_pipeline_id, &clipped);
 
-                        for c in commands.into_iter() {
-                            render_system.add_phase_command(egui_phase_id, c);
+                        {
+                            let mut render_pass =
+                                egui_phase.render_pass(&mut encoder, &current_frame_storage);
+                            for command in commands {
+                                command.execute(&mut render_pass, &current_frame_storage);
+                            }
                         }
 
-                        match render_system.run(&renderer, &storage) {
-                            Ok(_) => {}
-                            Err(SurfaceError::Lost) => renderer.resize(None),
-                            Err(SurfaceError::OutOfMemory) => target.exit(),
-                            Err(e) => eprintln!("{:?}", e),
-                        }
+                        let commands = encoder.finish();
+                        renderer.submit(std::iter::once(commands));
+                        current_frame_context.present();
                     }
                     _ => {}
                 }
