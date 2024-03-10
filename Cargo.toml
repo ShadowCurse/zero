@@ -29,6 +29,10 @@ path = "examples/headless/scene.rs"
 required-features = ["egui"]
 
 [[example]]
+name = "lines"
+path = "examples/lines/scene.rs"
+
+[[example]]
 name = "raymarching"
 path = "examples/raymarching/scene.rs"
 

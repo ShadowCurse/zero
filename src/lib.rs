@@ -3,6 +3,7 @@ pub mod camera;
 pub mod egui;
 pub mod gbuffer;
 pub mod light;
+pub mod line;
 pub mod material;
 pub mod mesh;
 pub mod model;
@@ -21,6 +22,7 @@ pub mod prelude {
     pub use camera::*;
     pub use gbuffer::*;
     pub use light::*;
+    pub use line::*;
     pub use material::*;
     pub use mesh::*;
     pub use model::*;
