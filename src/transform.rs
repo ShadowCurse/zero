@@ -1,3 +1,5 @@
+use cgmath::Zero;
+
 use crate::render::prelude::*;
 use crate::{cgmath_imports::*, impl_simple_buffer};
 
@@ -26,6 +28,16 @@ pub struct Transform {
     pub translation: Vector3<f32>,
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            translation: Vector3::zero(),
+            rotation: Quaternion::zero(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
 }
 
 impl_simple_buffer!(
