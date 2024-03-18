@@ -85,24 +85,29 @@ impl From<Cube> for Mesh {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Quad {
-    pub size: (f32, f32),
+    pub width: f32,
+    pub height: f32,
     pub flip: bool,
 }
 
 impl Quad {
-    pub fn new(size: (f32, f32)) -> Self {
-        Self { size, flip: false }
+    pub fn new(width: f32, height: f32) -> Self {
+        Self {
+            width,
+            height,
+            flip: false,
+        }
     }
 
-    pub fn flipped(size: (f32, f32)) -> Self {
-        Self { size, flip: true }
+    pub fn flipped(width: f32, height: f32) -> Self {
+        Self { width, height, flip: true }
     }
 }
 
 impl From<Quad> for Mesh {
     fn from(quad: Quad) -> Self {
-        let extent_x = quad.size.0 / 2.0;
-        let extent_y = quad.size.1 / 2.0;
+        let extent_x = quad.width / 2.0;
+        let extent_y = quad.height / 2.0;
 
         let top_left = (-extent_x, extent_y);
         let top_right = (extent_x, extent_y);
