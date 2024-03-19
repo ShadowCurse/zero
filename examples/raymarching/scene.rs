@@ -131,16 +131,15 @@ fn main() {
         }),
     );
 
-    let mut camera = Camera::new(
-        (-10.0, 0.0, 0.0),
-        Deg(0.0),
-        Deg(0.0),
-        renderer.size().width,
-        renderer.size().height,
-        Deg(90.0),
-        0.1,
-        100.0,
-    );
+    let mut camera = Camera::Perspective(PerspectiveCamera {
+        position: (-10.0, 0.0, 0.0).into(),
+        yaw: Deg(0.0).into(),
+        pitch: Deg(0.0).into(),
+        aspect: renderer.size().width as f32 / renderer.size().height as f32,
+        fovy: Deg(90.0).into(),
+        znear: 0.1,
+        zfar: 100.0,
+    });
     let camera_handle = CameraHandle::new(&mut storage, camera.build(&renderer));
     let camera_bind_group = CameraBindGroup::new(&renderer, &mut storage, &camera_handle);
 
