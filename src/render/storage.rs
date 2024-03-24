@@ -1,6 +1,6 @@
 use super::{renderer::Renderer, traits::*, wgpu_imports::*};
 use crate::{mesh::GpuMesh, texture::GpuTexture, utils::sparse_set::SparseSet};
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
 /// Id assighed to any resource
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -8,6 +8,28 @@ pub struct ResourceId(usize);
 
 impl ResourceId {
     pub const WINDOW_VIEW_ID: ResourceId = ResourceId(usize::MAX);
+}
+
+pub struct CurrentFrameStorage<'a> {
+    pub storage: &'a RenderStorage,
+    pub current_frame_view: &'a TextureView,
+}
+
+impl<'a> CurrentFrameStorage<'a> {
+    pub fn get_view(&self, id: ResourceId) -> &TextureView {
+        if id == ResourceId::WINDOW_VIEW_ID {
+            self.current_frame_view
+        } else {
+            &self.storage.get_texture(id).view
+        }
+    }
+}
+
+impl<'a> Deref for CurrentFrameStorage<'a> {
+    type Target = RenderStorage;
+    fn deref(&self) -> &Self::Target {
+        self.storage
+    }
 }
 
 /// Strorage for resources

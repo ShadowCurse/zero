@@ -1,10 +1,6 @@
-use std::ops::Deref;
-
 use super::renderer::MAX_COLOR_ATTACHMENTS;
-use super::{
-    storage::{RenderStorage, ResourceId},
-    wgpu_imports::*,
-};
+use super::storage::CurrentFrameStorage;
+use super::{storage::ResourceId, wgpu_imports::*};
 use crate::utils::ConstVec;
 
 #[derive(Debug)]
@@ -81,27 +77,5 @@ impl RenderPhase {
                 stencil_ops: depth_stencil.stencil_ops,
             }
         })
-    }
-}
-
-pub struct CurrentFrameStorage<'a> {
-    pub storage: &'a RenderStorage,
-    pub current_frame_view: &'a TextureView,
-}
-
-impl<'a> CurrentFrameStorage<'a> {
-    pub fn get_view(&self, id: ResourceId) -> &TextureView {
-        if id == ResourceId::WINDOW_VIEW_ID {
-            self.current_frame_view
-        } else {
-            &self.storage.get_texture(id).view
-        }
-    }
-}
-
-impl<'a> Deref for CurrentFrameStorage<'a> {
-    type Target = RenderStorage;
-    fn deref(&self) -> &Self::Target {
-        self.storage
     }
 }
