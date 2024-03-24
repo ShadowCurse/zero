@@ -1,16 +1,16 @@
 pub mod pipeline_builder;
+pub mod render_phase;
 pub mod renderer;
 pub mod storage;
-pub mod system;
 pub mod traits;
 
 pub mod prelude {
     use super::*;
 
     pub use pipeline_builder::*;
+    pub use render_phase::*;
     pub use renderer::*;
     pub use storage::*;
-    pub use system::*;
     pub use traits::*;
 
     pub use wgpu_imports::*;
