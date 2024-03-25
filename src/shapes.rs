@@ -100,7 +100,11 @@ impl Quad {
     }
 
     pub fn flipped(width: f32, height: f32) -> Self {
-        Self { width, height, flip: true }
+        Self {
+            width,
+            height,
+            flip: true,
+        }
     }
 }
 
@@ -227,6 +231,69 @@ impl From<Icoshphere> for Mesh {
 
         Self {
             name: "icosphere".to_string(),
+            vertices,
+            indices,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Circle {
+    radius: f32,
+    resolution: u32,
+}
+
+impl Circle {
+    pub fn new(radius: f32, resolution: u32) -> Self {
+        Self { radius, resolution }
+    }
+}
+
+impl From<Circle> for Mesh {
+    fn from(value: Circle) -> Self {
+        let circle_top = std::f32::consts::FRAC_PI_2;
+        let angle_step = std::f32::consts::TAU / value.resolution as f32;
+
+        let mut vertices = vec![MeshVertex {
+            position: [0.0, 0.0, 0.0],
+            tex_coords: [0.5, 0.5],
+            normal: [0.0, 0.0, 1.0],
+            ..Default::default()
+        }];
+
+        // Going through circle points in clock wise order
+        for i in 0..value.resolution {
+            let angle = circle_top - i as f32 * angle_step;
+            let (sin, cos) = angle.sin_cos();
+
+            let vertex = (
+                [cos * value.radius, sin * value.radius, 0.0],
+                [cos * 0.5, sin * 0.5],
+                [0.0, 0.0, 1.0],
+            )
+                .into();
+            vertices.push(vertex);
+        }
+
+        // There is a triangle for each pair of circle vertices.
+        // Also there is an additinal triangle that connects
+        // last vertex to first one.
+        let mut indices = vec![0; value.resolution as usize * 3];
+        for i in 0..value.resolution - 1 {
+            let j = i as usize;
+            indices[j * 3] = 0;
+            indices[(j * 3) + 1] = i + 2;
+            indices[(j * 3) + 2] = i + 1;
+        }
+        // Set last triangle
+        indices[((value.resolution - 1) * 3) as usize] = 0;
+        indices[((value.resolution - 1) * 3) as usize + 1] = 1;
+        indices[((value.resolution - 1) * 3) as usize + 2] = value.resolution;
+
+        MeshVertex::calc_tangents_and_bitangents(&mut vertices, &indices);
+
+        Self {
+            name: "circle".to_string(),
             vertices,
             indices,
         }
