@@ -155,8 +155,8 @@ pub struct MeshRenderCommand {
     pub bind_groups: ConstVec<MAX_BIND_GROUPS, ResourceId>,
 }
 
-impl MeshRenderCommand {
-    pub fn execute<'a>(&self, render_pass: &mut RenderPass<'a>, storage: &'a CurrentFrameStorage) {
+impl RenderCommand for MeshRenderCommand {
+    fn execute<'a>(&self, render_pass: &mut RenderPass<'a>, storage: &'a CurrentFrameStorage) {
         render_pass.set_pipeline(storage.get_pipeline(self.pipeline_id));
         for (i, bg) in self.bind_groups.iter().enumerate() {
             render_pass.set_bind_group(i as u32, storage.get_bind_group(*bg), &[]);

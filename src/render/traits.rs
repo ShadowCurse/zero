@@ -1,4 +1,8 @@
-use super::{renderer::Renderer, storage::RenderStorage, wgpu_imports::*};
+use super::{
+    renderer::Renderer,
+    storage::{CurrentFrameStorage, RenderStorage},
+    wgpu_imports::*,
+};
 
 /// Trait for meshes vertices
 pub trait VertexLayout {
@@ -9,6 +13,11 @@ pub trait VertexLayout {
 pub trait GpuResource {
     type ResourceType;
     fn build(&self, renderer: &Renderer) -> Self::ResourceType;
+}
+
+/// Trait for types that execute render commands
+pub trait RenderCommand {
+    fn execute<'a>(&self, render_pass: &mut RenderPass<'a>, storage: &'a CurrentFrameStorage);
 }
 
 /// Trait for types that combine multiple GpuResources
