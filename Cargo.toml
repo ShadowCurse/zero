@@ -51,9 +51,9 @@ x11 = ["winit/x11"]
 egui = { version = "0.27.0", features = ["bytemuck"], optional = true }
 bytemuck = { version = "1.14", features = [ "derive" ] }
 # rwh_05 is needed because wgpu is 0.18 and not 0.18.1
-winit = { version = "0.29", default-features = false, features = ["rwh_05"] }
+winit = { version = "0.29", default-features = false }
 tobj = { version = "4", features = [ "log" ] }
-wgpu = { version = "0.18" }
+wgpu = { version = "0.19" }
 hexasphere = "9"
 thiserror = "1"
 cgmath = "0.18"

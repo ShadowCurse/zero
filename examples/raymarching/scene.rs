@@ -154,7 +154,7 @@ fn main() {
 
     let mut last_render_time = std::time::Instant::now();
     let mut fps_logger = FpsLogger::new();
-    _ = event_loop.run(move |event, target| {
+    _ = event_loop.run(|event, target| {
         target.set_control_flow(ControlFlow::Poll);
         match event {
             Event::DeviceEvent { ref event, .. } => {

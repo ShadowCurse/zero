@@ -29,12 +29,12 @@ impl CurrentFrameContext {
 
 /// Main renderer struct
 #[derive(Debug)]
-pub struct Renderer {
+pub struct Renderer<'window> {
     device: Device,
     queue: Queue,
 
     #[cfg(not(feature = "headless"))]
-    surface: Surface,
+    surface: Surface<'window>,
     #[cfg(not(feature = "headless"))]
     config: SurfaceConfiguration,
 
@@ -44,10 +44,10 @@ pub struct Renderer {
     size: PhysicalSize<u32>,
 }
 
-impl Renderer {
+impl<'window> Renderer<'window> {
     /// Creates new [`Renderer`] instance attached to the provided window
     #[cfg(not(feature = "headless"))]
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &'window Window) -> Renderer<'window> {
         use wgpu::{CompositeAlphaMode, InstanceDescriptor};
 
         let instance = Instance::new(InstanceDescriptor {
@@ -56,7 +56,7 @@ impl Renderer {
         });
 
         let size = window.inner_size();
-        let surface = unsafe { instance.create_surface(window) }.unwrap();
+        let surface = instance.create_surface(window).unwrap();
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
@@ -70,8 +70,8 @@ impl Renderer {
         let (device, queue) = adapter
             .request_device(
                 &DeviceDescriptor {
-                    features: Features::empty(),
-                    limits: Limits {
+                    required_features: Features::empty(),
+                    required_limits: Limits {
                         max_bind_groups: MAX_BIND_GROUPS as u32,
                         ..Default::default()
                     },
@@ -92,6 +92,7 @@ impl Renderer {
             width: size.width,
             height: size.height,
             present_mode: PresentMode::AutoNoVsync,
+            desired_maximum_frame_latency: 2,
             alpha_mode: CompositeAlphaMode::Auto,
             view_formats: vec![formats[0]],
         };
